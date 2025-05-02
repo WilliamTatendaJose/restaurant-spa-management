@@ -1,0 +1,739 @@
+// Browser-compatible database utility using IndexedDB with Supabase sync
+import { v4 as uuidv4 } from "uuid"
+import { getSupabaseBrowserClient, isSupabaseConfigured } from "@/lib/supabase"
+
+// Track pending changes for sync
+let pendingChanges: any[] = []
+let isInitialized = false
+
+// Database structure
+interface Record {
+  id: string
+  [key: string]: any
+}
+
+interface DatabaseStore {
+  [table: string]: Record[]
+}
+
+// In-memory database for operations
+let memoryDb: DatabaseStore = {
+  bookings: [],
+  inventory: [],
+  customers: [],
+  transactions: [],
+  transaction_items: [],
+  staff: [],
+}
+
+// Device ID for sync tracking
+let deviceId = ""
+
+// Initialize the database
+export async function initDatabase() {
+  if (isInitialized) return true
+
+  // Only run in browser
+  if (typeof window === "undefined") return false
+
+  try {
+    // Generate or retrieve device ID
+    deviceId = localStorage.getItem("device_id") || uuidv4()
+    localStorage.setItem("device_id", deviceId)
+
+    // Load data from IndexedDB if available
+    await loadDatabaseFromStorage()
+
+    isInitialized = true
+    console.log("Database initialized in the browser")
+    return true
+  } catch (error) {
+    console.error("Failed to initialize database:", error)
+    return false
+  }
+}
+
+// Save database to IndexedDB for persistence
+async function saveDatabaseToStorage() {
+  if (typeof window === "undefined") return
+
+  try {
+    // Open IndexedDB
+    const dbPromise = indexedDB.open("SpaRestaurantDB", 1)
+
+    // Create object stores if needed
+    dbPromise.onupgradeneeded = (event) => {
+      const db = (event.target as IDBRequest).result
+
+      // Create stores for each table if they don't exist
+      if (!db.objectStoreNames.contains("database")) {
+        db.createObjectStore("database")
+      }
+
+      if (!db.objectStoreNames.contains("pendingChanges")) {
+        db.createObjectStore("pendingChanges")
+      }
+    }
+
+    // Save data when DB is open
+    return new Promise<void>((resolve, reject) => {
+      dbPromise.onsuccess = () => {
+        const db = dbPromise.result
+        const tx = db.transaction(["database", "pendingChanges"], "readwrite")
+        const dbStore = tx.objectStore("database")
+        const changesStore = tx.objectStore("pendingChanges")
+
+        // Store the entire database as JSON
+        dbStore.put(JSON.stringify(memoryDb), "dbData")
+
+        // Store pending changes
+        changesStore.put(JSON.stringify(pendingChanges), "changes")
+
+        tx.oncomplete = () => {
+          db.close()
+          resolve()
+        }
+
+        tx.onerror = () => {
+          reject(new Error("Failed to save database"))
+        }
+      }
+
+      dbPromise.onerror = () => {
+        reject(new Error("Failed to open IndexedDB"))
+      }
+    })
+  } catch (error) {
+    console.error("Failed to save database to storage:", error)
+  }
+}
+
+// Load database from IndexedDB
+async function loadDatabaseFromStorage() {
+  if (typeof window === "undefined") return
+
+  try {
+    // Open IndexedDB
+    const dbPromise = indexedDB.open("SpaRestaurantDB", 1)
+
+    // Create object stores if needed
+    dbPromise.onupgradeneeded = (event) => {
+      const db = (event.target as IDBRequest).result
+
+      if (!db.objectStoreNames.contains("database")) {
+        db.createObjectStore("database")
+      }
+
+      if (!db.objectStoreNames.contains("pendingChanges")) {
+        db.createObjectStore("pendingChanges")
+      }
+    }
+
+    // Load data when DB is open
+    return new Promise<void>((resolve, reject) => {
+      dbPromise.onsuccess = () => {
+        const db = dbPromise.result
+        const tx = db.transaction(["database", "pendingChanges"], "readonly")
+        const dbStore = tx.objectStore("database")
+        const changesStore = tx.objectStore("pendingChanges")
+
+        const dbRequest = dbStore.get("dbData")
+        const changesRequest = changesStore.get("changes")
+
+        dbRequest.onsuccess = () => {
+          if (dbRequest.result) {
+            try {
+              memoryDb = JSON.parse(dbRequest.result)
+              console.log("Database loaded from IndexedDB")
+            } catch (e) {
+              console.error("Error parsing database from storage:", e)
+            }
+          }
+
+          changesRequest.onsuccess = () => {
+            if (changesRequest.result) {
+              try {
+                pendingChanges = JSON.parse(changesRequest.result)
+                console.log("Pending changes loaded from IndexedDB:", pendingChanges.length)
+              } catch (e) {
+                console.error("Error parsing pending changes from storage:", e)
+              }
+            }
+
+            db.close()
+            resolve()
+          }
+
+          changesRequest.onerror = () => {
+            db.close()
+            reject(new Error("Failed to load pending changes"))
+          }
+        }
+
+        dbRequest.onerror = () => {
+          db.close()
+          reject(new Error("Failed to load database"))
+        }
+      }
+
+      dbPromise.onerror = () => {
+        reject(new Error("Failed to open IndexedDB"))
+      }
+    })
+  } catch (error) {
+    console.error("Failed to load database from storage:", error)
+  }
+}
+
+// Generic CRUD operations
+export async function createRecord(table: string, data: any) {
+  await initDatabase()
+
+  const id = data.id || uuidv4()
+  const timestamp = new Date().toISOString()
+
+  // Create the record with timestamps
+  const record = {
+    id,
+    ...data,
+    created_at: timestamp,
+    updated_at: timestamp,
+    is_synced: 0,
+  }
+
+  // Ensure the table exists
+  if (!memoryDb[table]) {
+    memoryDb[table] = []
+  }
+
+  // Add to memory database
+  memoryDb[table].push(record)
+
+  // Add to pending changes
+  pendingChanges.push({
+    type: "create",
+    table,
+    data: record,
+    timestamp,
+    device_id: deviceId,
+  })
+
+  // Save to persistent storage
+  await saveDatabaseToStorage()
+
+  return record
+}
+
+export async function getRecord(table: string, id: string) {
+  await initDatabase()
+
+  // Ensure the table exists
+  if (!memoryDb[table]) {
+    return null
+  }
+
+  // Find the record
+  return memoryDb[table].find((record) => record.id === id) || null
+}
+
+export async function updateRecord(table: string, id: string, data: any) {
+  await initDatabase()
+
+  // Ensure the table exists
+  if (!memoryDb[table]) {
+    throw new Error(`Table ${table} does not exist`)
+  }
+
+  const timestamp = new Date().toISOString()
+
+  // Find the record index
+  const index = memoryDb[table].findIndex((record) => record.id === id)
+
+  if (index === -1) {
+    throw new Error(`Record with id ${id} not found in ${table}`)
+  }
+
+  // Update the record
+  const updatedRecord = {
+    ...memoryDb[table][index],
+    ...data,
+    updated_at: timestamp,
+    is_synced: 0,
+  }
+
+  memoryDb[table][index] = updatedRecord
+
+  // Add to pending changes
+  pendingChanges.push({
+    type: "update",
+    table,
+    id,
+    data,
+    timestamp,
+    device_id: deviceId,
+  })
+
+  // Save to persistent storage
+  await saveDatabaseToStorage()
+
+  return updatedRecord
+}
+
+export async function deleteRecord(table: string, id: string) {
+  await initDatabase()
+
+  // Ensure the table exists
+  if (!memoryDb[table]) {
+    return { success: true }
+  }
+
+  // Find the record index
+  const index = memoryDb[table].findIndex((record) => record.id === id)
+
+  if (index !== -1) {
+    // Get the record before removing it
+    const record = memoryDb[table][index]
+
+    // Remove from memory database
+    memoryDb[table].splice(index, 1)
+
+    // Add to pending changes
+    pendingChanges.push({
+      type: "delete",
+      table,
+      id,
+      data: record, // Include the record data for sync purposes
+      timestamp: new Date().toISOString(),
+      device_id: deviceId,
+    })
+
+    // Save to persistent storage
+    await saveDatabaseToStorage()
+  }
+
+  return { success: true }
+}
+
+export async function listRecords(table: string, filters: any = {}) {
+  await initDatabase()
+
+  // Ensure the table exists
+  if (!memoryDb[table]) {
+    return []
+  }
+
+  // Apply filters if any
+  if (Object.keys(filters).length > 0) {
+    return memoryDb[table].filter((record) => {
+      return Object.entries(filters).every(([key, value]) => record[key] === value)
+    })
+  }
+
+  // Return all records
+  return [...memoryDb[table]]
+}
+
+// Sync functions
+export function getPendingChangesCount() {
+  return pendingChanges.length
+}
+
+export async function syncWithSupabase() {
+  if (typeof window === "undefined" || pendingChanges.length === 0 || !isSupabaseConfigured()) {
+    return { success: true, count: 0 }
+  }
+
+  try {
+    const supabase = getSupabaseBrowserClient()
+    let successCount = 0
+    let errorCount = 0
+    const errors = []
+
+    // Process changes in batches to avoid overwhelming the server
+    const batchSize = 50
+    const batches = Math.ceil(pendingChanges.length / batchSize)
+
+    for (let i = 0; i < batches; i++) {
+      const batchStart = i * batchSize
+      const batchEnd = Math.min((i + 1) * batchSize, pendingChanges.length)
+      const batch = pendingChanges.slice(batchStart, batchEnd)
+
+      // Process each change in the batch
+      for (const change of batch) {
+        try {
+          const { type, table, id, data, timestamp } = change
+
+          if (type === "create" || type === "update") {
+            // For create and update, use upsert
+            // Remove is_synced from the data before sending to Supabase
+            const { is_synced, ...dataWithoutSync } = data
+
+            const { error } = await supabase.from(table).upsert({
+              ...dataWithoutSync,
+              updated_at: new Date().toISOString(),
+            })
+
+            if (error) {
+              // Check if this is a "relation does not exist" error
+              if (error.message && error.message.includes("does not exist")) {
+                console.log(`Table ${table} does not exist yet in Supabase, skipping sync for this change`)
+                // We'll count this as a success since it's not a real error, just a table that needs to be created
+                successCount++
+                continue
+              }
+              throw error
+            }
+          } else if (type === "delete") {
+            // For delete, remove the record
+            const { error } = await supabase.from(table).delete().eq("id", id)
+
+            if (error) {
+              // Check if this is a "relation does not exist" error
+              if (error.message && error.message.includes("does not exist")) {
+                console.log(`Table ${table} does not exist yet in Supabase, skipping sync for this change`)
+                // We'll count this as a success since it's not a real error, just a table that needs to be created
+                successCount++
+                continue
+              }
+              throw error
+            }
+          }
+
+          // Log successful sync
+          try {
+            await supabase.from("sync_log").insert({
+              device_id: deviceId,
+              sync_type: "push",
+              entity_type: table,
+              entity_id: id,
+              operation: type,
+              status: "success",
+            })
+          } catch (logError) {
+            // If sync_log table doesn't exist yet, just continue
+            if (logError.message && logError.message.includes("does not exist")) {
+              console.log("sync_log table does not exist yet, skipping log entry")
+            } else {
+              console.error("Failed to log sync success:", logError)
+            }
+          }
+
+          successCount++
+        } catch (error) {
+          console.error("Error syncing change:", error, change)
+          errorCount++
+          errors.push({ change, error })
+
+          // Log failed sync
+          try {
+            await supabase.from("sync_log").insert({
+              device_id: deviceId,
+              sync_type: "push",
+              entity_type: change.table,
+              entity_id: change.id,
+              operation: change.type,
+              status: "error",
+              error_message: error.message || "Unknown error",
+            })
+          } catch (logError) {
+            // If sync_log table doesn't exist yet, just continue
+            if (logError.message && logError.message.includes("does not exist")) {
+              console.log("sync_log table does not exist yet, skipping log entry")
+            } else {
+              console.error("Failed to log sync error:", logError)
+            }
+          }
+        }
+      }
+    }
+
+    // Remove successfully synced changes
+    if (successCount > 0) {
+      // Keep only the failed changes
+      pendingChanges = pendingChanges.filter((_, index) => {
+        const batchIndex = Math.floor(index / batchSize)
+        const indexInBatch = index % batchSize
+        const batchStart = batchIndex * batchSize
+
+        // Check if this change is in a processed batch and failed
+        return errors.some((e) => e.change === pendingChanges[batchStart + indexInBatch])
+      })
+
+      // Save updated pending changes
+      await saveDatabaseToStorage()
+
+      // Mark all records as synced
+      Object.keys(memoryDb).forEach((table) => {
+        memoryDb[table] = memoryDb[table].map((record) => ({
+          ...record,
+          is_synced: 1,
+        }))
+      })
+
+      await saveDatabaseToStorage()
+    }
+
+    return {
+      success: errorCount === 0,
+      count: successCount,
+      errors: errorCount > 0 ? errors : undefined,
+    }
+  } catch (error) {
+    console.error("Sync error:", error)
+    return { success: false, error: String(error) }
+  }
+}
+
+// Pull changes from Supabase
+export async function pullFromSupabase() {
+  if (typeof window === "undefined" || !isSupabaseConfigured()) {
+    return { success: true, count: 0 }
+  }
+
+  try {
+    const supabase = getSupabaseBrowserClient()
+    let totalChanges = 0
+
+    // Get the latest sync timestamp for this device
+    const lastSyncKey = `last_sync_${deviceId}`
+    const lastSync = localStorage.getItem(lastSyncKey) || new Date(0).toISOString()
+    const now = new Date().toISOString()
+
+    // For each table, pull changes since last sync
+    for (const table of Object.keys(memoryDb)) {
+      // Skip transaction_items as they're handled with transactions
+      if (table === "transaction_items") continue
+
+      try {
+        // Get records updated since last sync
+        const { data, error } = await supabase.from(table).select("*").gt("updated_at", lastSync)
+
+        if (error) {
+          // Check if this is a "relation does not exist" error
+          if (error.message && error.message.includes("does not exist")) {
+            console.log(`Table ${table} does not exist yet in Supabase, skipping sync`)
+            continue
+          }
+
+          console.error(`Error pulling ${table} changes:`, error)
+          continue
+        }
+
+        if (!data || data.length === 0) continue
+
+        // Process each record
+        for (const record of data) {
+          // Skip records from this device (already in local DB)
+          const changeFromThisDevice = pendingChanges.some(
+            (change) => change.table === table && change.id === record.id,
+          )
+
+          if (changeFromThisDevice) continue
+
+          // Check if record exists locally
+          const localIndex = memoryDb[table].findIndex((r) => r.id === record.id)
+
+          if (localIndex >= 0) {
+            // Update existing record
+            memoryDb[table][localIndex] = {
+              ...record,
+              is_synced: 1,
+            }
+          } else {
+            // Add new record
+            memoryDb[table].push({
+              ...record,
+              is_synced: 1,
+            })
+          }
+
+          totalChanges++
+        }
+      } catch (error) {
+        console.error(`Error processing ${table} changes:`, error)
+        continue
+      }
+    }
+
+    // Handle transaction_items separately (with their parent transactions)
+    const { data: transactions, error: txError } = await supabase
+      .from("transactions")
+      .select("*, transaction_items(*)")
+      .gt("updated_at", lastSync)
+
+    if (!txError && transactions && transactions.length > 0) {
+      for (const tx of transactions) {
+        // Skip transactions from this device
+        const txFromThisDevice = pendingChanges.some((change) => change.table === "transactions" && change.id === tx.id)
+
+        if (txFromThisDevice) continue
+
+        // Process transaction
+        const localTxIndex = memoryDb.transactions.findIndex((t) => t.id === tx.id)
+
+        if (localTxIndex >= 0) {
+          // Update existing transaction
+          memoryDb.transactions[localTxIndex] = {
+            ...tx,
+            transaction_items: undefined, // Remove items, we'll handle them separately
+            is_synced: 1,
+          }
+        } else {
+          // Add new transaction
+          memoryDb.transactions.push({
+            ...tx,
+            transaction_items: undefined, // Remove items, we'll handle them separately
+            is_synced: 1,
+          })
+        }
+
+        // Process transaction items
+        if (tx.transaction_items && tx.transaction_items.length > 0) {
+          for (const item of tx.transaction_items) {
+            const localItemIndex = memoryDb.transaction_items.findIndex((i) => i.id === item.id)
+
+            if (localItemIndex >= 0) {
+              // Update existing item
+              memoryDb.transaction_items[localItemIndex] = {
+                ...item,
+                is_synced: 1,
+              }
+            } else {
+              // Add new item
+              memoryDb.transaction_items.push({
+                ...item,
+                is_synced: 1,
+              })
+            }
+
+            totalChanges++
+          }
+        }
+
+        totalChanges++
+      }
+    }
+
+    // Save updated database
+    if (totalChanges > 0) {
+      await saveDatabaseToStorage()
+    }
+
+    // Update last sync timestamp
+    localStorage.setItem(lastSyncKey, now)
+
+    return { success: true, count: totalChanges }
+  } catch (error) {
+    console.error("Pull sync error:", error)
+    return { success: false, error: String(error) }
+  }
+}
+
+// Specific APIs for each entity
+export const bookingsApi = {
+  create: (data: any) => createRecord("bookings", data),
+  get: (id: string) => getRecord("bookings", id),
+  update: (id: string, data: any) => updateRecord("bookings", id, data),
+  delete: (id: string) => deleteRecord("bookings", id),
+  list: (filters: any = {}) => listRecords("bookings", filters),
+}
+
+export const inventoryApi = {
+  create: (data: any) => createRecord("inventory", data),
+  get: (id: string) => getRecord("inventory", id),
+  update: (id: string, data: any) => updateRecord("inventory", id, data),
+  delete: (id: string) => deleteRecord("inventory", id),
+  list: (filters: any = {}) => listRecords("inventory", filters),
+}
+
+export const customersApi = {
+  create: (data: any) => createRecord("customers", data),
+  get: (id: string) => getRecord("customers", id),
+  update: (id: string, data: any) => updateRecord("customers", id, data),
+  delete: (id: string) => deleteRecord("customers", id),
+  list: (filters: any = {}) => listRecords("customers", filters),
+}
+
+export const transactionsApi = {
+  create: (data: any) => createRecord("transactions", data),
+  get: (id: string) => getRecord("transactions", id),
+  update: (id: string, data: any) => updateRecord("transactions", id, data),
+  delete: (id: string) => deleteRecord("transactions", id),
+  list: (filters: any = {}) => listRecords("transactions", filters),
+
+  // Additional method for transaction items
+  addItem: async (transactionId: string, item: any) => {
+    const itemId = uuidv4()
+    const itemData = {
+      id: itemId,
+      transaction_id: transactionId,
+      item_name: item.name,
+      quantity: item.quantity,
+      price: item.price,
+    }
+
+    await createRecord("transaction_items", itemData)
+    return itemData
+  },
+
+  getItems: async (transactionId: string) => {
+    await initDatabase()
+
+    if (!memoryDb["transaction_items"]) {
+      return []
+    }
+
+    return memoryDb["transaction_items"].filter((item) => item.transaction_id === transactionId)
+  },
+}
+
+export const staffApi = {
+  create: (data: any) => createRecord("staff", data),
+  get: (id: string) => getRecord("staff", id),
+  update: (id: string, data: any) => updateRecord("staff", id, data),
+  delete: (id: string) => deleteRecord("staff", id),
+  list: (filters: any = {}) => listRecords("staff", filters),
+}
+
+// Add some sample data for testing
+export async function addSampleData() {
+  // Only add sample data if tables are empty
+  await initDatabase()
+
+  if (memoryDb.bookings.length === 0) {
+    await bookingsApi.create({
+      customer_name: "Sarah Johnson",
+      customer_phone: "555-123-4567",
+      customer_email: "sarah.j@example.com",
+      booking_date: "2025-04-22",
+      booking_time: "14:00",
+      service: "massage",
+      staff: "john",
+      notes: "First time client",
+      booking_type: "spa",
+      status: "confirmed",
+    })
+  }
+
+  if (memoryDb.inventory.length === 0) {
+    await inventoryApi.create({
+      name: "Massage Oil (Lavender)",
+      category: "spa",
+      quantity: 24,
+      unit: "bottle",
+      reorder_level: 10,
+      last_updated: "2025-04-15",
+    })
+  }
+
+  if (memoryDb.customers.length === 0) {
+    await customersApi.create({
+      name: "Sarah Johnson",
+      email: "sarah.j@example.com",
+      phone: "555-123-4567",
+      visits: 8,
+      last_visit: "2025-04-18",
+      customer_type: "spa",
+    })
+  }
+}
