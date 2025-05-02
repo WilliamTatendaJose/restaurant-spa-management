@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -22,26 +22,85 @@ interface Customer {
   address?: string
   customer_type: string
   notes?: string
+  visits?: number
+  last_visit?: string
 }
 
 interface CustomerFormProps {
   customer?: Customer
+  customerId?: string
 }
 
-export function CustomerForm({ customer }: CustomerFormProps) {
+export function CustomerForm({ customer, customerId }: CustomerFormProps) {
   const router = useRouter()
   const { toast } = useToast()
   const { isOnline } = useSyncStatus()
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [isLoading, setIsLoading] = useState(!!customerId)
+  const [currentCustomer, setCurrentCustomer] = useState<Customer | null>(customer || null)
 
   const [formData, setFormData] = useState<Customer>({
-    name: customer?.name || "",
-    email: customer?.email || "",
-    phone: customer?.phone || "",
-    address: customer?.address || "",
-    customer_type: customer?.customer_type || "both",
-    notes: customer?.notes || "",
+    name: "",
+    email: "",
+    phone: "",
+    address: "",
+    customer_type: "both",
+    notes: "",
   })
+
+  // Fetch customer if customerId is provided
+  useEffect(() => {
+    async function fetchCustomer() {
+      if (!customerId) return
+
+      try {
+        const fetchedCustomer = await customersApi.get(customerId)
+        if (fetchedCustomer) {
+          // Type cast the fetched customer as a Customer
+          const typedCustomer = fetchedCustomer as unknown as Customer
+          setCurrentCustomer(typedCustomer)
+          setFormData({
+            name: typedCustomer.name || "",
+            email: typedCustomer.email || "",
+            phone: typedCustomer.phone || "",
+            address: typedCustomer.address || "",
+            customer_type: typedCustomer.customer_type || "both",
+            notes: typedCustomer.notes || "",
+          })
+        } else {
+          toast({
+            title: "Error",
+            description: "Customer not found",
+            variant: "destructive",
+          })
+          router.push("/customers")
+        }
+      } catch (error) {
+        console.error("Error fetching customer:", error)
+        toast({
+          title: "Error",
+          description: "Failed to fetch customer. Please try again.",
+          variant: "destructive",
+        })
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    if (customerId) {
+      fetchCustomer()
+    } else if (customer) {
+      // If customer is directly provided, use it
+      setFormData({
+        name: customer.name,
+        email: customer.email,
+        phone: customer.phone,
+        address: customer.address || "",
+        customer_type: customer.customer_type,
+        notes: customer.notes || "",
+      })
+    }
+  }, [customerId, customer, toast, router])
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target
@@ -57,9 +116,13 @@ export function CustomerForm({ customer }: CustomerFormProps) {
     setIsSubmitting(true)
 
     try {
-      if (customer?.id) {
+      if (currentCustomer?.id || customerId) {
         // Update existing customer
-        await customersApi.update(customer.id, formData)
+        await customersApi.update(currentCustomer?.id || customerId!, {
+          ...formData,
+          // Preserve existing visits count or default to 0
+          visits: currentCustomer?.visits || 0,
+        })
         toast({
           title: "Customer updated",
           description: isOnline
@@ -92,6 +155,18 @@ export function CustomerForm({ customer }: CustomerFormProps) {
     } finally {
       setIsSubmitting(false)
     }
+  }
+
+  if (isLoading) {
+    return (
+      <Card>
+        <CardContent className="pt-6">
+          <div className="flex justify-center items-center p-8">
+            <p>Loading customer data...</p>
+          </div>
+        </CardContent>
+      </Card>
+    )
   }
 
   return (
@@ -185,7 +260,7 @@ export function CustomerForm({ customer }: CustomerFormProps) {
               Cancel
             </Button>
             <Button type="submit" disabled={isSubmitting}>
-              {isSubmitting ? "Saving..." : customer ? "Update Customer" : "Add Customer"}
+              {isSubmitting ? "Saving..." : currentCustomer?.id || customerId ? "Update Customer" : "Add Customer"}
             </Button>
           </div>
         </form>

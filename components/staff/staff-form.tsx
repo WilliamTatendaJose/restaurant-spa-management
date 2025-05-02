@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -26,22 +26,79 @@ interface StaffMember {
 
 interface StaffFormProps {
   staff?: StaffMember
+  staffId?: string
 }
 
-export function StaffForm({ staff }: StaffFormProps) {
+export function StaffForm({ staff, staffId }: StaffFormProps) {
   const router = useRouter()
   const { toast } = useToast()
   const { isOnline } = useSyncStatus()
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [isLoading, setIsLoading] = useState(!!staffId)
+  const [currentStaff, setCurrentStaff] = useState<StaffMember | null>(staff || null)
 
   const [formData, setFormData] = useState<StaffMember>({
-    name: staff?.name || "",
-    role: staff?.role || "",
-    department: staff?.department || "spa",
-    email: staff?.email || "",
-    phone: staff?.phone || "",
-    status: staff?.status || "active",
+    name: "",
+    role: "",
+    department: "spa",
+    email: "",
+    phone: "",
+    status: "active",
   })
+
+  // Fetch staff member if staffId is provided
+  useEffect(() => {
+    async function fetchStaffMember() {
+      if (!staffId) return
+
+      try {
+        const fetchedStaff = await staffApi.get(staffId)
+        if (fetchedStaff) {
+          // Type cast the fetched staff as a StaffMember
+          const typedStaff = fetchedStaff as unknown as StaffMember
+          setCurrentStaff(typedStaff)
+          setFormData({
+            name: typedStaff.name || "",
+            role: typedStaff.role || "",
+            department: typedStaff.department || "spa",
+            email: typedStaff.email || "",
+            phone: typedStaff.phone || "",
+            status: typedStaff.status || "active",
+          })
+        } else {
+          toast({
+            title: "Error",
+            description: "Staff member not found",
+            variant: "destructive",
+          })
+          router.push("/staff")
+        }
+      } catch (error) {
+        console.error("Error fetching staff member:", error)
+        toast({
+          title: "Error",
+          description: "Failed to fetch staff member. Please try again.",
+          variant: "destructive",
+        })
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    if (staffId) {
+      fetchStaffMember()
+    } else if (staff) {
+      // If staff is directly provided, use it
+      setFormData({
+        name: staff.name,
+        role: staff.role,
+        department: staff.department,
+        email: staff.email,
+        phone: staff.phone,
+        status: staff.status,
+      })
+    }
+  }, [staffId, staff, toast, router])
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target
@@ -61,9 +118,9 @@ export function StaffForm({ staff }: StaffFormProps) {
     setIsSubmitting(true)
 
     try {
-      if (staff?.id) {
+      if (currentStaff?.id || staffId) {
         // Update existing staff
-        await staffApi.update(staff.id, formData)
+        await staffApi.update(currentStaff?.id || staffId!, formData)
         toast({
           title: "Staff updated",
           description: isOnline
@@ -92,6 +149,18 @@ export function StaffForm({ staff }: StaffFormProps) {
     } finally {
       setIsSubmitting(false)
     }
+  }
+
+  if (isLoading) {
+    return (
+      <Card>
+        <CardContent className="pt-6">
+          <div className="flex justify-center items-center p-8">
+            <p>Loading staff data...</p>
+          </div>
+        </CardContent>
+      </Card>
+    )
   }
 
   return (
@@ -177,7 +246,7 @@ export function StaffForm({ staff }: StaffFormProps) {
               Cancel
             </Button>
             <Button type="submit" disabled={isSubmitting}>
-              {isSubmitting ? "Saving..." : staff ? "Update Staff" : "Add Staff"}
+              {isSubmitting ? "Saving..." : currentStaff?.id || staffId ? "Update Staff" : "Add Staff"}
             </Button>
           </div>
         </form>

@@ -1,63 +1,46 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Search } from "lucide-react"
+import Link from "next/link"
+import { customersApi } from "@/lib/db"
 
-// Mock customer data
-const customers = [
-  {
-    id: "1",
-    name: "Sarah Johnson",
-    email: "sarah.j@example.com",
-    phone: "555-123-4567",
-    visits: 8,
-    lastVisit: "2025-04-18",
-    type: "spa",
-  },
-  {
-    id: "2",
-    name: "Michael Chen",
-    email: "michael.c@example.com",
-    phone: "555-987-6543",
-    visits: 12,
-    lastVisit: "2025-04-20",
-    type: "restaurant",
-  },
-  {
-    id: "3",
-    name: "Emma Wilson",
-    email: "emma.w@example.com",
-    phone: "555-456-7890",
-    visits: 5,
-    lastVisit: "2025-04-15",
-    type: "both",
-  },
-  {
-    id: "4",
-    name: "James Rodriguez",
-    email: "james.r@example.com",
-    phone: "555-789-0123",
-    visits: 3,
-    lastVisit: "2025-04-10",
-    type: "restaurant",
-  },
-  {
-    id: "5",
-    name: "Lisa Thompson",
-    email: "lisa.t@example.com",
-    phone: "555-234-5678",
-    visits: 15,
-    lastVisit: "2025-04-21",
-    type: "spa",
-  },
-]
+// Define the type for customers
+interface Customer {
+  id: string
+  name: string
+  email: string
+  phone: string
+  visits: number
+  last_visit?: string
+  customer_type: string
+  address?: string
+  notes?: string
+}
 
 export function CustomerList() {
   const [searchQuery, setSearchQuery] = useState("")
+  const [customers, setCustomers] = useState<Customer[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+
+  useEffect(() => {
+    async function fetchCustomers() {
+      try {
+        const data = await customersApi.list() as Customer[]
+        setCustomers(data)
+      } catch (error) {
+        console.error("Error fetching customers:", error)
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    fetchCustomers()
+  }, [])
 
   const filteredCustomers = customers.filter(
     (customer) =>
@@ -82,47 +65,63 @@ export function CustomerList() {
       </div>
 
       <div className="rounded-md border">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Name</TableHead>
-              <TableHead>Contact</TableHead>
-              <TableHead>Visits</TableHead>
-              <TableHead>Last Visit</TableHead>
-              <TableHead>Customer Type</TableHead>
-              <TableHead className="text-right">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {filteredCustomers.map((customer) => (
-              <TableRow key={customer.id}>
-                <TableCell className="font-medium">{customer.name}</TableCell>
-                <TableCell>
-                  <div className="space-y-1">
-                    <p className="text-sm">{customer.email}</p>
-                    <p className="text-sm text-muted-foreground">{customer.phone}</p>
-                  </div>
-                </TableCell>
-                <TableCell>{customer.visits}</TableCell>
-                <TableCell>{customer.lastVisit}</TableCell>
-                <TableCell>
-                  {customer.type === "both" ? (
-                    <Badge>Spa & Restaurant</Badge>
-                  ) : (
-                    <Badge variant={customer.type === "spa" ? "secondary" : "outline"}>
-                      {customer.type === "spa" ? "Spa" : "Restaurant"}
-                    </Badge>
-                  )}
-                </TableCell>
-                <TableCell className="text-right">
-                  <Button variant="ghost" size="sm">
-                    View
-                  </Button>
-                </TableCell>
+        {isLoading ? (
+          <div className="flex justify-center items-center p-8">
+            <p>Loading customers...</p>
+          </div>
+        ) : (
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Name</TableHead>
+                <TableHead>Contact</TableHead>
+                <TableHead>Visits</TableHead>
+                <TableHead>Last Visit</TableHead>
+                <TableHead>Customer Type</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+            </TableHeader>
+            <TableBody>
+              {filteredCustomers.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={6} className="text-center py-4">
+                    No customers found
+                  </TableCell>
+                </TableRow>
+              ) : (
+                filteredCustomers.map((customer) => (
+                  <TableRow key={customer.id}>
+                    <TableCell className="font-medium">{customer.name}</TableCell>
+                    <TableCell>
+                      <div className="space-y-1">
+                        <p className="text-sm">{customer.email}</p>
+                        <p className="text-sm text-muted-foreground">{customer.phone}</p>
+                      </div>
+                    </TableCell>
+                    <TableCell>{customer.visits}</TableCell>
+                    <TableCell>
+                      {customer.last_visit ? new Date(customer.last_visit).toLocaleDateString() : "N/A"}
+                    </TableCell>
+                    <TableCell>
+                      {customer.customer_type === "both" ? (
+                        <Badge>Spa & Restaurant</Badge>
+                      ) : (
+                        <Badge variant={customer.customer_type === "spa" ? "secondary" : "outline"}>
+                          {customer.customer_type === "spa" ? "Spa" : "Restaurant"}
+                        </Badge>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <Button variant="ghost" size="sm" asChild>
+                        <Link href={`/customers/edit/${customer.id}`}>Edit</Link>
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        )}
       </div>
     </div>
   )

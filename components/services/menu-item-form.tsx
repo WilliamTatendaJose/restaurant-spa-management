@@ -14,15 +14,17 @@ import { Switch } from "@/components/ui/switch"
 import { Checkbox } from "@/components/ui/checkbox"
 import { useToast } from "@/components/ui/use-toast"
 import { useSyncStatus } from "@/components/sync-status-provider"
+import { menuItemsApi } from "@/lib/db"
 
 interface MenuItem {
-  id: string
+  id?: string
   name: string
   description: string
   price: number
   category: string
-  dietary: string[]
-  isAvailable: boolean
+  dietary?: string[]
+  isAvailable?: boolean
+  status?: string
 }
 
 interface MenuItemFormProps {
@@ -39,7 +41,7 @@ export function MenuItemForm({ menuItem }: MenuItemFormProps) {
     description: menuItem?.description || "",
     price: menuItem?.price?.toString() || "",
     category: menuItem?.category || "food",
-    isAvailable: menuItem?.isAvailable ?? true,
+    status: menuItem?.status || (menuItem?.isAvailable ? "active" : "inactive") || "active",
   })
 
   const [dietary, setDietary] = useState<string[]>(menuItem?.dietary || [])
@@ -54,8 +56,8 @@ export function MenuItemForm({ menuItem }: MenuItemFormProps) {
     setFormData((prev) => ({ ...prev, [name]: value }))
   }
 
-  const handleSwitchChange = (name: string, checked: boolean) => {
-    setFormData((prev) => ({ ...prev, [name]: checked }))
+  const handleSwitchChange = (checked: boolean) => {
+    setFormData((prev) => ({ ...prev, status: checked ? "active" : "inactive" }))
   }
 
   const handleDietaryChange = (value: string, checked: boolean) => {
@@ -71,8 +73,22 @@ export function MenuItemForm({ menuItem }: MenuItemFormProps) {
     setIsSubmitting(true)
 
     try {
-      // In a real app, this would save to SQLite
-      console.log("Saving menu item:", { ...formData, dietary })
+      const menuItemData = {
+        name: formData.name,
+        description: formData.description,
+        price: parseFloat(formData.price),
+        category: formData.category,
+        dietary: dietary,
+        status: formData.status,
+      }
+
+      if (menuItem?.id) {
+        // Update existing menu item
+        await menuItemsApi.update(menuItem.id, menuItemData)
+      } else {
+        // Create new menu item
+        await menuItemsApi.create(menuItemData)
+      }
 
       toast({
         title: menuItem ? "Menu item updated" : "Menu item created",
@@ -82,6 +98,7 @@ export function MenuItemForm({ menuItem }: MenuItemFormProps) {
       })
 
       router.push("/services/restaurant")
+      router.refresh()
     } catch (error) {
       console.error("Error saving menu item:", error)
       toast({
@@ -161,7 +178,7 @@ export function MenuItemForm({ menuItem }: MenuItemFormProps) {
                   <Checkbox
                     id="vegetarian"
                     checked={dietary.includes("vegetarian")}
-                    onCheckedChange={(checked) => handleDietaryChange("vegetarian", checked)}
+                    onCheckedChange={(checked) => handleDietaryChange("vegetarian", checked === true)}
                   />
                   <Label htmlFor="vegetarian">Vegetarian</Label>
                 </div>
@@ -169,7 +186,7 @@ export function MenuItemForm({ menuItem }: MenuItemFormProps) {
                   <Checkbox
                     id="vegan"
                     checked={dietary.includes("vegan")}
-                    onCheckedChange={(checked) => handleDietaryChange("vegan", checked)}
+                    onCheckedChange={(checked) => handleDietaryChange("vegan", checked === true)}
                   />
                   <Label htmlFor="vegan">Vegan</Label>
                 </div>
@@ -177,7 +194,7 @@ export function MenuItemForm({ menuItem }: MenuItemFormProps) {
                   <Checkbox
                     id="gluten-free"
                     checked={dietary.includes("gluten-free")}
-                    onCheckedChange={(checked) => handleDietaryChange("gluten-free", checked)}
+                    onCheckedChange={(checked) => handleDietaryChange("gluten-free", checked === true)}
                   />
                   <Label htmlFor="gluten-free">Gluten-Free</Label>
                 </div>
@@ -185,7 +202,7 @@ export function MenuItemForm({ menuItem }: MenuItemFormProps) {
                   <Checkbox
                     id="dairy-free"
                     checked={dietary.includes("dairy-free")}
-                    onCheckedChange={(checked) => handleDietaryChange("dairy-free", checked)}
+                    onCheckedChange={(checked) => handleDietaryChange("dairy-free", checked === true)}
                   />
                   <Label htmlFor="dairy-free">Dairy-Free</Label>
                 </div>
@@ -194,11 +211,11 @@ export function MenuItemForm({ menuItem }: MenuItemFormProps) {
 
             <div className="flex items-center space-x-2">
               <Switch
-                id="isAvailable"
-                checked={formData.isAvailable}
-                onCheckedChange={(checked) => handleSwitchChange("isAvailable", checked)}
+                id="status"
+                checked={formData.status === "active"}
+                onCheckedChange={handleSwitchChange}
               />
-              <Label htmlFor="isAvailable">Item is available on the menu</Label>
+              <Label htmlFor="status">Item is available on the menu</Label>
             </div>
           </div>
 

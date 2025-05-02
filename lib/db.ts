@@ -24,6 +24,8 @@ let memoryDb: DatabaseStore = {
   transactions: [],
   transaction_items: [],
   staff: [],
+  spa_services: [],
+  menu_items: [],
 }
 
 // Device ID for sync tracking
@@ -695,6 +697,48 @@ export const staffApi = {
   list: (filters: any = {}) => listRecords("staff", filters),
 }
 
+// New API for spa services table
+export const spaServicesApi = {
+  create: (data: any) => createRecord("spa_services", data),
+  get: (id: string) => getRecord("spa_services", id),
+  update: (id: string, data: any) => updateRecord("spa_services", id, data),
+  delete: (id: string) => deleteRecord("spa_services", id),
+  list: (filters: any = {}) => listRecords("spa_services", filters),
+  listActive: async () => {
+    await initDatabase()
+    if (!memoryDb["spa_services"]) {
+      memoryDb["spa_services"] = []
+      return []
+    }
+    return memoryDb["spa_services"].filter((service) => service.status === "active")
+  },
+}
+
+// New API for menu items table
+export const menuItemsApi = {
+  create: (data: any) => createRecord("menu_items", data),
+  get: (id: string) => getRecord("menu_items", id),
+  update: (id: string, data: any) => updateRecord("menu_items", id, data),
+  delete: (id: string) => deleteRecord("menu_items", id),
+  list: (filters: any = {}) => listRecords("menu_items", filters),
+  listActive: async () => {
+    await initDatabase()
+    if (!memoryDb["menu_items"]) {
+      memoryDb["menu_items"] = []
+      return []
+    }
+    return memoryDb["menu_items"].filter((item) => item.status === "active")
+  },
+  listByCategory: async (category: string) => {
+    await initDatabase()
+    if (!memoryDb["menu_items"]) {
+      memoryDb["menu_items"] = []
+      return []
+    }
+    return memoryDb["menu_items"].filter((item) => item.category === category && item.status === "active")
+  },
+}
+
 // Add some sample data for testing
 export async function addSampleData() {
   // Only add sample data if tables are empty
@@ -734,6 +778,154 @@ export async function addSampleData() {
       visits: 8,
       last_visit: "2025-04-18",
       customer_type: "spa",
+    })
+  }
+
+  // Add sample spa services if none exist
+  if (!memoryDb.spa_services || memoryDb.spa_services.length === 0) {
+    await spaServicesApi.create({
+      name: "Deep Tissue Massage",
+      description: "A therapeutic massage focused on realigning deeper layers of muscles",
+      duration: 60,
+      price: 120,
+      category: "massage",
+      status: "active",
+    })
+
+    await spaServicesApi.create({
+      name: "Facial Treatment",
+      description: "Comprehensive skincare treatment for face",
+      duration: 45,
+      price: 85,
+      category: "skincare",
+      status: "active",
+    })
+
+    await spaServicesApi.create({
+      name: "Hot Stone Massage",
+      description: "Massage therapy with hot stones for deeper relaxation",
+      duration: 90,
+      price: 150,
+      category: "massage",
+      status: "active",
+    })
+
+    await spaServicesApi.create({
+      name: "Manicure & Pedicure",
+      description: "Complete nail care for hands and feet",
+      duration: 60,
+      price: 65,
+      category: "beauty",
+      status: "active",
+    })
+
+    await spaServicesApi.create({
+      name: "Body Scrub",
+      description: "Exfoliating treatment to remove dead skin cells",
+      duration: 45,
+      price: 95,
+      category: "body",
+      status: "active",
+    })
+
+    await spaServicesApi.create({
+      name: "Aromatherapy",
+      description: "Therapeutic use of essential oils for relaxation",
+      duration: 60,
+      price: 110,
+      category: "therapy",
+      status: "active",
+    })
+  }
+
+  // Add sample menu items if none exist
+  if (!memoryDb.menu_items || memoryDb.menu_items.length === 0) {
+    await menuItemsApi.create({
+      name: "Grilled Salmon",
+      description: "Fresh salmon grilled to perfection with herbs",
+      price: 24,
+      category: "main",
+      preparation_time: 20,
+      ingredients: "Salmon, olive oil, lemon, herbs",
+      allergens: "Fish",
+      status: "active",
+    })
+
+    await menuItemsApi.create({
+      name: "Pasta Primavera",
+      description: "Fresh seasonal vegetables with pasta",
+      price: 18,
+      category: "main",
+      preparation_time: 15,
+      ingredients: "Pasta, mixed vegetables, olive oil, garlic",
+      allergens: "Gluten",
+      status: "active",
+    })
+
+    await menuItemsApi.create({
+      name: "Steak & Fries",
+      description: "Grilled steak served with crispy fries",
+      price: 32,
+      category: "main",
+      preparation_time: 25,
+      ingredients: "Beef steak, potatoes, herbs, salt",
+      allergens: "None",
+      status: "active",
+    })
+
+    await menuItemsApi.create({
+      name: "Caesar Salad",
+      description: "Classic caesar salad with croutons",
+      price: 12,
+      category: "appetizer",
+      preparation_time: 10,
+      ingredients: "Romaine lettuce, croutons, parmesan, caesar dressing",
+      allergens: "Dairy, Gluten",
+      status: "active",
+    })
+
+    await menuItemsApi.create({
+      name: "Vegetable Curry",
+      description: "Spiced vegetable curry with rice",
+      price: 16,
+      category: "main",
+      preparation_time: 20,
+      ingredients: "Mixed vegetables, curry spices, coconut milk, rice",
+      allergens: "None",
+      status: "active",
+    })
+
+    await menuItemsApi.create({
+      name: "Chocolate Cake",
+      description: "Rich chocolate cake with ganache",
+      price: 8,
+      category: "dessert",
+      preparation_time: 10,
+      ingredients: "Chocolate, flour, sugar, eggs",
+      allergens: "Dairy, Eggs, Gluten",
+      status: "active",
+    })
+
+    await menuItemsApi.create({
+      name: "House Wine (Glass)",
+      description: "House selection red or white wine",
+      price: 9,
+      category: "beverage",
+      preparation_time: 2,
+      ingredients: "Grapes",
+      allergens: "Sulfites",
+      status: "active",
+    })
+
+    await menuItemsApi.create({
+      name: "Sparkling Water",
+      description: "Refreshing sparkling mineral water",
+      price: 4,
+      category: "beverage",
+      preparation_time: 1,
+      ingredients: "Water, minerals",
+      allergens: "None",
+      status: "active",
     })
   }
 }

@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -22,26 +22,84 @@ interface InventoryItem {
   unit: string
   reorder_level: number
   description?: string
+  last_updated?: string
 }
 
 interface InventoryFormProps {
   item?: InventoryItem
+  itemId?: string
 }
 
-export function InventoryForm({ item }: InventoryFormProps) {
+export function InventoryForm({ item, itemId }: InventoryFormProps) {
   const router = useRouter()
   const { toast } = useToast()
   const { isOnline } = useSyncStatus()
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [isLoading, setIsLoading] = useState(!!itemId)
+  const [currentItem, setCurrentItem] = useState<InventoryItem | null>(item || null)
 
   const [formData, setFormData] = useState<InventoryItem>({
-    name: item?.name || "",
-    category: item?.category || "spa",
-    quantity: item?.quantity || 0,
-    unit: item?.unit || "piece",
-    reorder_level: item?.reorder_level || 10,
-    description: item?.description || "",
+    name: "",
+    category: "spa",
+    quantity: 0,
+    unit: "piece",
+    reorder_level: 10,
+    description: "",
   })
+
+  // Fetch inventory item if itemId is provided
+  useEffect(() => {
+    async function fetchInventoryItem() {
+      if (!itemId) return
+
+      try {
+        const fetchedItem = await inventoryApi.get(itemId)
+        if (fetchedItem) {
+          // Type cast the fetched item as an InventoryItem
+          const typedItem = fetchedItem as unknown as InventoryItem
+          setCurrentItem(typedItem)
+          setFormData({
+            name: typedItem.name || "",
+            category: typedItem.category || "spa",
+            quantity: typedItem.quantity || 0,
+            unit: typedItem.unit || "piece",
+            reorder_level: typedItem.reorder_level || 10,
+            description: typedItem.description || "",
+          })
+        } else {
+          toast({
+            title: "Error",
+            description: "Inventory item not found",
+            variant: "destructive",
+          })
+          router.push("/inventory")
+        }
+      } catch (error) {
+        console.error("Error fetching inventory item:", error)
+        toast({
+          title: "Error",
+          description: "Failed to fetch inventory item. Please try again.",
+          variant: "destructive",
+        })
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    if (itemId) {
+      fetchInventoryItem()
+    } else if (item) {
+      // If item is directly provided, use it
+      setFormData({
+        name: item.name,
+        category: item.category,
+        quantity: item.quantity,
+        unit: item.unit,
+        reorder_level: item.reorder_level,
+        description: item.description || "",
+      })
+    }
+  }, [itemId, item, toast, router])
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target
@@ -60,9 +118,9 @@ export function InventoryForm({ item }: InventoryFormProps) {
     setIsSubmitting(true)
 
     try {
-      if (item?.id) {
+      if (currentItem?.id || itemId) {
         // Update existing inventory item
-        await inventoryApi.update(item.id, {
+        await inventoryApi.update(currentItem?.id || itemId!, {
           ...formData,
           last_updated: new Date().toISOString(),
         })
@@ -97,6 +155,18 @@ export function InventoryForm({ item }: InventoryFormProps) {
     } finally {
       setIsSubmitting(false)
     }
+  }
+
+  if (isLoading) {
+    return (
+      <Card>
+        <CardContent className="pt-6">
+          <div className="flex justify-center items-center p-8">
+            <p>Loading inventory item...</p>
+          </div>
+        </CardContent>
+      </Card>
+    )
   }
 
   return (
@@ -195,7 +265,7 @@ export function InventoryForm({ item }: InventoryFormProps) {
               Cancel
             </Button>
             <Button type="submit" disabled={isSubmitting}>
-              {isSubmitting ? "Saving..." : item ? "Update Item" : "Add Item"}
+              {isSubmitting ? "Saving..." : currentItem?.id || itemId ? "Update Item" : "Add Item"}
             </Button>
           </div>
         </form>

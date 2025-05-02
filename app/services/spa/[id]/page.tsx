@@ -1,24 +1,70 @@
+"use client"
+
 import { SpaServiceForm } from "@/components/services/spa-service-form"
 import { PageHeader } from "@/components/page-header"
+import { useEffect, useState } from "react"
+import { spaServicesApi } from "@/lib/db"
+import { useToast } from "@/hooks/use-toast"
+import { Skeleton } from "@/components/ui/skeleton"
 
 export default function EditSpaServicePage({ params }: { params: { id: string } }) {
-  // In a real app, this would fetch the service from the database
-  const service = {
-    id: params.id,
-    name: "Deep Tissue Massage",
-    description: "A therapeutic massage focusing on realigning deeper layers of muscles",
-    duration: 60,
-    price: 120,
-    category: "massage",
-    isActive: true,
-  }
+  const [service, setService] = useState<any>(null)
+  const [isLoading, setIsLoading] = useState(true)
+  const { toast } = useToast()
+
+  useEffect(() => {
+    async function fetchService() {
+      try {
+        setIsLoading(true)
+        const serviceData = await spaServicesApi.get(params.id)
+        
+        if (!serviceData) {
+          toast({
+            title: "Service not found",
+            description: "The requested service could not be found.",
+            variant: "destructive",
+          })
+          return
+        }
+        
+        setService(serviceData)
+      } catch (error) {
+        console.error("Error fetching service:", error)
+        toast({
+          title: "Error",
+          description: "Failed to load service details. Please try again.",
+          variant: "destructive",
+        })
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    fetchService()
+  }, [params.id, toast])
 
   return (
     <div className="container mx-auto px-4 py-6">
       <PageHeader heading="Edit Spa Service" subheading="Update service details and pricing" />
 
       <div className="mt-6">
-        <SpaServiceForm service={service} />
+        {isLoading ? (
+          <div className="space-y-4">
+            <Skeleton className="h-12 w-full" />
+            <Skeleton className="h-24 w-full" />
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+              <Skeleton className="h-12 w-full" />
+              <Skeleton className="h-12 w-full" />
+              <Skeleton className="h-12 w-full" />
+            </div>
+          </div>
+        ) : service ? (
+          <SpaServiceForm service={service} />
+        ) : (
+          <div className="py-8 text-center text-muted-foreground">
+            Service not found. It may have been deleted or the ID is invalid.
+          </div>
+        )}
       </div>
     </div>
   )

@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -13,14 +13,50 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea"
 import { useToast } from "@/components/ui/use-toast"
 import { useSyncStatus } from "@/components/sync-status-provider"
-import { bookingsApi } from "@/lib/db"
+import { bookingsApi, customersApi, spaServicesApi, staffApi } from "@/lib/db"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+
+interface Customer {
+  id: string
+  name: string
+  email: string
+  phone: string
+}
+
+interface StaffMember {
+  id: string
+  name: string
+  department: string
+  status: string
+}
+
+interface SpaService {
+  id: string
+  name: string
+  duration: number
+  price: number
+  category: string
+}
 
 export function BookingForm() {
   const router = useRouter()
   const { toast } = useToast()
   const { isOnline } = useSyncStatus()
 
+  // State for loading data
+  const [loadingCustomers, setLoadingCustomers] = useState(true)
+  const [loadingStaff, setLoadingStaff] = useState(true)
+  const [loadingServices, setLoadingServices] = useState(true)
+  
+  // State for database content
+  const [customers, setCustomers] = useState<Customer[]>([])
+  const [staffMembers, setStaffMembers] = useState<StaffMember[]>([])
+  const [spaServices, setSpaServices] = useState<SpaService[]>([])
+  
+  // Form state
   const [bookingType, setBookingType] = useState("spa")
+  const [customerMode, setCustomerMode] = useState("existing")
+  const [selectedCustomerId, setSelectedCustomerId] = useState("")
   const [formData, setFormData] = useState({
     customer_name: "",
     customer_phone: "",
@@ -34,6 +70,60 @@ export function BookingForm() {
   })
   const [isSubmitting, setIsSubmitting] = useState(false)
 
+  // Fetch customers, staff and services data
+  useEffect(() => {
+    async function fetchData() {
+      try {
+        // Fetch customers
+        const customersData = await customersApi.list() as Customer[]
+        setCustomers(customersData)
+        setLoadingCustomers(false)
+        
+        // Fetch staff members who are active
+        const staffData = await staffApi.list({ status: "active" }) as StaffMember[]
+        setStaffMembers(staffData)
+        setLoadingStaff(false)
+        
+        // Fetch spa services
+        const servicesData = await spaServicesApi.listActive() as SpaService[]
+        setSpaServices(servicesData)
+        setLoadingServices(false)
+      } catch (error) {
+        console.error("Error fetching data:", error)
+        toast({
+          title: "Error",
+          description: "Failed to load necessary data. Please try again.",
+          variant: "destructive",
+        })
+      }
+    }
+
+    fetchData()
+  }, [toast])
+
+  // When a customer is selected, populate the form fields
+  useEffect(() => {
+    if (customerMode === "existing" && selectedCustomerId) {
+      const selectedCustomer = customers.find(customer => customer.id === selectedCustomerId)
+      if (selectedCustomer) {
+        setFormData(prev => ({
+          ...prev,
+          customer_name: selectedCustomer.name,
+          customer_phone: selectedCustomer.phone,
+          customer_email: selectedCustomer.email
+        }))
+      }
+    } else if (customerMode === "new") {
+      // Clear customer fields when switching to new customer mode
+      setFormData(prev => ({
+        ...prev,
+        customer_name: "",
+        customer_phone: "",
+        customer_email: ""
+      }))
+    }
+  }, [customerMode, selectedCustomerId, customers])
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target
     setFormData((prev) => ({ ...prev, [name]: value }))
@@ -43,16 +133,37 @@ export function BookingForm() {
     setFormData((prev) => ({ ...prev, [name]: value }))
   }
 
+  const handleCustomerSelect = (customerId: string) => {
+    setSelectedCustomerId(customerId)
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsSubmitting(true)
 
     try {
-      // Save to database
+      let customerId = selectedCustomerId
+      
+      // If this is a new customer or we're in new customer mode, create a customer record
+      if (customerMode === "new" && formData.customer_name) {
+        const newCustomer = await customersApi.create({
+          name: formData.customer_name,
+          phone: formData.customer_phone,
+          email: formData.customer_email,
+          customer_type: bookingType === "spa" ? "spa" : "restaurant",
+          visits: 1,
+          last_visit: new Date().toISOString()
+        })
+        customerId = newCustomer.id
+      }
+
+      // Save booking to database
       await bookingsApi.create({
         ...formData,
+        customer_id: customerId, // Link to the customer
         booking_type: bookingType,
         status: "pending",
+        created_at: new Date().toISOString(),
       })
 
       toast({
@@ -75,6 +186,11 @@ export function BookingForm() {
     }
   }
 
+  // Filter staff members based on department
+  const filteredStaff = staffMembers.filter(staff => 
+    staff.department === bookingType || staff.department === "both"
+  )
+
   return (
     <Card>
       <CardContent className="pt-6">
@@ -82,7 +198,7 @@ export function BookingForm() {
           <div className="space-y-4">
             <div>
               <Label>Booking Type</Label>
-              <RadioGroup defaultValue="spa" className="flex gap-4 mt-2" onValueChange={setBookingType}>
+              <RadioGroup defaultValue="spa" className="flex gap-4 mt-2" onValueChange={setBookingType} value={bookingType}>
                 <div className="flex items-center space-x-2">
                   <RadioGroupItem value="spa" id="spa-type" />
                   <Label htmlFor="spa-type">Spa Service</Label>
@@ -94,39 +210,80 @@ export function BookingForm() {
               </RadioGroup>
             </div>
 
-            <div className="grid gap-4 md:grid-cols-2">
-              <div className="grid gap-2">
-                <Label htmlFor="customer_name">Customer Name</Label>
-                <Input
-                  id="customer_name"
-                  name="customer_name"
-                  value={formData.customer_name}
-                  onChange={handleChange}
-                  required
-                />
-              </div>
+            <div className="grid gap-4">
+              <Label>Customer Information</Label>
+              <Tabs defaultValue="existing" onValueChange={setCustomerMode} value={customerMode}>
+                <TabsList className="grid w-full grid-cols-2">
+                  <TabsTrigger value="existing">Existing Customer</TabsTrigger>
+                  <TabsTrigger value="new">New Customer</TabsTrigger>
+                </TabsList>
+                
+                <TabsContent value="existing" className="mt-2">
+                  {loadingCustomers ? (
+                    <div className="text-center py-4">Loading customers...</div>
+                  ) : (
+                    <Select value={selectedCustomerId} onValueChange={handleCustomerSelect}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select a customer" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {customers.length === 0 ? (
+                          <SelectItem value="none" disabled>No customers found</SelectItem>
+                        ) : (
+                          customers.map(customer => (
+                            <SelectItem key={customer.id} value={customer.id}>
+                              {customer.name} - {customer.phone}
+                            </SelectItem>
+                          ))
+                        )}
+                      </SelectContent>
+                    </Select>
+                  )}
+                  
+                  {selectedCustomerId && (
+                    <div className="mt-4 p-3 bg-muted rounded-md">
+                      <p className="text-sm font-medium">{formData.customer_name}</p>
+                      <p className="text-sm">{formData.customer_phone}</p>
+                      <p className="text-sm text-muted-foreground">{formData.customer_email}</p>
+                    </div>
+                  )}
+                </TabsContent>
+                
+                <TabsContent value="new" className="mt-2 space-y-4">
+                  <div className="grid gap-2">
+                    <Label htmlFor="customer_name">Customer Name</Label>
+                    <Input
+                      id="customer_name"
+                      name="customer_name"
+                      value={formData.customer_name}
+                      onChange={handleChange}
+                      required={customerMode === "new"}
+                    />
+                  </div>
 
-              <div className="grid gap-2">
-                <Label htmlFor="customer_phone">Phone Number</Label>
-                <Input
-                  id="customer_phone"
-                  name="customer_phone"
-                  value={formData.customer_phone}
-                  onChange={handleChange}
-                  required
-                />
-              </div>
-            </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="customer_phone">Phone Number</Label>
+                    <Input
+                      id="customer_phone"
+                      name="customer_phone"
+                      value={formData.customer_phone}
+                      onChange={handleChange}
+                      required={customerMode === "new"}
+                    />
+                  </div>
 
-            <div className="grid gap-2">
-              <Label htmlFor="customer_email">Email</Label>
-              <Input
-                id="customer_email"
-                name="customer_email"
-                type="email"
-                value={formData.customer_email}
-                onChange={handleChange}
-              />
+                  <div className="grid gap-2">
+                    <Label htmlFor="customer_email">Email</Label>
+                    <Input
+                      id="customer_email"
+                      name="customer_email"
+                      type="email"
+                      value={formData.customer_email}
+                      onChange={handleChange}
+                    />
+                  </div>
+                </TabsContent>
+              </Tabs>
             </div>
 
             <div className="grid gap-4 md:grid-cols-2">
@@ -168,10 +325,15 @@ export function BookingForm() {
                       <SelectValue placeholder="Select service" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="massage">Deep Tissue Massage</SelectItem>
-                      <SelectItem value="facial">Facial Treatment</SelectItem>
-                      <SelectItem value="stone">Hot Stone Massage</SelectItem>
-                      <SelectItem value="manicure">Manicure & Pedicure</SelectItem>
+                      {loadingServices ? (
+                        <SelectItem value="loading" disabled>Loading services...</SelectItem>
+                      ) : (
+                        spaServices.map(service => (
+                          <SelectItem key={service.id} value={service.id}>
+                            {service.name} ({service.duration} min)
+                          </SelectItem>
+                        ))
+                      )}
                     </SelectContent>
                   </Select>
                 </div>
@@ -183,9 +345,13 @@ export function BookingForm() {
                       <SelectValue placeholder="Select staff (optional)" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="john">John Smith</SelectItem>
-                      <SelectItem value="maria">Maria Garcia</SelectItem>
-                      <SelectItem value="david">David Kim</SelectItem>
+                      {loadingStaff ? (
+                        <SelectItem value="loading" disabled>Loading staff...</SelectItem>
+                      ) : (
+                        filteredStaff.map(staff => (
+                          <SelectItem key={staff.id} value={staff.id}>{staff.name}</SelectItem>
+                        ))
+                      )}
                     </SelectContent>
                   </Select>
                 </div>
@@ -239,7 +405,7 @@ export function BookingForm() {
             <Button type="button" variant="outline" onClick={() => router.push("/bookings")} disabled={isSubmitting}>
               Cancel
             </Button>
-            <Button type="submit" disabled={isSubmitting}>
+            <Button type="submit" disabled={isSubmitting || (customerMode === "existing" && !selectedCustomerId)}>
               {isSubmitting ? "Saving..." : isOnline ? "Create Booking" : "Save Offline"}
             </Button>
           </div>

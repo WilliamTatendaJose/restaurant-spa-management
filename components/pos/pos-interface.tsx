@@ -21,8 +21,10 @@ import {
 import { 
   transactionsApi, 
   customersApi,
-  inventoryApi, 
-  initDatabase
+  spaServicesApi,
+  menuItemsApi, 
+  initDatabase,
+  addSampleData
 } from "@/lib/db"
 import { ReceiptGenerator } from "@/components/pos/receipt-generator"
 import { ShareReceiptModal } from "@/components/pos/share-receipt-modal"
@@ -55,10 +57,32 @@ interface Product {
   id: string
   name: string
   price: number
-  category: string
+  category?: string
   description?: string
   image_url?: string
-  is_available?: boolean
+}
+
+interface SpaService {
+  id: string
+  name: string
+  description?: string
+  duration: number
+  price: number
+  category?: string
+  status?: string
+}
+
+interface MenuItem {
+  id: string
+  name: string
+  description?: string
+  price: number
+  category?: string
+  preparation_time?: number
+  ingredients?: string
+  allergens?: string
+  image_url?: string
+  status?: string
 }
 
 interface TransactionRecord {
@@ -136,93 +160,52 @@ export function POSInterface() {
   // Initialize database and load data
   useEffect(() => {
     const initialize = async () => {
-      await initDatabase()
-      await loadProducts()
-      await loadRecentTransactions()
-      await loadCustomers()
-      setIsInitialized(true)
+      await initDatabase();
+      // Add sample data if needed
+      await addSampleData();
+      await loadProducts();
+      await loadRecentTransactions();
+      await loadCustomers();
+      setIsInitialized(true);
     }
     
-    initialize()
-  }, [])
+    initialize();
+  }, []);
 
-  // Load products from inventory
+  // Load products from spa services and menu items
   const loadProducts = async () => {
     try {
-      const inventoryItems = await inventoryApi.list();
+      // Load spa services
+      const spaServices = await spaServicesApi.listActive() as SpaService[];
       
-      // Group by category
-      const spaProducts: Product[] = inventoryItems
-        .filter(item => item.category === 'spa' && item.is_available !== false)
-        .map(item => ({
-          id: item.id,
-          name: item.name,
-          price: item.price || 0,
-          category: 'spa',
-          description: item.description,
-          image_url: item.image_url
-        }));
+      // Convert spa services to product format
+      const spaProducts = spaServices.map(service => ({
+        id: service.id,
+        name: service.name,
+        price: Number(service.price),
+        description: service.description,
+        category: service.category,
+        duration: service.duration // Additional property specific to spa services
+      }));
       
-      const restaurantProducts: Product[] = inventoryItems
-        .filter(item => item.category === 'restaurant' && item.is_available !== false)
-        .map(item => ({
-          id: item.id,
-          name: item.name,
-          price: item.price || 0,
-          category: 'restaurant',
-          description: item.description,
-          image_url: item.image_url
-        }));
+      // Load menu items
+      const menuItems = await menuItemsApi.listActive() as MenuItem[];
       
-      // If we have no products yet, add some default ones for testing
-      if (restaurantProducts.length === 0) {
-        restaurantProducts.push(
-          { id: "s1", name: "Deep Tissue Massage", price: 120, category: "spa" },
-          { id: "s2", name: "Facial Treatment", price: 85, category: "spa" },
-          { id: "s3", name: "Hot Stone Massage", price: 150, category: "spa" },
-          { id: "s4", name: "Manicure & Pedicure", price: 65, category: "spa" },
-          { id: "s5", name: "Body Scrub", price: 95, category: "spa" },
-          { id: "s6", name: "Aromatherapy", price: 110, category: "spa" }
-        );
-        
-        // Save these to inventory for future use
-        for (const product of spaProducts) {
-          await inventoryApi.create({
-            ...product,
-            quantity: 100,
-            is_available: true,
-            unit: 'service'
-          });
-        }
-      }
-      
-      if (restaurantProducts.length === 0) {
-        restaurantProducts.push(
-          { id: "r1", name: "Grilled Salmon", price: 24, category: "restaurant" },
-          { id: "r2", name: "Pasta Primavera", price: 18, category: "restaurant" },
-          { id: "r3", name: "Steak & Fries", price: 32, category: "restaurant" },
-          { id: "r4", name: "Caesar Salad", price: 12, category: "restaurant" },
-          { id: "r5", name: "Vegetable Curry", price: 16, category: "restaurant" },
-          { id: "r6", name: "Chocolate Cake", price: 8, category: "restaurant" },
-          { id: "r7", name: "House Wine (Glass)", price: 9, category: "restaurant" },
-          { id: "r8", name: "Sparkling Water", price: 4, category: "restaurant" }
-        );
-        
-        // Save these to inventory for future use
-        for (const product of restaurantProducts) {
-          await inventoryApi.create({
-            ...product,
-            quantity: 50,
-            is_available: true,
-            unit: 'item'
-          });
-        }
-      }
+      // Convert menu items to product format
+      const restaurantProducts = menuItems.map(item => ({
+        id: item.id,
+        name: item.name,
+        price: Number(item.price),
+        description: item.description,
+        category: item.category,
+        image_url: item.image_url
+      }));
       
       setProducts({
         spa: spaProducts,
         restaurant: restaurantProducts
       });
+      
     } catch (error) {
       console.error("Failed to load products:", error);
       toast({
@@ -231,7 +214,7 @@ export function POSInterface() {
         variant: "destructive",
       });
     }
-  }
+  };
 
   // Load recent transactions from database
   const loadRecentTransactions = async () => {
@@ -554,6 +537,9 @@ export function POSInterface() {
                     >
                       <span className="text-lg font-medium">{product.name}</span>
                       <span className="text-sm text-muted-foreground">${product.price.toFixed(2)}</span>
+                      {typeof (product as any).duration === "number" && (
+                        <span className="text-xs text-muted-foreground">{(product as any).duration} min</span>
+                      )}
                     </Button>
                   ))
                 ) : (
