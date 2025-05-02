@@ -11,6 +11,8 @@ import Link from "next/link"
 import { bookingsApi, spaServicesApi } from "@/lib/db"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { useToast } from "@/components/ui/use-toast"
 
 interface Booking {
   id: string
@@ -45,6 +47,8 @@ export default function BookingsPage() {
     staffId: "all"
   })
   const [serviceMap, setServiceMap] = useState<Record<string, string>>({})
+  const { toast } = useToast()
+  const [updatingStatus, setUpdatingStatus] = useState<string | null>(null)
 
   // Fetch all bookings and services
   useEffect(() => {
@@ -140,6 +144,44 @@ export default function BookingsPage() {
     setFilters(newFilters)
   }
 
+  // Handle status change
+  const handleStatusChange = async (bookingId: string, newStatus: string) => {
+    setUpdatingStatus(bookingId)
+    try {
+      await bookingsApi.update(bookingId, { status: newStatus })
+      
+      // Update local state to reflect the change
+      const updatedBookings = bookings.map(booking => 
+        booking.id === bookingId ? { ...booking, status: newStatus } : booking
+      )
+      setBookings(updatedBookings)
+      
+      toast({
+        title: "Status updated",
+        description: `Booking status has been updated to ${newStatus}`,
+      })
+    } catch (error) {
+      console.error("Error updating booking status:", error)
+      toast({
+        title: "Error",
+        description: "Failed to update booking status",
+        variant: "destructive",
+      })
+    } finally {
+      setUpdatingStatus(null)
+    }
+  }
+
+  // Get status badge color
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case "confirmed": return "default"
+      case "cancelled": return "destructive"
+      case "pending": return "secondary"
+      default: return "outline"
+    }
+  }
+
   return (
     <div className="container mx-auto px-4 py-6">
       <div className="flex items-center justify-between">
@@ -158,7 +200,7 @@ export default function BookingsPage() {
           <TabsTrigger value="list">List View</TabsTrigger>
         </TabsList>
         <TabsContent value="calendar" className="mt-4">
-          <div className="grid grid-cols-1 md:grid-cols-[250px_1fr] gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-[250px_1fr] gap-6 h-[600px]">
             <BookingFilters onFilterChange={handleFilterChange} />
             <BookingCalendar />
           </div>
@@ -178,47 +220,66 @@ export default function BookingsPage() {
                   <p className="text-muted-foreground">No bookings found matching the filters.</p>
                 </div>
               ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Date & Time</TableHead>
-                      <TableHead>Customer</TableHead>
-                      <TableHead>Service/Table</TableHead>
-                      <TableHead>Type</TableHead>
-                      <TableHead>Status</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {filteredBookings.map(booking => (
-                      <TableRow key={booking.id}>
-                        <TableCell>
-                          <div className="font-medium">{formatDate(booking.booking_date)}</div>
-                          <div className="text-sm text-muted-foreground">{formatTime(booking.booking_time)}</div>
-                        </TableCell>
-                        <TableCell>{booking.customer_name}</TableCell>
-                        <TableCell>
-                          {getServiceDisplay(booking)}
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant={booking.booking_type === "spa" ? "secondary" : "outline"}>
-                            {booking.booking_type === "spa" ? "Spa" : "Restaurant"}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          <Badge 
-                            variant={
-                              booking.status === "confirmed" ? "default" : 
-                              booking.status === "cancelled" ? "destructive" : 
-                              "outline"
-                            }
-                          >
-                            {booking.status}
-                          </Badge>
-                        </TableCell>
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Date & Time</TableHead>
+                        <TableHead>Customer</TableHead>
+                        <TableHead>Service/Table</TableHead>
+                        <TableHead>Type</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead>Actions</TableHead>
                       </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                    </TableHeader>
+                    <TableBody>
+                      {filteredBookings.map(booking => (
+                        <TableRow key={booking.id}>
+                          <TableCell>
+                            <div className="font-medium">{formatDate(booking.booking_date)}</div>
+                            <div className="text-sm text-muted-foreground">{formatTime(booking.booking_time)}</div>
+                          </TableCell>
+                          <TableCell>{booking.customer_name}</TableCell>
+                          <TableCell>
+                            {getServiceDisplay(booking)}
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant={booking.booking_type === "spa" ? "secondary" : "outline"}>
+                              {booking.booking_type === "spa" ? "Spa" : "Restaurant"}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            <Select 
+                              value={booking.status}
+                              onValueChange={(value) => handleStatusChange(booking.id, value)}
+                              disabled={updatingStatus === booking.id}
+                            >
+                              <SelectTrigger className="w-[110px] h-8">
+                                <SelectValue>
+                                  <Badge 
+                                    variant={getStatusColor(booking.status) as any}
+                                  >
+                                    {booking.status}
+                                  </Badge>
+                                </SelectValue>
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="pending">Pending</SelectItem>
+                                <SelectItem value="confirmed">Confirmed</SelectItem>
+                                <SelectItem value="cancelled">Cancelled</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </TableCell>
+                          <TableCell>
+                            <Button variant="ghost" size="sm" asChild className="h-8 px-2 py-0">
+                              <Link href={`/bookings/edit/${booking.id}`}>Edit</Link>
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
               )}
             </div>
           </div>

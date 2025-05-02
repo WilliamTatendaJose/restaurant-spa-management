@@ -3,7 +3,9 @@
 import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { bookingsApi } from "@/lib/db"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { bookingsApi ,spaServicesApi} from "@/lib/db"
+import { useToast } from "@/components/ui/use-toast"
 
 interface Booking {
   id: string
@@ -15,15 +17,28 @@ interface Booking {
   status: string
   party_size?: string
 }
+interface SpaService {
+  id: string
+  name: string
+}
 
 export function UpcomingBookings() {
   const [bookings, setBookings] = useState<Booking[]>([])
   const [isLoading, setIsLoading] = useState(true)
+  const { toast } = useToast()
+  const [serviceMap, setServiceMap] = useState<Record<string, string>>({})
+  const [updatingStatus, setUpdatingStatus] = useState<string | null>(null)
 
   useEffect(() => {
     async function fetchUpcomingBookings() {
       try {
         // Get all bookings
+         const services = await spaServicesApi.list() as SpaService[]
+                const servicesById: Record<string, string> = {}
+                services.forEach(service => {
+                  servicesById[service.id] = service.name
+                })
+                setServiceMap(servicesById)
         const allBookings = await bookingsApi.list() as Booking[]
         
         // Filter for only upcoming bookings (today and future)
@@ -81,9 +96,51 @@ export function UpcomingBookings() {
   // Get service description (spa treatment or restaurant booking)
   const getServiceDescription = (booking: Booking) => {
     if (booking.booking_type === "spa") {
-      return booking.service
+      return  serviceMap[booking.service] || "Unknown Service"
     } else {
       return `Dinner Reservation (${booking.party_size || '?'} people)`
+    }
+  }
+
+  // Handle status change
+  const handleStatusChange = async (bookingId: string, newStatus: string) => {
+    setUpdatingStatus(bookingId)
+    try {
+      await bookingsApi.update(bookingId, { status: newStatus })
+      
+      // Update local state to reflect the change
+      if (newStatus === "cancelled") {
+        // Remove cancelled bookings from the list
+        setBookings(prev => prev.filter(booking => booking.id !== bookingId))
+      } else {
+        setBookings(prev => prev.map(booking => 
+          booking.id === bookingId ? { ...booking, status: newStatus } : booking
+        ))
+      }
+      
+      toast({
+        title: "Status updated",
+        description: `Booking status has been updated to ${newStatus}`,
+      })
+    } catch (error) {
+      console.error("Error updating booking status:", error)
+      toast({
+        title: "Error",
+        description: "Failed to update booking status",
+        variant: "destructive",
+      })
+    } finally {
+      setUpdatingStatus(null)
+    }
+  }
+
+  // Get status badge color
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case "confirmed": return "default"
+      case "cancelled": return "destructive"
+      case "pending": return "secondary"
+      default: return "outline"
     }
   }
 
@@ -111,12 +168,30 @@ export function UpcomingBookings() {
                 <div className="space-y-1">
                   <p className="font-medium leading-none">{booking.customer_name}</p>
                   <p className="text-sm text-muted-foreground">{getServiceDescription(booking)}</p>
+                  <div className="text-sm">{formatBookingTime(booking.booking_date, booking.booking_time)}</div>
                 </div>
                 <div className="flex items-center gap-2">
                   <Badge variant={booking.booking_type === "spa" ? "secondary" : "outline"}>
                     {booking.booking_type === "spa" ? "Spa" : "Restaurant"}
                   </Badge>
-                  <span className="text-sm">{formatBookingTime(booking.booking_date, booking.booking_time)}</span>
+                  <Select 
+                    value={booking.status}
+                    onValueChange={(value) => handleStatusChange(booking.id, value)}
+                    disabled={updatingStatus === booking.id}
+                  >
+                    <SelectTrigger className="w-[110px] h-8">
+                      <SelectValue>
+                        <Badge variant={getStatusColor(booking.status) as any}>
+                          {booking.status}
+                        </Badge>
+                      </SelectValue>
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="pending">Pending</SelectItem>
+                      <SelectItem value="confirmed">Confirmed</SelectItem>
+                      <SelectItem value="cancelled">Cancelled</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
             ))}

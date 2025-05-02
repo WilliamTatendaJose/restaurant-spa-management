@@ -298,6 +298,7 @@ export function POSInterface() {
         total_amount: calculateTotal(),
         payment_method: paymentMethod,
         transaction_type: activeTab,
+        status: "completed", // Set status to completed
         notes: "",
       }) as TransactionRecord;
       

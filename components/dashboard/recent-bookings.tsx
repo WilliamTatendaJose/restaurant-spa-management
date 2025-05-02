@@ -1,60 +1,118 @@
+"use client"
+
+import { useState, useEffect } from "react"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
+import { bookingsApi, spaServicesApi } from "@/lib/db"
+
+interface Booking {
+  id: string
+  customer_name: string
+  booking_date: string
+  booking_time: string
+  booking_type: string
+  service: string
+  status: string
+  staff?: string
+  party_size?: string
+  amount?: number
+}
+
+interface SpaService {
+  id: string
+  name: string
+  price: number
+  duration: number
+}
 
 export function RecentBookings() {
-  const bookings = [
-    {
-      id: "1",
-      customer: "Sarah Johnson",
-      service: "Deep Tissue Massage",
-      date: "2025-04-22",
-      time: "2:00 PM",
-      status: "confirmed",
-      type: "spa",
-      amount: "$120.00",
-    },
-    {
-      id: "2",
-      customer: "Michael Chen",
-      service: "Dinner Reservation (4 people)",
-      date: "2025-04-22",
-      time: "7:30 PM",
-      status: "confirmed",
-      type: "restaurant",
-      amount: "$0.00",
-    },
-    {
-      id: "3",
-      customer: "Emma Wilson",
-      service: "Facial Treatment",
-      date: "2025-04-23",
-      time: "10:00 AM",
-      status: "pending",
-      type: "spa",
-      amount: "$85.00",
-    },
-    {
-      id: "4",
-      customer: "James Rodriguez",
-      service: "Lunch Reservation (2 people)",
-      date: "2025-04-23",
-      time: "12:30 PM",
-      status: "confirmed",
-      type: "restaurant",
-      amount: "$0.00",
-    },
-    {
-      id: "5",
-      customer: "Lisa Thompson",
-      service: "Hot Stone Massage",
-      date: "2025-04-24",
-      time: "3:30 PM",
-      status: "confirmed",
-      type: "spa",
-      amount: "$150.00",
-    },
-  ]
+  const [bookings, setBookings] = useState<Booking[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [serviceMap, setServiceMap] = useState<Record<string, string>>({})
+  const [servicePrices, setServicePrices] = useState<Record<string, number>>({})
+
+  useEffect(() => {
+    async function fetchRecentBookings() {
+      try {
+        // Get spa services for mapping service IDs to names and prices
+        const services = await spaServicesApi.list() as SpaService[]
+        const servicesById: Record<string, string> = {}
+        const servicesPriceById: Record<string, number> = {}
+        
+        services.forEach(service => {
+          servicesById[service.id] = service.name
+          servicesPriceById[service.id] = service.price
+        })
+        
+        setServiceMap(servicesById)
+        setServicePrices(servicesPriceById)
+        
+        // Get all bookings
+        const allBookings = await bookingsApi.list() as Booking[]
+        
+        // Sort by date (newest first)
+        allBookings.sort((a, b) => {
+          const dateA = new Date(`${a.booking_date}T${a.booking_time}`)
+          const dateB = new Date(`${b.booking_date}T${b.booking_time}`)
+          return dateB.getTime() - dateA.getTime() // Descending order
+        })
+        
+        // Take only the 5 most recent bookings
+        setBookings(allBookings.slice(0, 5))
+      } catch (error) {
+        console.error("Error fetching recent bookings:", error)
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    fetchRecentBookings()
+  }, [])
+
+  // Format date and time for display
+  const formatDateTime = (dateString: string, timeString: string) => {
+    if (!dateString || !timeString) return "N/A"
+    try {
+      const date = new Date(dateString)
+      const formattedDate = date.toLocaleDateString()
+      
+      const [hours, minutes] = timeString.split(':')
+      const time = new Date()
+      time.setHours(parseInt(hours, 10), parseInt(minutes, 10))
+      const formattedTime = time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      
+      return `${formattedDate}, ${formattedTime}`
+    } catch (e) {
+      return `${dateString}, ${timeString}`
+    }
+  }
+
+  // Get service description
+  const getServiceDescription = (booking: Booking) => {
+    if (booking.booking_type === "spa") {
+      return serviceMap[booking.service] || "Unknown Service"
+    } else {
+      return `Reservation (${booking.party_size || '?'} people)`
+    }
+  }
+
+  // Get amount display
+  const getAmountDisplay = (booking: Booking) => {
+    if (booking.amount) {
+      return `$${booking.amount.toFixed(2)}`
+    }
+    
+    // If booking is spa type, show the price from the service
+    if (booking.booking_type === "spa" && booking.service) {
+      const price = servicePrices[booking.service]
+      if (price) {
+        return `$${price.toFixed(2)}`
+      }
+    }
+    
+    return "$0.00"
+  }
 
   return (
     <Card>
@@ -63,36 +121,48 @@ export function RecentBookings() {
         <CardDescription>Recent bookings across all services</CardDescription>
       </CardHeader>
       <CardContent>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Customer</TableHead>
-              <TableHead>Service</TableHead>
-              <TableHead>Date & Time</TableHead>
-              <TableHead>Type</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead className="text-right">Amount</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {bookings.map((booking) => (
-              <TableRow key={booking.id}>
-                <TableCell className="font-medium">{booking.customer}</TableCell>
-                <TableCell>{booking.service}</TableCell>
-                <TableCell>{`${booking.date}, ${booking.time}`}</TableCell>
-                <TableCell>
-                  <Badge variant={booking.type === "spa" ? "secondary" : "outline"}>
-                    {booking.type === "spa" ? "Spa" : "Restaurant"}
-                  </Badge>
-                </TableCell>
-                <TableCell>
-                  <Badge variant={booking.status === "confirmed" ? "success" : "outline"}>{booking.status}</Badge>
-                </TableCell>
-                <TableCell className="text-right">{booking.amount}</TableCell>
+        {isLoading ? (
+          <div className="flex justify-center items-center py-4">
+            <p className="text-sm text-muted-foreground">Loading bookings...</p>
+          </div>
+        ) : bookings.length === 0 ? (
+          <div className="py-4 text-center">
+            <p className="text-sm text-muted-foreground">No recent bookings found</p>
+          </div>
+        ) : (
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Customer</TableHead>
+                <TableHead>Service</TableHead>
+                <TableHead>Date & Time</TableHead>
+                <TableHead>Type</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead className="text-right">Amount</TableHead>
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+            </TableHeader>
+            <TableBody>
+              {bookings.map((booking) => (
+                <TableRow key={booking.id}>
+                  <TableCell className="font-medium">{booking.customer_name}</TableCell>
+                  <TableCell>{getServiceDescription(booking)}</TableCell>
+                  <TableCell>{formatDateTime(booking.booking_date, booking.booking_time)}</TableCell>
+                  <TableCell>
+                    <Badge variant={booking.booking_type === "spa" ? "secondary" : "outline"}>
+                      {booking.booking_type === "spa" ? "Spa" : "Restaurant"}
+                    </Badge>
+                  </TableCell>
+                  <TableCell>
+                    <Badge variant={booking.status === "confirmed" ? "success" : booking.status === "pending" ? "secondary" : "outline"}>
+                      {booking.status}
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="text-right">{getAmountDisplay(booking)}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        )}
       </CardContent>
     </Card>
   )
