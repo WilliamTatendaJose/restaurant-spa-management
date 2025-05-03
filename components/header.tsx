@@ -15,18 +15,38 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { useAuth } from "@/lib/auth-context"
 import { useRouter } from "next/navigation"
+import { useSession, signOut } from "next-auth/react"
+
+interface UserWithRole {
+  name?: string | null
+  email?: string | null
+  image?: string | null
+  role?: string
+}
 
 export function Header() {
-  const { userDetails, signOut } = useAuth()
+  // Extend the session user type to include 'role'
+  type SessionUser = {
+    name?: string | null
+    email?: string | null
+    image?: string | null
+    role?: string
+  }
+  type Session = {
+    user?: SessionUser
+  } | null
+
+  const { data: session } = useSession() as { data: Session }
   const router = useRouter()
 
   const handleSignOut = async () => {
-    await signOut()
+    await signOut({ redirect: false })
+    router.push("/login")
   }
 
-  const getInitials = (name: string) => {
+  const getInitials = (name: string | null | undefined) => {
+    if (!name) return "U"
     return name
       .split(" ")
       .map((n) => n[0])
@@ -34,10 +54,14 @@ export function Header() {
       .toUpperCase()
   }
 
+  const userName = session?.user?.name || "User"
+  const userRole = session?.user?.role || "guest"
+
   return (
     <header className="sticky top-0 z-40 border-b bg-background">
-      <div className="container flex h-16 items-center justify-between px-4">
-        <div className="flex items-center md:hidden">
+      <div className="container flex h-16 items-center px-4">
+        {/* Mobile menu button */}
+        <div className="md:hidden">
           <Sheet>
             <SheetTrigger asChild>
               <Button variant="ghost" size="icon">
@@ -51,7 +75,13 @@ export function Header() {
           </Sheet>
         </div>
 
-        <div className="flex items-center gap-2 md:ml-auto">
+        {/* App title or logo could go here */}
+        <div className="hidden md:block">
+          {/* You can add a logo or title here if needed */}
+        </div>
+
+        {/* Push everything else to the right */}
+        <div className="flex flex-1 items-center justify-end space-x-4">
           <SyncStatus />
           <ThemeToggle />
           <Button variant="ghost" size="icon">
@@ -63,16 +93,16 @@ export function Header() {
               <Button variant="ghost" size="icon" className="rounded-full">
                 <Avatar className="h-8 w-8">
                   <AvatarImage src="/placeholder.svg?height=32&width=32" alt="Avatar" />
-                  <AvatarFallback>{userDetails ? getInitials(userDetails.name) : "U"}</AvatarFallback>
+                  <AvatarFallback>{getInitials(userName)}</AvatarFallback>
                 </Avatar>
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
               <DropdownMenuLabel>
-                {userDetails ? (
+                {session ? (
                   <div className="flex flex-col">
-                    <span>{userDetails.name}</span>
-                    <span className="text-xs text-muted-foreground">{userDetails.role}</span>
+                    <span>{userName}</span>
+                    <span className="text-xs text-muted-foreground">{userRole}</span>
                   </div>
                 ) : (
                   "My Account"

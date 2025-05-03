@@ -156,6 +156,10 @@ export function POSInterface() {
   const [isShareModalOpen, setIsShareModalOpen] = useState(false)
   const [isHistoryOpen, setIsHistoryOpen] = useState(false)
   const [recentTransactions, setRecentTransactions] = useState<Transaction[]>([])
+  const [filteredTransactions, setFilteredTransactions] = useState<Transaction[]>([])
+  const [searchQuery, setSearchQuery] = useState("")
+  const [typeFilter, setTypeFilter] = useState<string>("all")
+  const [paymentFilter, setPaymentFilter] = useState<string>("all")
   const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null)
   const [isViewingTransactionDetails, setIsViewingTransactionDetails] = useState(false)
   const [customers, setCustomers] = useState<CustomerRecord[]>([])
@@ -265,7 +269,9 @@ export function POSInterface() {
       const sorted = [...transactions].sort((a, b) => 
         new Date(b.transaction_date).getTime() - new Date(a.transaction_date).getTime()
       );
-      setRecentTransactions(sorted.slice(0, 20) as Transaction[]); // Get only 20 most recent
+      const recentTx = sorted.slice(0, 100) as Transaction[]; // Get up to 100 transactions for filtering
+      setRecentTransactions(recentTx);
+      setFilteredTransactions(recentTx);
     } catch (error) {
       console.error("Failed to load recent transactions:", error);
       toast({
@@ -275,6 +281,38 @@ export function POSInterface() {
       });
     }
   }
+
+  // Apply filters to transactions
+  useEffect(() => {
+    let filtered = [...recentTransactions];
+    
+    // Apply search query filter
+    if (searchQuery) {
+      const query = searchQuery.toLowerCase();
+      filtered = filtered.filter(tx => 
+        tx.customer_name.toLowerCase().includes(query) || 
+        tx.id.toLowerCase().includes(query)
+      );
+    }
+    
+    // Apply transaction type filter
+    if (typeFilter !== 'all') {
+      filtered = filtered.filter(tx => tx.transaction_type === typeFilter);
+    }
+    
+    // Apply payment method filter
+    if (paymentFilter !== 'all') {
+      filtered = filtered.filter(tx => tx.payment_method === paymentFilter);
+    }
+    
+    setFilteredTransactions(filtered);
+  }, [searchQuery, typeFilter, paymentFilter, recentTransactions]);
+
+  // Helper function to get unique values from transactions
+  const getUniqueValues = (key: keyof Transaction): string[] => {
+    const values = recentTransactions.map(tx => tx[key] as string);
+    return [...new Set(values)];
+  };
 
   // Load customers for quick selection
   const loadCustomers = async () => {
@@ -762,6 +800,10 @@ export function POSInterface() {
           transactionId={completedTransaction.id}
           customerName={customerName}
           getPdf={getPdf}
+          items={completedTransaction.items}
+          total={completedTransaction.total}
+          date={completedTransaction.date}
+          paymentMethod={completedTransaction.payment_method}
         />
       )}
       
@@ -775,7 +817,46 @@ export function POSInterface() {
             </DialogDescription>
           </DialogHeader>
           
-          {recentTransactions.length === 0 ? (
+          <div className="flex flex-col md:flex-row gap-3 mb-4">
+            <div className="flex-1">
+              <Input
+                placeholder="Search by customer name or transaction ID"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+            </div>
+            <div className="flex gap-2">
+              <Select value={typeFilter} onValueChange={setTypeFilter}>
+                <SelectTrigger className="w-[140px]">
+                  <SelectValue placeholder="Type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Types</SelectItem>
+                  {getUniqueValues('transaction_type').map(type => (
+                    <SelectItem key={type} value={type}>
+                      {type.charAt(0).toUpperCase() + type.slice(1)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              
+              <Select value={paymentFilter} onValueChange={setPaymentFilter}>
+                <SelectTrigger className="w-[140px]">
+                  <SelectValue placeholder="Payment" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Payments</SelectItem>
+                  {getUniqueValues('payment_method').map(method => (
+                    <SelectItem key={method} value={method}>
+                      {method.charAt(0).toUpperCase() + method.slice(1)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          
+          {filteredTransactions.length === 0 ? (
             <div className="py-8 text-center text-muted-foreground">
               No transactions found
             </div>
@@ -793,7 +874,7 @@ export function POSInterface() {
                   </tr>
                 </thead>
                 <tbody>
-                  {recentTransactions.map((transaction) => (
+                  {filteredTransactions.map((transaction) => (
                     <tr key={transaction.id} className="border-b hover:bg-muted/50">
                       <td className="p-2">
                         {new Date(transaction.transaction_date).toLocaleDateString()}
@@ -820,8 +901,16 @@ export function POSInterface() {
             </div>
           )}
           
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsHistoryOpen(false)}>
+          <DialogFooter className="flex justify-between items-center">
+            <div className="text-sm text-muted-foreground">
+              Showing {filteredTransactions.length} of {recentTransactions.length} transactions
+            </div>
+            <Button variant="outline" onClick={() => {
+              setIsHistoryOpen(false);
+              setSearchQuery("");
+              setTypeFilter("all");
+              setPaymentFilter("all");
+            }}>
               Close
             </Button>
           </DialogFooter>

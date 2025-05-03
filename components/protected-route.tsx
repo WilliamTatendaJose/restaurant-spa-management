@@ -1,42 +1,68 @@
 "use client"
-
 import { useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { useAuth } from "@/lib/auth-context"
+import { useSession } from "next-auth/react"
 import { Loader2 } from "lucide-react"
 
 interface ProtectedRouteProps {
   children: React.ReactNode
   requiredRole?: "admin" | "manager" | "staff" // Optional, defaults to any authenticated user
 }
+  type SessionUser = {
+    name?: string | null;
+    email?: string | null;
+    image?: string | null;
+    role?: string;
+  };
+  type Session = {
+    user?: SessionUser;
+  } | null;
+
+  //
 
 export default function ProtectedRoute({ children, requiredRole }: ProtectedRouteProps) {
-  const { userDetails, isLoading, hasPermission } = useAuth()
+  // const { data: session, status } = useSession()
+   const { data: session } = useSession() as { data: Session };
   const router = useRouter()
+  
+  // Check if user has permission based on role
+  const hasPermission = (required: "admin" | "manager" | "staff"): boolean => {
+    if (!session?.user?.role) return false
+    
+    const roleHierarchy: Record<string, number> = {
+      admin: 3,
+      manager: 2,
+      staff: 1,
+    }
+    
+    const userRole = session.user.role as string
+    return roleHierarchy[userRole] >= roleHierarchy[required]
+  }
 
   useEffect(() => {
     // Only check after the auth state has been determined
-    if (!isLoading) {
+    if (status !== "loading") {
       // If no user is logged in, redirect to login
-      if (!userDetails) {
+      if (status === "unauthenticated") {
         router.push("/login")
         return
       }
-
+      
       // If a specific role is required and the user doesn't have permission
       if (requiredRole && !hasPermission(requiredRole)) {
         // Redirect to a more appropriate page based on their role
-        if (userDetails.role === "staff") {
-          router.push("/dashboard") // Staff dashboard
+        const userRole = session?.user?.role as string
+        if (userRole === "staff") {
+          router.push("/dashboard")
         } else {
-          router.push("/") // General dashboard
+          router.push("/")
         }
       }
     }
-  }, [userDetails, isLoading, requiredRole, hasPermission, router])
+  }, [session, status, requiredRole, router])
 
   // Show loading state while checking auth
-  if (isLoading) {
+  if (status === "loading") {
     return (
       <div className="flex h-screen w-full items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -46,7 +72,7 @@ export default function ProtectedRoute({ children, requiredRole }: ProtectedRout
   }
 
   // If no user is logged in, don't render children (will redirect from useEffect)
-  if (!userDetails) {
+  if (status === "unauthenticated") {
     return (
       <div className="flex h-screen w-full items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />

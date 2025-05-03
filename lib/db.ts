@@ -344,65 +344,78 @@ export function getPendingChangesCount() {
 
 export async function syncWithSupabase() {
   if (typeof window === "undefined" || pendingChanges.length === 0 || !isSupabaseConfigured()) {
-    return { success: true, count: 0 }
+    return { success: true, count: 0 };
   }
 
   try {
-    const supabase = getSupabaseBrowserClient()
-    let successCount = 0
-    let errorCount = 0
-    const errors = []
+    const supabase = getSupabaseBrowserClient();
+    
+    // First, check if Supabase connection is working
+    try {
+      const { error: pingError } = await supabase.from('sync_log').select('count', { count: 'exact', head: true });
+      
+      // If we get a specific error about the table not existing, that's fine, but network errors should be caught
+      if (pingError && !pingError.message?.includes('does not exist')) {
+        return { success: false, error: `Supabase connection error: ${pingError.message || 'Unknown error'}` };
+      }
+    } catch (pingError) {
+      console.error("Supabase connection error:", pingError);
+      return { success: false, error: `Failed to connect to Supabase: ${pingError.message || 'Unknown error'}` };
+    }
+    
+    let successCount = 0;
+    let errorCount = 0;
+    const errors = [];
 
     // Process changes in batches to avoid overwhelming the server
-    const batchSize = 50
-    const batches = Math.ceil(pendingChanges.length / batchSize)
-
+    const batchSize = 50;
+    const batches = Math.ceil(pendingChanges.length / batchSize);
+    
     for (let i = 0; i < batches; i++) {
-      const batchStart = i * batchSize
-      const batchEnd = Math.min((i + 1) * batchSize, pendingChanges.length)
-      const batch = pendingChanges.slice(batchStart, batchEnd)
-
+      const batchStart = i * batchSize;
+      const batchEnd = Math.min((i + 1) * batchSize, pendingChanges.length);
+      const batch = pendingChanges.slice(batchStart, batchEnd);
+      
       // Process each change in the batch
       for (const change of batch) {
         try {
-          const { type, table, id, data, timestamp } = change
-
+          const { type, table, id, data, timestamp } = change;
+          
           if (type === "create" || type === "update") {
             // For create and update, use upsert
             // Remove is_synced from the data before sending to Supabase
-            const { is_synced, ...dataWithoutSync } = data
-
+            const { is_synced, ...dataWithoutSync } = data;
             const { error } = await supabase.from(table).upsert({
               ...dataWithoutSync,
               updated_at: new Date().toISOString(),
-            })
-
+            });
+            
             if (error) {
               // Check if this is a "relation does not exist" error
               if (error.message && error.message.includes("does not exist")) {
-                console.log(`Table ${table} does not exist yet in Supabase, skipping sync for this change`)
+                console.log(`Table ${table} does not exist yet in Supabase, skipping sync for this change`);
                 // We'll count this as a success since it's not a real error, just a table that needs to be created
-                successCount++
-                continue
+                successCount++;
+                continue;
               }
-              throw error
+              throw new Error(error.message || 'Unknown database error');
             }
           } else if (type === "delete") {
             // For delete, remove the record
-            const { error } = await supabase.from(table).delete().eq("id", id)
-
+            const { error } = await supabase.from(table).delete().eq("id", id);
+            
             if (error) {
               // Check if this is a "relation does not exist" error
               if (error.message && error.message.includes("does not exist")) {
-                console.log(`Table ${table} does not exist yet in Supabase, skipping sync for this change`)
+                console.log(`Table ${table} does not exist yet in Supabase, skipping sync for this change`);
                 // We'll count this as a success since it's not a real error, just a table that needs to be created
-                successCount++
-                continue
+                successCount++;
+                continue;
               }
-              throw error
+              throw new Error(error.message || 'Unknown database error');
             }
           }
-
+          
           // Log successful sync
           try {
             await supabase.from("sync_log").insert({
@@ -412,22 +425,23 @@ export async function syncWithSupabase() {
               entity_id: id,
               operation: type,
               status: "success",
-            })
+            });
           } catch (logError) {
             // If sync_log table doesn't exist yet, just continue
             if (logError.message && logError.message.includes("does not exist")) {
-              console.log("sync_log table does not exist yet, skipping log entry")
+              console.log("sync_log table does not exist yet, skipping log entry");
             } else {
-              console.error("Failed to log sync success:", logError)
+              console.error("Failed to log sync success:", logError);
             }
           }
-
-          successCount++
+          
+          successCount++;
         } catch (error) {
-          console.error("Error syncing change:", error, change)
-          errorCount++
-          errors.push({ change, error })
-
+          const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+          console.error("Error syncing change:", errorMessage, change);
+          errorCount++;
+          errors.push({ change, error: errorMessage });
+          
           // Log failed sync
           try {
             await supabase.from("sync_log").insert({
@@ -437,54 +451,63 @@ export async function syncWithSupabase() {
               entity_id: change.id,
               operation: change.type,
               status: "error",
-              error_message: error.message || "Unknown error",
-            })
+              error_message: errorMessage,
+            });
           } catch (logError) {
             // If sync_log table doesn't exist yet, just continue
             if (logError.message && logError.message.includes("does not exist")) {
-              console.log("sync_log table does not exist yet, skipping log entry")
+              console.log("sync_log table does not exist yet, skipping log entry");
             } else {
-              console.error("Failed to log sync error:", logError)
+              console.error("Failed to log sync error:", logError);
             }
           }
         }
       }
     }
-
+    
     // Remove successfully synced changes
     if (successCount > 0) {
       // Keep only the failed changes
       pendingChanges = pendingChanges.filter((_, index) => {
-        const batchIndex = Math.floor(index / batchSize)
-        const indexInBatch = index % batchSize
-        const batchStart = batchIndex * batchSize
-
+        const batchIndex = Math.floor(index / batchSize);
+        const indexInBatch = index % batchSize;
+        const batchStart = batchIndex * batchSize;
         // Check if this change is in a processed batch and failed
-        return errors.some((e) => e.change === pendingChanges[batchStart + indexInBatch])
-      })
-
+        return errors.some((e) => e.change === pendingChanges[batchStart + indexInBatch]);
+      });
+      
       // Save updated pending changes
-      await saveDatabaseToStorage()
-
+      await saveDatabaseToStorage();
+      
       // Mark all records as synced
       Object.keys(memoryDb).forEach((table) => {
         memoryDb[table] = memoryDb[table].map((record) => ({
           ...record,
           is_synced: 1,
-        }))
-      })
-
-      await saveDatabaseToStorage()
+        }));
+      });
+      
+      await saveDatabaseToStorage();
     }
-
+    
     return {
       success: errorCount === 0,
       count: successCount,
-      errors: errorCount > 0 ? errors : undefined,
-    }
+      errors: errorCount > 0 ? errors.map(e => ({
+        table: e.change.table,
+        id: e.change.id,
+        type: e.change.type,
+        error: e.error
+      })) : undefined,
+    };
   } catch (error) {
-    console.error("Sync error:", error)
-    return { success: false, error: String(error) }
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.error("Sync error:", errorMessage);
+    return { 
+      success: false, 
+      error: errorMessage,
+      details: error 
+    };
   }
 }
 

@@ -11,6 +11,12 @@ interface SyncStatusContextType {
   pendingChanges: number
   sync: () => Promise<{ success: boolean; count?: number; error?: string }>
   lastSyncTime: Date | null
+  syncError: string | null
+  isSyncing: boolean
+  schemaErrors: string[] | null
+  disableAutoSync: boolean
+  toggleAutoSync: () => void
+  resetSchemaErrors: () => void
 }
 
 const SyncStatusContext = createContext<SyncStatusContextType>({
@@ -18,6 +24,12 @@ const SyncStatusContext = createContext<SyncStatusContextType>({
   pendingChanges: 0,
   sync: async () => ({ success: true, count: 0 }),
   lastSyncTime: null,
+  syncError: null,
+  isSyncing: false,
+  schemaErrors: null,
+  disableAutoSync: false,
+  toggleAutoSync: () => {},
+  resetSchemaErrors: () => {}
 })
 
 export function SyncStatusProvider({ children }: { children: React.ReactNode }) {
@@ -26,6 +38,9 @@ export function SyncStatusProvider({ children }: { children: React.ReactNode }) 
   const [isDbInitialized, setIsDbInitialized] = useState(false)
   const [lastSyncTime, setLastSyncTime] = useState<Date | null>(null)
   const [isSyncing, setIsSyncing] = useState(false)
+  const [syncError, setSyncError] = useState<string | null>(null)
+  const [schemaErrors, setSchemaErrors] = useState<string[] | null>(null)
+  const [disableAutoSync, setDisableAutoSync] = useState(false)
 
   // Initialize database once
   useEffect(() => {
@@ -39,6 +54,7 @@ export function SyncStatusProvider({ children }: { children: React.ReactNode }) 
         }
       } catch (error) {
         console.error("Error initializing database:", error)
+        setSyncError(`Database initialization error: ${error instanceof Error ? error.message : String(error)}`)
       }
     }
 
@@ -55,6 +71,7 @@ export function SyncStatusProvider({ children }: { children: React.ReactNode }) 
         setPendingChanges(count)
       } catch (error) {
         console.error("Error checking pending changes:", error)
+        // Don't set a UI error for this routine check
       }
     }
 
@@ -69,11 +86,14 @@ export function SyncStatusProvider({ children }: { children: React.ReactNode }) 
 
   // Set up auto-sync when online
   useEffect(() => {
-    if (!isDbInitialized || !isOnline || isSyncing || !isSupabaseConfigured()) return
+    if (!isDbInitialized || !isOnline || isSyncing || !isSupabaseConfigured() || disableAutoSync) return
 
     // Auto-sync if there are pending changes and we're online
     const autoSync = async () => {
       try {
+        // Clear previous errors on new sync attempt
+        setSyncError(null)
+
         if (pendingChanges > 0) {
           await performSync()
         } else {
@@ -82,7 +102,8 @@ export function SyncStatusProvider({ children }: { children: React.ReactNode }) 
         }
       } catch (error) {
         console.error("Auto-sync error:", error)
-        // Don't show toast for auto-sync errors to avoid spamming the user
+        // Capture the error message but don't display a toast for auto-sync
+        setSyncError(`Auto-sync error: ${error instanceof Error ? error.message : String(error)}`)
       }
     }
 
@@ -90,7 +111,7 @@ export function SyncStatusProvider({ children }: { children: React.ReactNode }) 
     const interval = setInterval(autoSync, 60000) // Every minute
 
     return () => clearInterval(interval)
-  }, [isDbInitialized, isOnline, pendingChanges, isSyncing])
+  }, [isDbInitialized, isOnline, pendingChanges, isSyncing, disableAutoSync])
 
   useEffect(() => {
     // Check initial online status
@@ -116,6 +137,57 @@ export function SyncStatusProvider({ children }: { children: React.ReactNode }) 
     }
   }, [isDbInitialized])
 
+  // Detect schema errors from sync errors
+  const detectSchemaErrors = (error: string) => {
+    const schemaErrorPatterns = [
+      // Match column not found errors
+      /Could not find the '([^']+)' column of '([^']+)'/i,
+      // Match constraint violations
+      /null value in column "([^"]+)" .*?violates not-null constraint/i,
+      // Other schema-related error patterns can be added here
+    ]
+    
+    for (const pattern of schemaErrorPatterns) {
+      if (pattern.test(error)) {
+        return true
+      }
+    }
+    
+    return false
+  }
+
+  // Parse schema error details
+  const parseSchemaErrors = (error: string) => {
+    // Extract table and column information from error message
+    let match;
+    
+    // Check for "Could not find column" error
+    match = error.match(/Could not find the '([^']+)' column of '([^']+)'/i)
+    if (match) {
+      const [_, column, table] = match
+      return `Missing column: ${column} in table ${table}`
+    }
+    
+    // Check for not-null constraint error
+    match = error.match(/null value in column "([^"]+)" of relation "([^"]+)"/i)
+    if (match) {
+      const [_, column, table] = match
+      return `Not-null constraint violated: ${column} in table ${table}`
+    }
+    
+    return error
+  }
+
+  // Function to reset schema errors
+  const resetSchemaErrors = () => {
+    setSchemaErrors(null)
+  }
+
+  // Function to toggle auto sync
+  const toggleAutoSync = () => {
+    setDisableAutoSync(prev => !prev)
+  }
+
   // Function to perform sync
   const performSync = async () => {
     if (!isOnline || isSyncing || !isSupabaseConfigured()) {
@@ -123,12 +195,53 @@ export function SyncStatusProvider({ children }: { children: React.ReactNode }) 
     }
 
     setIsSyncing(true)
+    // Clear previous errors
+    setSyncError(null)
+
     try {
       // First push local changes to server
       const pushResult = await syncWithSupabase()
 
+      if (!pushResult.success) {
+        // Handle specific push error
+        const errorMsg = pushResult.error || "Unknown sync push error"
+        setSyncError(errorMsg)
+        
+        // Detect if it's a schema-related error
+        if (pushResult.error && detectSchemaErrors(pushResult.error)) {
+          // Either create or append to schema errors list
+          const newError = parseSchemaErrors(pushResult.error)
+          setSchemaErrors(prev => {
+            if (!prev) return [newError]
+            if (!prev.includes(newError)) return [...prev, newError]
+            return prev
+          })
+        }
+        
+        return { success: false, error: errorMsg }
+      }
+
       // Then pull changes from server
       const pullResult = await pullFromSupabase()
+
+      if (!pullResult.success) {
+        // Handle specific pull error
+        const errorMsg = pullResult.error || "Unknown sync pull error"
+        setSyncError(errorMsg)
+        
+        // Detect if it's a schema-related error
+        if (pullResult.error && detectSchemaErrors(pullResult.error)) {
+          // Either create or append to schema errors list
+          const newError = parseSchemaErrors(pullResult.error)
+          setSchemaErrors(prev => {
+            if (!prev) return [newError]
+            if (!prev.includes(newError)) return [...prev, newError]
+            return prev
+          })
+        }
+        
+        return { success: false, error: errorMsg }
+      }
 
       // Update pending changes count
       setPendingChanges(getPendingChangesCount())
@@ -137,13 +250,25 @@ export function SyncStatusProvider({ children }: { children: React.ReactNode }) 
       setLastSyncTime(new Date())
 
       return {
-        success: pushResult.success && pullResult.success,
+        success: true,
         count: (pushResult.count || 0) + (pullResult.count || 0),
-        error: pushResult.error || pullResult.error,
       }
     } catch (error) {
       console.error("Sync error:", error)
-      return { success: false, error: String(error) }
+      const errorMessage = error instanceof Error ? error.message : String(error)
+      setSyncError(errorMessage)
+      
+      // Check for schema errors in the thrown error too
+      if (typeof errorMessage === 'string' && detectSchemaErrors(errorMessage)) {
+        const newError = parseSchemaErrors(errorMessage)
+        setSchemaErrors(prev => {
+          if (!prev) return [newError]
+          if (!prev.includes(newError)) return [...prev, newError]
+          return prev
+        })
+      }
+      
+      return { success: false, error: errorMessage }
     } finally {
       setIsSyncing(false)
     }
@@ -156,17 +281,46 @@ export function SyncStatusProvider({ children }: { children: React.ReactNode }) 
     }
 
     setIsSyncing(true)
+    // Clear previous errors
+    setSyncError(null)
+
     try {
       // Pull changes from server
       const result = await pullFromSupabase()
 
+      if (!result.success && result.error) {
+        setSyncError(result.error)
+        
+        // Check for schema errors
+        if (detectSchemaErrors(result.error)) {
+          const newError = parseSchemaErrors(result.error)
+          setSchemaErrors(prev => {
+            if (!prev) return [newError]
+            if (!prev.includes(newError)) return [...prev, newError]
+            return prev
+          })
+        }
+      }
+
       // Update last sync time
       setLastSyncTime(new Date())
-
       return result
     } catch (error) {
       console.error("Pull error:", error)
-      return { success: false, error: String(error) }
+      const errorMessage = error instanceof Error ? error.message : String(error)
+      setSyncError(errorMessage)
+      
+      // Check for schema errors in the thrown error too
+      if (typeof errorMessage === 'string' && detectSchemaErrors(errorMessage)) {
+        const newError = parseSchemaErrors(errorMessage)
+        setSchemaErrors(prev => {
+          if (!prev) return [newError]
+          if (!prev.includes(newError)) return [...prev, newError]
+          return prev
+        })
+      }
+      
+      return { success: false, error: errorMessage }
     } finally {
       setIsSyncing(false)
     }
@@ -190,7 +344,20 @@ export function SyncStatusProvider({ children }: { children: React.ReactNode }) 
   }
 
   return (
-    <SyncStatusContext.Provider value={{ isOnline, pendingChanges, sync, lastSyncTime }}>
+    <SyncStatusContext.Provider
+      value={{
+        isOnline,
+        pendingChanges,
+        sync,
+        lastSyncTime,
+        syncError,
+        isSyncing,
+        schemaErrors,
+        disableAutoSync,
+        toggleAutoSync,
+        resetSchemaErrors
+      }}
+    >
       {children}
     </SyncStatusContext.Provider>
   )

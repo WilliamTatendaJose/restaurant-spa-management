@@ -1,11 +1,12 @@
-import NextAuth from "next-auth";
+import NextAuth from "next-auth/next";
 import CredentialsProvider from "next-auth/providers/credentials";
 import { createSQLiteAdapter, verifyUserCredentials, seedAdminUser } from "@/lib/sqlite-db";
-import { AdapterUser } from "next-auth/adapters";
 
 // Initialize admin user for first run
 try {
   seedAdminUser();
+  // Also create the "admiadmin@restaurant-spa.com" user
+  seedAdminUser("admiadmin@restaurant-spa.com", "Admin@123");
 } catch (error) {
   console.error("Failed to seed admin user:", error);
 }
@@ -41,15 +42,9 @@ declare module "next-auth/jwt" {
   }
 }
 
-export const {
-  handlers: { GET, POST },
-  auth,
-  signIn,
-  signOut,
-} = NextAuth({
-  // While we've created a custom adapter, we'll temporarily disable it
-  // until we resolve type compatibility issues
-  // adapter: createSQLiteAdapter(),
+const handler = NextAuth({
+  // Properly enable the SQLite adapter
+  adapter: createSQLiteAdapter(),
   providers: [
     CredentialsProvider({
       name: "Credentials",
@@ -64,13 +59,17 @@ export const {
             return null;
           }
 
+          console.log(`Auth: Attempting login with email: ${credentials.email}`);
+
           // Verify credentials with SQLite
           const user = verifyUserCredentials(credentials.email, credentials.password);
           
           if (!user) {
+            console.log(`Auth: Invalid credentials for ${credentials.email}`);
             return null;
           }
 
+          console.log(`Auth: Successful login for ${credentials.email}`);
           return {
             id: user.id,
             name: user.name,
@@ -100,11 +99,11 @@ export const {
       return token;
     },
     async session({ session, token }) {
-      // Add role and department to the session
+      // Add role and department to the session with proper type casting
       if (session.user) {
-        session.user.id = token.userId;
-        session.user.role = token.role;
-        session.user.department = token.department;
+        session.user.id = token.userId as string | undefined;
+        session.user.role = token.role as string | undefined;
+        session.user.department = token.department as string | null | undefined;
       }
       return session;
     },
@@ -113,5 +112,8 @@ export const {
     strategy: "jwt",
     maxAge: 30 * 24 * 60 * 60, // 30 days
   },
+  secret: process.env.NEXTAUTH_SECRET,
   debug: process.env.NODE_ENV === "development",
 });
+
+export { handler as GET, handler as POST };

@@ -488,18 +488,32 @@ export function getUserProfile(userId: string) {
 
 // Seed admin user if no users exist
 export function seedAdminUser(email: string = 'admin@restaurant-spa.com', password: string = 'Admin@123') {
-  const db = getAuthDb();
-  
-  // Check if any users exist
-  const result = db.prepare('SELECT COUNT(*) as count FROM users').get() as { count: number };
-  const userCount = result.count;
-  
-  if (userCount === 0) {
+  try {
+    const db = getAuthDb();
+    
+    console.log('Seeding admin user with email:', email);
+    
+    // First, check if this specific admin user already exists
+    const existingUser = db.prepare('SELECT * FROM users WHERE email = ?').get(email) as UserRecord | undefined;
+    
+    if (existingUser) {
+      console.log(`Admin user ${email} already exists, skipping creation.`);
+      return;
+    }
+    
+    // Create the admin user
     try {
       createUserWithCredentials(email, 'Administrator', password, 'admin');
-      console.log('Admin user created:', email);
+      console.log('Admin user created successfully:', email);
     } catch (error) {
-      console.error('Failed to create admin user:', error);
+      console.error(`Failed to create admin user ${email}:`, error);
     }
+    
+    // For debugging, list all users
+    const users = db.prepare('SELECT id, name, email FROM users LIMIT 5').all() as { id: string, name: string, email: string }[];
+    console.log('Existing users:', users.map(u => `${u.name} (${u.email})`).join(', '));
+    
+  } catch (error) {
+    console.error('Error in seedAdminUser:', error);
   }
 }

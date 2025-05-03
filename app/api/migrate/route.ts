@@ -1,342 +1,453 @@
-import { NextResponse } from "next/server"
-import { createClient } from "@supabase/supabase-js"
-import type { NextRequest } from "next/server"
+import { NextRequest, NextResponse } from "next/server";
+import { getSupabaseServerClient } from "@/lib/supabase";
 
-// Update the GET function to handle creating all tables
+// Define the database schema - focusing on the required columns that are missing
+const tableSchemas = {
+  bookings: `
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    customer_name TEXT NOT NULL,
+    customer_phone TEXT,
+    customer_email TEXT,
+    booking_date DATE NOT NULL,
+    booking_time TIME,
+    service TEXT,
+    staff TEXT,
+    party_size TEXT,
+    notes TEXT,
+    booking_type TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'pending',
+    amount NUMERIC(10, 2),
+    customer_id UUID,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    is_synced BOOLEAN DEFAULT false
+  `,
+  inventory: `
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    name TEXT NOT NULL,
+    category TEXT,
+    quantity INTEGER NOT NULL DEFAULT 0,
+    unit TEXT,
+    reorder_level INTEGER,
+    last_updated DATE,
+    is_available BOOLEAN DEFAULT true, 
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    is_synced BOOLEAN DEFAULT false
+  `,
+  customers: `
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    name TEXT NOT NULL,
+    email TEXT,
+    phone TEXT,
+    address TEXT,
+    visits INTEGER DEFAULT 0,
+    last_visit DATE,
+    customer_type TEXT,
+    notes TEXT,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    is_synced BOOLEAN DEFAULT false
+  `,
+  transactions: `
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    customer_name TEXT,
+    customer_id UUID,
+    transaction_date DATE NOT NULL,
+    transaction_time TIME,
+    transaction_type TEXT NOT NULL,
+    staff_id TEXT,
+    status TEXT NOT NULL DEFAULT 'pending',
+    payment_method TEXT,
+    total_amount NUMERIC(10, 2) DEFAULT 0,
+    notes TEXT,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    is_synced BOOLEAN DEFAULT false
+  `,
+  transaction_items: `
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    transaction_id UUID NOT NULL,
+    item_name TEXT NOT NULL,
+    quantity INTEGER NOT NULL DEFAULT 1,
+    price NUMERIC(10, 2) NOT NULL,
+    notes TEXT,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    is_synced BOOLEAN DEFAULT false
+  `,
+  staff: `
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    name TEXT NOT NULL,
+    email TEXT,
+    phone TEXT,
+    position TEXT,
+    department TEXT,
+    hire_date DATE,
+    status TEXT DEFAULT 'active',
+    notes TEXT,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    is_synced BOOLEAN DEFAULT false
+  `,
+  spa_services: `
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    name TEXT NOT NULL,
+    description TEXT,
+    duration INTEGER,
+    price NUMERIC(10, 2),
+    category TEXT,
+    status TEXT DEFAULT 'active',
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    is_synced BOOLEAN DEFAULT false
+  `,
+  menu_items: `
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    name TEXT NOT NULL,
+    description TEXT,
+    price NUMERIC(10, 2) NOT NULL,
+    category TEXT,
+    preparation_time INTEGER,
+    ingredients TEXT,
+    allergens TEXT,
+    status TEXT DEFAULT 'active',
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    is_synced BOOLEAN DEFAULT false
+  `,
+  business_settings: `
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    business_name TEXT,
+    address TEXT,
+    phone TEXT,
+    email TEXT,
+    website TEXT,
+    tax_rate NUMERIC(5, 2) DEFAULT 0,
+    currency TEXT DEFAULT 'USD',
+    logo_url TEXT,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    is_synced BOOLEAN DEFAULT false
+  `,
+  general_settings: `
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    setting_key TEXT NOT NULL,
+    setting_value TEXT,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    is_synced BOOLEAN DEFAULT false
+  `,
+  sync_log: `
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    device_id TEXT NOT NULL,
+    sync_type TEXT NOT NULL,
+    records_count INTEGER DEFAULT 0,
+    success BOOLEAN DEFAULT true,
+    error_message TEXT,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+  `
+};
 
-// Find the GET function and update it:
-export async function GET(request: NextRequest) {
-  try {
-    // Create a Supabase client with admin privileges
-    const supabase = createClient(process.env.SUPABASE_URL || "", process.env.SUPABASE_SERVICE_ROLE_KEY || "")
+// Add explicit function to add specific missing columns
+async function addMissingColumnsIfNeeded(supabase: any) {
+  const specificFixes = [
+    // Add missing columns that were identified in the error messages
+    {
+      table: 'bookings',
+      column: 'customer_id',
+      dataType: 'UUID'
+    },
+    {
+      table: 'inventory',
+      column: 'is_available',
+      dataType: 'BOOLEAN DEFAULT true'
+    },
+    // Make sure id columns are properly set up with UUID defaults
+    {
+      table: 'spa_services',
+      column: 'id',
+      dataType: 'UUID PRIMARY KEY DEFAULT uuid_generate_v4()',
+      isPrimaryKey: true
+    },
+    {
+      table: 'inventory',
+      column: 'id',
+      dataType: 'UUID PRIMARY KEY DEFAULT uuid_generate_v4()',
+      isPrimaryKey: true
+    },
+    {
+      table: 'customers',
+      column: 'id',
+      dataType: 'UUID PRIMARY KEY DEFAULT uuid_generate_v4()',
+      isPrimaryKey: true
+    },
+    {
+      table: 'staff',
+      column: 'id',
+      dataType: 'UUID PRIMARY KEY DEFAULT uuid_generate_v4()',
+      isPrimaryKey: true
+    }
+  ];
 
-    // Check if we should create all tables
-    const { searchParams } = new URL(request.url)
-    const createTables = searchParams.get("createTables") === "true"
+  const results = [];
 
-    // Tables that need the is_synced column
-    const tables = ["bookings", "inventory", "customers", "transactions", "transaction_items", "staff"]
+  for (const fix of specificFixes) {
+    try {
+      // Check if the column exists
+      const { data: columns } = await supabase
+        .from('information_schema.columns')
+        .select('column_name')
+        .eq('table_name', fix.table)
+        .eq('column_name', fix.column)
+        .eq('table_schema', 'public');
+      
+      if (!columns || columns.length === 0) {
+        // Column doesn't exist, add it
+        let alterQuery;
+        
+        if (fix.isPrimaryKey) {
+          // For primary key columns, we need to handle them differently
+          // First check if table exists
+          const { data: tables } = await supabase
+            .from('information_schema.tables')
+            .select('table_name')
+            .eq('table_name', fix.table)
+            .eq('table_schema', 'public');
+            
+          if (tables && tables.length > 0) {
+            // Table exists but ID column might be wrong - try to recreate with proper UUID defaults
+            alterQuery = `
+              DO $$
+              BEGIN
+                -- Drop primary key constraint if it exists
+                IF EXISTS (
+                  SELECT 1 FROM information_schema.table_constraints 
+                  WHERE table_name = '${fix.table}' 
+                  AND table_schema = 'public'
+                  AND constraint_type = 'PRIMARY KEY'
+                ) THEN
+                  EXECUTE 'ALTER TABLE ${fix.table} DROP CONSTRAINT IF EXISTS ${fix.table}_pkey';
+                END IF;
+                
+                -- Modify ID column to be UUID with default
+                IF EXISTS (
+                  SELECT 1 FROM information_schema.columns 
+                  WHERE table_name = '${fix.table}' 
+                  AND column_name = 'id'
+                  AND table_schema = 'public'
+                ) THEN
+                  EXECUTE 'ALTER TABLE ${fix.table} ALTER COLUMN id TYPE UUID USING (uuid_generate_v4())';
+                  EXECUTE 'ALTER TABLE ${fix.table} ALTER COLUMN id SET DEFAULT uuid_generate_v4()';
+                  EXECUTE 'ALTER TABLE ${fix.table} ADD PRIMARY KEY (id)';
+                ELSE
+                  EXECUTE 'ALTER TABLE ${fix.table} ADD COLUMN id UUID PRIMARY KEY DEFAULT uuid_generate_v4()';
+                END IF;
+              END $$;
+            `;
+          } else {
+            // Table doesn't exist, we'll create it in the main migration process
+            continue;
+          }
+        } else {
+          // For regular columns
+          alterQuery = `ALTER TABLE ${fix.table} ADD COLUMN IF NOT EXISTS ${fix.column} ${fix.dataType}`;
+        }
 
-    // If createTables is true, create all tables
-    if (createTables) {
-      console.log("Creating all tables...")
-
-      // Create bookings table
-      const createBookingsQuery = `
-        CREATE TABLE IF NOT EXISTS bookings (
-          id UUID PRIMARY KEY,
-          customer_name TEXT,
-          customer_phone TEXT,
-          customer_email TEXT,
-          booking_date TEXT,
-          booking_time TEXT,
-          service TEXT,
-          staff TEXT,
-          notes TEXT,
-          booking_type TEXT,
-          status TEXT,
-          created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-          updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-          is_synced INTEGER DEFAULT 1
-        );
-      `
-
-      // Create inventory table
-      const createInventoryQuery = `
-        CREATE TABLE IF NOT EXISTS inventory (
-          id UUID PRIMARY KEY,
-          name TEXT,
-          category TEXT,
-          quantity INTEGER,
-          unit TEXT,
-          reorder_level INTEGER,
-          description TEXT,
-          last_updated TEXT,
-          created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-          updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-          is_synced INTEGER DEFAULT 1
-        );
-      `
-
-      // Create customers table
-      const createCustomersQuery = `
-        CREATE TABLE IF NOT EXISTS customers (
-          id UUID PRIMARY KEY,
-          name TEXT,
-          email TEXT,
-          phone TEXT,
-          address TEXT,
-          customer_type TEXT,
-          visits INTEGER DEFAULT 0,
-          last_visit TEXT,
-          notes TEXT,
-          created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-          updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-          is_synced INTEGER DEFAULT 1
-        );
-      `
-
-      // Create transactions table
-      const createTransactionsQuery = `
-        CREATE TABLE IF NOT EXISTS transactions (
-          id UUID PRIMARY KEY,
-          customer_name TEXT,
-          transaction_date TEXT,
-          total_amount DECIMAL(10,2),
-          payment_method TEXT,
-          transaction_type TEXT,
-          notes TEXT,
-          status TEXT,
-          created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-          updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-          is_synced INTEGER DEFAULT 1
-        );
-      `
-
-      // Create transaction_items table
-      const createTransactionItemsQuery = `
-        CREATE TABLE IF NOT EXISTS transaction_items (
-          id UUID PRIMARY KEY,
-          transaction_id UUID,
-          item_name TEXT,
-          quantity INTEGER,
-          price DECIMAL(10,2),
-          created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-          updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-          is_synced INTEGER DEFAULT 1
-        );
-      `
-
-      // Create staff table
-      const createStaffQuery = `
-        CREATE TABLE IF NOT EXISTS staff (
-          id UUID PRIMARY KEY,
-          name TEXT,
-          email TEXT,
-          phone TEXT,
-          role TEXT,
-          department TEXT,
-          status TEXT,
-          created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-          updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-          is_synced INTEGER DEFAULT 1
-        );
-      `
-
-      // Create sync_log table
-      const createSyncLogQuery = `
-        CREATE TABLE IF NOT EXISTS sync_log (
-          id SERIAL PRIMARY KEY,
-          device_id TEXT,
-          sync_type TEXT,
-          entity_type TEXT,
-          entity_id TEXT,
-          operation TEXT,
-          status TEXT,
-          error_message TEXT,
-          created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-        );
-      `
-
-      // Execute all create table queries
-      const queries = [
-        createBookingsQuery,
-        createInventoryQuery,
-        createCustomersQuery,
-        createTransactionsQuery,
-        createTransactionItemsQuery,
-        createStaffQuery,
-        createSyncLogQuery,
-      ]
-
-      for (const query of queries) {
-        const { error } = await supabase.rpc("pgclient", { query })
+        // Execute the alter query
+        const { error } = await supabase.rpc('exec', { query: alterQuery });
+        
         if (error) {
-          console.error(`Error executing query: ${error.message}`)
+          results.push(`Error adding column ${fix.column} to ${fix.table}: ${error.message}`);
+        } else {
+          results.push(`Successfully added column ${fix.column} to ${fix.table}`);
         }
       }
+    } catch (error) {
+      results.push(`Error processing ${fix.table}.${fix.column}: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
 
-      return NextResponse.json({
-        success: true,
-        message: "All tables created successfully",
-      })
+  return results;
+}
+
+export async function POST(request: NextRequest) {
+  try {
+    const supabase = getSupabaseServerClient();
+    const createTables = request.nextUrl.searchParams.get("createTables") === "true";
+    
+    // First, enable UUID extension if not already enabled
+    try {
+      const { error } = await supabase.rpc('create_uuid_extension');
+      if (error) {
+        console.log('UUID extension may already exist:', error.message);
+      }
+    } catch (error) {
+      console.log('Error creating UUID extension:', error instanceof Error ? error.message : String(error));
+      // Continue with migration even if this fails
     }
 
-    // Add is_synced column to each table if it doesn't exist
-    for (const table of tables) {
-      // Check if the table exists
-      const { data: tableExists, error: tableCheckError } = await supabase
-        .from(table)
-        .select("*")
-        .limit(1)
-        .catch(() => ({ data: null, error: { message: `Table ${table} does not exist` } }))
+    const errors = [];
+    const createdTables = [];
+    const updatedTables = [];
 
-      if (tableCheckError) {
-        console.log(`Creating table ${table}...`)
-
-        // Create the table with the required columns
-        let createTableQuery = ""
-
-        if (table === "bookings") {
-          createTableQuery = `
-            CREATE TABLE IF NOT EXISTS bookings (
-              id UUID PRIMARY KEY,
-              customer_name TEXT,
-              customer_phone TEXT,
-              customer_email TEXT,
-              booking_date TEXT,
-              booking_time TEXT,
-              service TEXT,
-              staff TEXT,
-              notes TEXT,
-              booking_type TEXT,
-              status TEXT,
-              created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-              updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-              is_synced INTEGER DEFAULT 1
-            );
-          `
-        } else if (table === "inventory") {
-          createTableQuery = `
-            CREATE TABLE IF NOT EXISTS inventory (
-              id UUID PRIMARY KEY,
-              name TEXT,
-              category TEXT,
-              quantity INTEGER,
-              unit TEXT,
-              reorder_level INTEGER,
-              last_updated TEXT,
-              created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-              updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-              is_synced INTEGER DEFAULT 1
-            );
-          `
-        } else if (table === "customers") {
-          createTableQuery = `
-            CREATE TABLE IF NOT EXISTS customers (
-              id UUID PRIMARY KEY,
-              name TEXT,
-              email TEXT,
-              phone TEXT,
-              visits INTEGER,
-              last_visit TEXT,
-              customer_type TEXT,
-              created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-              updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-              is_synced INTEGER DEFAULT 1
-            );
-          `
-        } else if (table === "transactions") {
-          createTableQuery = `
-            CREATE TABLE IF NOT EXISTS transactions (
-              id UUID PRIMARY KEY,
-              customer_id TEXT,
-              total DECIMAL(10,2),
-              payment_method TEXT,
-              status TEXT,
-              transaction_date TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-              created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-              updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-              is_synced INTEGER DEFAULT 1
-            );
-          `
-        } else if (table === "transaction_items") {
-          createTableQuery = `
-            CREATE TABLE IF NOT EXISTS transaction_items (
-              id UUID PRIMARY KEY,
-              transaction_id UUID REFERENCES transactions(id),
-              item_name TEXT,
-              quantity INTEGER,
-              price DECIMAL(10,2),
-              created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-              updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-              is_synced INTEGER DEFAULT 1
-            );
-          `
-        } else if (table === "staff") {
-          createTableQuery = `
-            CREATE TABLE IF NOT EXISTS staff (
-              id UUID PRIMARY KEY,
-              name TEXT,
-              email TEXT,
-              phone TEXT,
-              role TEXT,
-              status TEXT,
-              created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-              updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-              is_synced INTEGER DEFAULT 1
-            );
-          `
-        }
-
-        if (createTableQuery) {
-          const { error: createError } = await supabase.rpc("pgclient", { query: createTableQuery })
-          if (createError) {
-            console.error(`Error creating table ${table}:`, createError)
-          } else {
-            console.log(`Table ${table} created successfully`)
+    // First run specific fixes for the reported missing columns
+    const specificFixResults = await addMissingColumnsIfNeeded(supabase);
+    
+    // Process each table
+    for (const [tableName, schema] of Object.entries(tableSchemas)) {
+      try {
+        // Check if the table exists
+        const { error: checkError, data: checkData } = await supabase
+          .from('information_schema.tables')
+          .select('table_name')
+          .eq('table_name', tableName)
+          .eq('table_schema', 'public');
+        
+        const tableExists = checkData && checkData.length > 0;
+        
+        if (!tableExists || createTables) {
+          // Table doesn't exist, create it
+          const createQuery = `CREATE TABLE IF NOT EXISTS ${tableName} (${schema})`;
+          try {
+            const { error: createError } = await supabase.rpc('exec', { query: createQuery });
+            
+            if (createError) {
+              errors.push(`Error creating table ${tableName}: ${createError.message}`);
+            } else {
+              createdTables.push(tableName);
+            }
+          } catch (error) {
+            errors.push(`Error creating table ${tableName}: ${error instanceof Error ? error.message : String(error)}`);
+          }
+        } else {
+          // Table exists, check for missing columns
+          for (const columnDef of schema.split(',')) {
+            if (columnDef.trim()) {
+              const columnName = columnDef.trim().split(' ')[0];
+              
+              // Skip primary key constraint
+              if (columnName === 'PRIMARY') continue;
+              
+              // Check if column exists
+              const { error: colCheckError, data: colCheckData } = await supabase
+                .from('information_schema.columns')
+                .select('column_name')
+                .eq('table_name', tableName)
+                .eq('column_name', columnName)
+                .eq('table_schema', 'public');
+              
+              if (!colCheckData || colCheckData.length === 0) {
+                // Column doesn't exist, add it
+                const dataType = columnDef.trim().substring(columnName.length).trim();
+                const alterQuery = `ALTER TABLE ${tableName} ADD COLUMN IF NOT EXISTS ${columnName} ${dataType}`;
+                
+                try {
+                  const { error: alterError } = await supabase.rpc('exec', { query: alterQuery });
+                  
+                  if (alterError) {
+                    errors.push(`Error adding column ${columnName} to ${tableName}: ${alterError.message}`);
+                  } else {
+                    if (!updatedTables.includes(tableName)) {
+                      updatedTables.push(tableName);
+                    }
+                  }
+                } catch (error) {
+                  errors.push(`Error adding column ${columnName} to ${tableName}: ${error instanceof Error ? error.message : String(error)}`);
+                }
+              }
+            }
           }
         }
-      } else {
-        // Table exists, check if is_synced column exists
-        console.log(`Table ${table} exists, checking for is_synced column...`)
-
-        // Add is_synced column if it doesn't exist
-        const alterTableQuery = `
-          DO $$
-          BEGIN
-            IF NOT EXISTS (
-              SELECT FROM information_schema.columns 
-              WHERE table_name = '${table}' AND column_name = 'is_synced'
-            ) THEN
-              ALTER TABLE ${table} ADD COLUMN is_synced INTEGER DEFAULT 1;
-            END IF;
-          END $$;
-        `
-
-        const { error: alterError } = await supabase.rpc("pgclient", { query: alterTableQuery })
-        if (alterError) {
-          console.error(`Error adding is_synced column to ${table}:`, alterError)
-        } else {
-          console.log(`is_synced column added to ${table} (if it didn't exist)`)
-        }
+      } catch (error) {
+        errors.push(`Error processing table ${tableName}: ${error instanceof Error ? error.message : String(error)}`);
       }
     }
 
-    // Create sync_log table if it doesn't exist
-    const syncLogQuery = `
-      CREATE TABLE IF NOT EXISTS sync_log (
-        id SERIAL PRIMARY KEY,
-        device_id TEXT,
-        sync_type TEXT,
-        entity_type TEXT,
-        entity_id TEXT,
-        operation TEXT,
-        status TEXT,
-        error_message TEXT,
-        created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-      );
-    `
+    // Create RPC function for executing arbitrary SQL if it doesn't exist
+    try {
+      await supabase.rpc('exec', { query: 'SELECT 1' });
+    } catch (error) {
+      // The function doesn't exist, create it
+      try {
+        const { error: createFnError } = await supabase.rpc('create_exec_function');
+        
+        if (createFnError) {
+          // Try to create the function directly
+          const createFunctionQuery = `
+            CREATE OR REPLACE FUNCTION exec(query text) RETURNS void AS $$
+            BEGIN
+              EXECUTE query;
+            END;
+            $$ LANGUAGE plpgsql SECURITY DEFINER;
+          `;
+          
+          try {
+            const { error: execFnError } = await supabase.query(createFunctionQuery);
+            
+            if (execFnError) {
+              errors.push(`Error creating exec function: ${execFnError.message}`);
+            }
+          } catch (error) {
+            errors.push(`Error creating exec function: ${error instanceof Error ? error.message : String(error)}`);
+          }
+        }
+      } catch (error) {
+        errors.push(`Error creating exec function: ${error instanceof Error ? error.message : String(error)}`);
+      }
+    }
+    
+    // Create RPC function for enabling UUID extension if it doesn't exist
+    try {
+      await supabase.rpc('create_uuid_extension');
+    } catch (error) {
+      // The function doesn't exist, create it
+      const createUuidFunctionQuery = `
+        CREATE OR REPLACE FUNCTION create_uuid_extension() RETURNS void AS $$
+        BEGIN
+          CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+        END;
+        $$ LANGUAGE plpgsql SECURITY DEFINER;
+      `;
+      
+      try {
+        const { error: uuidFnError } = await supabase.query(createUuidFunctionQuery);
+        
+        if (uuidFnError) {
+          errors.push(`Error creating UUID extension function: ${uuidFnError.message}`);
+        }
+      } catch (error) {
+        errors.push(`Error creating UUID extension function: ${error instanceof Error ? error.message : String(error)}`);
+      }
+    }
 
-    const { error: syncLogError } = await supabase.rpc("pgclient", { query: syncLogQuery })
-    if (syncLogError) {
-      console.error("Error creating sync_log table:", syncLogError)
-    } else {
-      console.log("sync_log table created successfully (if it didn't exist)")
+    // Add reference to specific fixes
+    const specificFixMessages = specificFixResults.filter(msg => msg.includes("Successfully"));
+    if (specificFixMessages.length > 0) {
+      updatedTables.push("Applied specific fixes to missing columns");
     }
 
     return NextResponse.json({
-      success: true,
-      message: "Database migration completed successfully",
-    })
+      success: errors.length === 0,
+      message: errors.length === 0 
+        ? `Migration completed: Created ${createdTables.length} tables, updated ${updatedTables.length} tables.`
+        : "Migration completed with errors",
+      createdTables,
+      updatedTables,
+      specificFixes: specificFixResults,
+      errors: errors.length > 0 ? errors : undefined
+    });
   } catch (error) {
-    console.error("Migration error:", error)
-    return NextResponse.json(
-      {
-        success: false,
-        error: String(error),
-      },
-      { status: 500 },
-    )
+    console.error("Migration error:", error);
+    return NextResponse.json({
+      success: false,
+      error: error instanceof Error ? error.message : "Unknown error occurred during migration"
+    }, { status: 500 });
   }
+}
+
+export async function GET() {
+  return NextResponse.json({
+    message: "Use POST method to run migration"
+  });
 }

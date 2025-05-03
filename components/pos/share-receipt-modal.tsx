@@ -14,7 +14,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useToast } from "@/components/ui/use-toast"
-import { customersApi } from "@/lib/db"
+import { customersApi, businessSettingsApi } from "@/lib/db"
 import type { jsPDF } from "jspdf"
 
 interface Customer {
@@ -24,29 +24,91 @@ interface Customer {
   phone?: string
 }
 
+interface BusinessSettings {
+  businessName: string
+  address: string
+  phone: string
+  email: string
+  website: string
+  taxRate: string
+  openingHours: string
+}
+
+interface ReceiptItem {
+  name: string
+  quantity: number
+  price: number
+}
+
 interface ShareReceiptModalProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   transactionId: string
   customerName: string
   getPdf: () => Promise<jsPDF | null>
+  items?: ReceiptItem[]
+  total?: number
+  date?: Date
+  paymentMethod?: string
 }
 
-export function ShareReceiptModal({ open, onOpenChange, transactionId, customerName, getPdf }: ShareReceiptModalProps) {
+export function ShareReceiptModal({ 
+  open, 
+  onOpenChange, 
+  transactionId, 
+  customerName, 
+  getPdf,
+  items = [],
+  total = 0,
+  date = new Date(),
+  paymentMethod = "cash"
+}: ShareReceiptModalProps) {
   const { toast } = useToast()
   const [email, setEmail] = useState("")
   const [phone, setPhone] = useState("")
   const [isSending, setIsSending] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
+  const [isUploading, setIsUploading] = useState(false)
+  const [receiptUrl, setReceiptUrl] = useState("")
   const [customer, setCustomer] = useState<Customer | null>(null)
+  const [activeTab, setActiveTab] = useState("email")
+  const [businessSettings, setBusinessSettings] = useState<BusinessSettings>({
+    businessName: "Spa & Bistro",
+    address: "123 Relaxation Ave, Serenity, CA 90210",
+    phone: "(555) 123-4567",
+    email: "info@spaandbistro.com",
+    website: "www.spaandbistro.com",
+    taxRate: "8.5",
+    openingHours: "Monday-Friday: 9am-9pm\nSaturday-Sunday: 10am-8pm",
+  })
 
-  // Load customer data when modal opens
+  // Load customer data and business settings when modal opens
   useEffect(() => {
-    async function loadCustomerData() {
-      if (!open || !customerName || customerName === "Guest") return
+    async function loadData() {
+      if (!open) return
       
       setIsLoading(true)
       try {
+        // Load business settings
+        const defaultSettings = {
+          businessName: "Spa & Bistro",
+          address: "123 Relaxation Ave, Serenity, CA 90210",
+          phone: "(555) 123-4567",
+          email: "info@spaandbistro.com",
+          website: "www.spaandbistro.com",
+          taxRate: "8.5",
+          openingHours: "Monday-Friday: 9am-9pm\nSaturday-Sunday: 10am-8pm",
+        }
+        
+        const settings = await businessSettingsApi.getSettings(defaultSettings)
+        setBusinessSettings(settings as BusinessSettings)
+        
+        // Skip customer lookup for guests
+        if (!customerName || customerName === "Guest") {
+          setIsLoading(false)
+          return
+        }
+        
         // Search for customer by name
         const customers = await customersApi.list({ name: customerName })
         
@@ -59,34 +121,112 @@ export function ShareReceiptModal({ open, onOpenChange, transactionId, customerN
           }
         }
       } catch (error) {
-        console.error("Error loading customer data:", error)
+        console.error("Error loading data:", error)
       } finally {
         setIsLoading(false)
       }
     }
 
-    loadCustomerData()
+    loadData()
   }, [open, customerName])
+
+  // Upload PDF and get a URL
+  const uploadReceiptPdf = async (): Promise<string> => {
+    try {
+      setIsUploading(true)
+      
+      // Get PDF from parent component
+      const pdf = await getPdf()
+      if (!pdf) {
+        throw new Error("Failed to generate PDF")
+      }
+      
+      // Convert PDF to Blob
+      const pdfBlob = await pdf.output('blob')
+      
+      // Create FormData for upload
+      const formData = new FormData()
+      formData.append("file", new File([pdfBlob], `receipt-${transactionId.substring(0, 8)}.pdf`, { type: "application/pdf" }))
+      formData.append("transactionId", transactionId)
+      
+      // Upload to our API
+      const response = await fetch("/api/receipts/upload", {
+        method: "POST",
+        body: formData,
+      })
+      
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.message || "Failed to upload receipt")
+      }
+      
+      const result = await response.json()
+      return result.url
+    } catch (error) {
+      console.error("Error uploading receipt:", error)
+      throw error
+    } finally {
+      setIsUploading(false)
+    }
+  }
 
   const handleSendEmail = async () => {
     if (!email) return
 
     setIsSending(true)
     try {
-      // In a real app, you would send the PDF to your backend
-      // which would then email it to the customer
-      const pdf = await getPdf()
-      if (!pdf) {
-        throw new Error("Failed to generate PDF")
+      // Upload receipt and get URL if we don't have one already
+      if (!receiptUrl) {
+        setReceiptUrl(await uploadReceiptPdf())
+      }
+      
+      // Calculate tax amount
+      const taxRate = parseFloat(businessSettings.taxRate) || 8.5
+      const subtotal = total || 0
+      const tax = subtotal * (taxRate / 100)
+      
+      // Prepare receipt data for the email API
+      const receiptData = {
+        id: transactionId,
+        date: date.toISOString(),
+        items: items.map(item => ({
+          name: item.name,
+          quantity: item.quantity,
+          price: item.price
+        })),
+        subtotal,
+        tax,
+        taxRate,
+        total: subtotal + tax,
+        paymentMethod
+      }
+      
+      // Call our email API
+      const response = await fetch("/api/receipts/email", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          to: email,
+          subject: `Your receipt from ${businessSettings.businessName}`,
+          customerName,
+          receiptId: transactionId,
+          receiptUrl,
+          receiptData,
+          businessName: businessSettings.businessName
+        }),
+      })
+      
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.message || "Failed to send email")
       }
 
       // Save contact information if we have a customer but no email
       if (customer && !customer.email && customerName !== "Guest") {
         await updateCustomerContacts(customer.id)
       }
-
-      // Mock API call
-      await new Promise((resolve) => setTimeout(resolve, 1000))
 
       toast({
         title: "Receipt sent",
@@ -98,7 +238,7 @@ export function ShareReceiptModal({ open, onOpenChange, transactionId, customerN
       console.error("Error sending email:", error)
       toast({
         title: "Error",
-        description: "Failed to send receipt. Please try again.",
+        description: `Failed to send receipt: ${(error as Error).message}`,
         variant: "destructive",
       })
     } finally {
@@ -111,31 +251,44 @@ export function ShareReceiptModal({ open, onOpenChange, transactionId, customerN
 
     setIsSending(true)
     try {
-      // For WhatsApp, we'll generate a PDF and then create a link
-      // In a real app, you would upload the PDF to your server and get a URL
-      const pdf = await getPdf()
-      if (!pdf) {
-        throw new Error("Failed to generate PDF")
+      // Upload receipt and get URL if we don't have one already
+      if (!receiptUrl) {
+        setReceiptUrl(await uploadReceiptPdf())
       }
+
+      // Call our WhatsApp API
+      const response = await fetch("/api/receipts/whatsapp", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          phoneNumber: phone,
+          customerName,
+          receiptId: transactionId,
+          receiptUrl,
+          businessName: businessSettings.businessName,
+          // Optional custom message
+          message: `Hello ${customerName}, thank you for your visit to ${businessSettings.businessName}! Here is your receipt: ${receiptUrl}`
+        }),
+      })
+      
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.message || "Failed to prepare WhatsApp message")
+      }
+
+      const result = await response.json()
 
       // Save contact information if we have a customer but no phone
       if (customer && !customer.phone && customerName !== "Guest") {
         await updateCustomerContacts(customer.id)
       }
 
-      // Mock API call to upload PDF and get a URL
-      await new Promise((resolve) => setTimeout(resolve, 1000))
-      const mockPdfUrl = `https://example.com/receipts/Receipt-${transactionId.substring(0, 8)}.pdf`
-
-      // Format phone number (remove non-digits)
-      const formattedPhone = phone.replace(/\D/g, "")
-
-      // Create WhatsApp link with message
-      const message = encodeURIComponent(`Hello ${customerName}, here is your receipt: ${mockPdfUrl}`)
-      const whatsappUrl = `https://wa.me/${formattedPhone}?text=${message}`
-
-      // Open WhatsApp in a new tab
-      window.open(whatsappUrl, "_blank")
+      // If the API returned a direct link, open it
+      if (result.directLink && result.whatsappLink) {
+        window.open(result.whatsappLink, "_blank")
+      }
 
       toast({
         title: "WhatsApp opened",
@@ -147,7 +300,7 @@ export function ShareReceiptModal({ open, onOpenChange, transactionId, customerN
       console.error("Error sending WhatsApp:", error)
       toast({
         title: "Error",
-        description: "Failed to share receipt. Please try again.",
+        description: `Failed to share receipt: ${(error as Error).message}`,
         variant: "destructive",
       })
     } finally {
@@ -164,6 +317,10 @@ export function ShareReceiptModal({ open, onOpenChange, transactionId, customerN
       
       if (Object.keys(updateData).length > 0) {
         await customersApi.update(customerId, updateData)
+        toast({
+          title: "Contact updated",
+          description: "Customer contact information has been saved",
+        })
       }
     } catch (error) {
       console.error("Error updating customer contact info:", error)
@@ -206,6 +363,10 @@ export function ShareReceiptModal({ open, onOpenChange, transactionId, customerN
     }
   }
 
+  const handleTabChange = (value: string) => {
+    setActiveTab(value)
+  }
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[425px]">
@@ -216,7 +377,7 @@ export function ShareReceiptModal({ open, onOpenChange, transactionId, customerN
           </DialogDescription>
         </DialogHeader>
 
-        <Tabs defaultValue="email" className="w-full">
+        <Tabs defaultValue="email" value={activeTab} onValueChange={handleTabChange} className="w-full">
           <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="email">Email</TabsTrigger>
             <TabsTrigger value="whatsapp">WhatsApp</TabsTrigger>
@@ -294,28 +455,19 @@ export function ShareReceiptModal({ open, onOpenChange, transactionId, customerN
           <Button variant="outline" onClick={() => onOpenChange(false)} className="sm:w-auto w-full">
             Cancel
           </Button>
-          <div className="flex gap-2 w-full sm:w-auto">
-            <Tabs defaultValue="email">
-              <TabsContent value="email" className="m-0 p-0">
-                <Button 
-                  onClick={handleSendEmail} 
-                  disabled={!email || isSending}
-                  className="w-full"
-                >
-                  {isSending ? "Sending..." : "Send Email"}
-                </Button>
-              </TabsContent>
-              <TabsContent value="whatsapp" className="m-0 p-0">
-                <Button 
-                  onClick={handleSendWhatsApp} 
-                  disabled={!phone || isSending}
-                  className="w-full"
-                >
-                  {isSending ? "Preparing..." : "Send WhatsApp"}
-                </Button>
-              </TabsContent>
-            </Tabs>
-          </div>
+          <Button 
+            onClick={activeTab === "email" ? handleSendEmail : handleSendWhatsApp}
+            disabled={(activeTab === "email" && !email) || (activeTab === "whatsapp" && !phone) || isSending || isUploading}
+            className="w-full sm:w-auto"
+          >
+            {isUploading ? (
+              "Uploading receipt..."
+            ) : isSending ? (
+              activeTab === "email" ? "Sending..." : "Preparing..."
+            ) : (
+              activeTab === "email" ? "Send Email" : "Send WhatsApp"
+            )}
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

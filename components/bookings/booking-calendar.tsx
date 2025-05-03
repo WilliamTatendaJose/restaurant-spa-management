@@ -74,6 +74,9 @@ export function BookingCalendar() {
         })
         
         setBookingDates(dateMap)
+        
+        // Initialize selected date bookings
+        updateSelectedDateBookings(new Date(), data)
       } catch (error) {
         console.error("Error fetching data:", error)
       } finally {
@@ -84,11 +87,11 @@ export function BookingCalendar() {
     fetchData()
   }, [])
 
-  // Update selected date bookings when date changes
-  useEffect(() => {
-    if (date && bookings.length > 0) {
-      const formattedDate = date.toISOString().split('T')[0]
-      const dayBookings = bookings.filter(booking => 
+  // Function to update selected date bookings
+  const updateSelectedDateBookings = (selectedDate: Date | undefined, bookingsList: Booking[]) => {
+    if (selectedDate && bookingsList.length > 0) {
+      const formattedDate = selectedDate.toISOString().split('T')[0]
+      const dayBookings = bookingsList.filter(booking => 
         booking.booking_date === formattedDate
       )
       
@@ -99,7 +102,13 @@ export function BookingCalendar() {
     } else {
       setSelectedDateBookings([])
     }
-  }, [date, bookings])
+  }
+
+  // Handle date selection
+  const handleDateSelect = (newDate: Date | undefined) => {
+    setDate(newDate)
+    updateSelectedDateBookings(newDate, bookings)
+  }
 
   // Function to determine day class based on booking status
   const getDayClass = (day: Date) => {
@@ -202,52 +211,67 @@ export function BookingCalendar() {
   }
 
   return (
-    <Card className="h-full flex flex-col">
+    <Card className="h-full w-full flex flex-col">
       <CardContent className="p-4 flex-1 flex flex-col h-full">
         {isLoading ? (
           <div className="flex justify-center items-center py-8 h-full">
             Loading bookings calendar...
           </div>
         ) : (
-          <div className="flex flex-col h-full">
-            <div className="flex-1 min-h-[400px]">
+          <div className="flex flex-col h-full space-y-4">
+            <div className="flex-1 min-h-[400px] border rounded-md p-4">
               <Calendar
                 mode="single"
                 selected={date}
-                onSelect={setDate}
-                className="rounded-md border w-full h-full"
+                onSelect={handleDateSelect}
+                className="w-full h-full"
                 classNames={{
-                  months: "h-full flex-1",
-                  month: "h-full flex-1 space-y-4",
-                  table: "w-full h-[calc(100%-3rem)]",
-                  tbody: "w-full h-full",
-                  head_cell: "text-muted-foreground rounded-md w-9 font-normal text-[0.8rem]",
-                  cell: "h-9 w-9 text-center text-sm relative p-0 data-[isSelected=true]:bg-primary data-[isSelected=true]:text-primary-foreground data-[isSelected=true]:rounded-md",
-                  day: "h-9 w-9 p-0 aria-selected:opacity-100 hover:bg-accent hover:text-accent-foreground rounded-md"
+                  month: "space-y-4 w-full",
+                  caption: "flex justify-center pt-1 relative items-center w-full",
+                  caption_label: "text-sm font-medium",
+                  nav: "space-x-1 flex items-center",
+                  nav_button: "h-7 w-7 bg-transparent p-0 opacity-50 hover:opacity-100",
+                  nav_button_previous: "absolute left-1",
+                  nav_button_next: "absolute right-1",
+                  table: "w-full border-collapse",
+                  head_row: "flex w-full mt-2",
+                  head_cell: "text-muted-foreground rounded-md w-full font-normal text-[0.8rem] flex-1 text-center",
+                  row: "flex w-full mt-2",
+                  cell: "h-9 w-full text-center text-sm p-0 relative focus-within:relative focus-within:z-20 cursor-pointer",
+                  day: "h-9 w-9 p-0 mx-auto flex items-center justify-center rounded-md aria-selected:opacity-100 hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground",
+                  day_selected: "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground focus:bg-primary focus:text-primary-foreground",
+                  day_today: "bg-accent text-accent-foreground",
+                  day_outside: "text-muted-foreground opacity-50",
+                  day_disabled: "text-muted-foreground opacity-50",
+                  day_hidden: "invisible",
                 }}
                 components={{
-                  Day: (props: DayProps) => {
-                    const dateString = props.date.toISOString().split('T')[0]
+                  Day: ({ date: dayDate, ...props }: DayProps & { date: Date }) => {
+                    const dateString = dayDate.toISOString().split('T')[0]
                     const statuses = bookingDates.get(dateString) || []
                     const hasBookings = statuses.length > 0
-                    const dayClass = getDayClass(props.date)
+                    const dayClass = getDayClass(dayDate)
+                    const isSelected = date && dayDate.toDateString() === date.toDateString()
                     
                     return (
                       <div 
                         {...props} 
                         className={`
-                          ${props.className} 
-                          relative 
+                          ${props.className || ''} 
+                          relative flex items-center justify-center
+                          h-9 w-9 p-0 mx-auto rounded-md cursor-pointer
                           ${dayClass}
-                          ${date && props.date.toDateString() === date.toDateString() ? "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground" : ""}
+                          ${isSelected ? "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground" : ""}
                         `}
+                        onClick={() => handleDateSelect(dayDate)}
                       >
-                        {props.children}
+                        <span className="absolute inset-0 flex items-center justify-center">
+                          {dayDate.getDate()}
+                        </span>
                         {hasBookings && (
-                          <div className="absolute bottom-1 right-1">
-                            <Badge 
-                              variant="secondary" 
-                              className={`h-2 w-2 rounded-full p-0 ${getStatusDotColor(statuses)}`} 
+                          <div className="absolute bottom-0.5 right-0.5">
+                            <span 
+                              className={`block h-2 w-2 rounded-full ${getStatusDotColor(statuses)}`}
                             />
                           </div>
                         )}
@@ -258,91 +282,104 @@ export function BookingCalendar() {
               />
             </div>
 
-            {date && (
-              <div className="mt-4 overflow-y-auto max-h-[350px] flex-1">
-                <h3 className="font-medium sticky top-0 bg-background py-2 z-10">
-                  Bookings for {date.toLocaleDateString()}
-                </h3>
-                {selectedDateBookings.length > 0 ? (
-                  <div className="mt-2 space-y-3">
-                    {selectedDateBookings.map(booking => (
-                      <div key={booking.id} className="rounded-md border p-3">
-                        <div className="flex justify-between flex-wrap gap-2">
-                          <div>
-                            <p className="font-medium">
-                              {getServiceDisplayName(booking)}
-                            </p>
-                            <p className="text-sm text-muted-foreground">{booking.customer_name}</p>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <Badge 
-                              variant={booking.booking_type === "spa" ? "secondary" : "outline"}
-                            >
-                              {formatTime(booking.booking_time)}
-                            </Badge>
-                            
-                            <div className="flex items-center">
-                              <Select 
-                                value={booking.status}
-                                onValueChange={(value) => handleStatusChange(booking.id, value)}
-                                disabled={updatingStatus === booking.id}
+            <div className="bookings-container overflow-y-auto flex-1 border rounded-md p-4" style={{ maxHeight: '350px' }}>
+              {date ? (
+                <>
+                  <h3 className="font-medium sticky top-0 bg-background py-2 z-10 border-b mb-3">
+                    Bookings for {date.toLocaleDateString()}
+                  </h3>
+                  {selectedDateBookings.length > 0 ? (
+                    <div className="space-y-3">
+                      {selectedDateBookings.map(booking => (
+                        <div key={booking.id} className="rounded-md border p-3 hover:bg-accent/50 transition-colors">
+                          <div className="flex justify-between flex-wrap gap-2">
+                            <div>
+                              <p className="font-medium">
+                                {getServiceDisplayName(booking)}
+                              </p>
+                              <p className="text-sm text-muted-foreground">{booking.customer_name}</p>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Badge 
+                                variant={booking.booking_type === "spa" ? "secondary" : "outline"}
                               >
-                                <SelectTrigger className="w-[130px] h-8">
-                                  <SelectValue>
-                                    <Badge variant={getStatusColor(booking.status) as any}>
-                                      {booking.status}
-                                    </Badge>
-                                  </SelectValue>
-                                </SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value="pending">Pending</SelectItem>
-                                  <SelectItem value="confirmed">Confirmed</SelectItem>
-                                  <SelectItem value="cancelled">Cancelled</SelectItem>
-                                </SelectContent>
-                              </Select>
-                              <Button 
-                                variant="ghost" 
-                                size="icon" 
-                                className="h-8 w-8 ml-1" 
-                                asChild
-                              >
-                                <Link href={`/bookings/edit/${booking.id}`}>
-                                  <Edit className="h-4 w-4" />
-                                </Link>
-                              </Button>
+                                {formatTime(booking.booking_time)}
+                              </Badge>
+                              
+                              <div className="flex items-center">
+                                <Select 
+                                  value={booking.status}
+                                  onValueChange={(value) => handleStatusChange(booking.id, value)}
+                                  disabled={updatingStatus === booking.id}
+                                >
+                                  <SelectTrigger className="w-[130px] h-8">
+                                    <SelectValue>
+                                      <Badge variant={getStatusColor(booking.status) as any}>
+                                        {booking.status}
+                                      </Badge>
+                                    </SelectValue>
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="pending">Pending</SelectItem>
+                                    <SelectItem value="confirmed">Confirmed</SelectItem>
+                                    <SelectItem value="cancelled">Cancelled</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                                <Button 
+                                  variant="ghost" 
+                                  size="icon" 
+                                  className="h-8 w-8 ml-1" 
+                                  asChild
+                                >
+                                  <Link href={`/bookings/edit/${booking.id}`}>
+                                    <Edit className="h-4 w-4" />
+                                  </Link>
+                                </Button>
+                              </div>
                             </div>
                           </div>
+                          <div className="flex mt-2 gap-2">
+                            <Button 
+                              size="sm" 
+                              variant={booking.status === "confirmed" ? "default" : "outline"}
+                              className="h-7 px-2"
+                              onClick={() => handleStatusChange(booking.id, "confirmed")}
+                              disabled={booking.status === "confirmed" || updatingStatus === booking.id}
+                            >
+                              <Check className="h-3.5 w-3.5 mr-1" />
+                              Confirm
+                            </Button>
+                            <Button 
+                              size="sm" 
+                              variant={booking.status === "cancelled" ? "destructive" : "outline"}
+                              className="h-7 px-2"
+                              onClick={() => handleStatusChange(booking.id, "cancelled")}
+                              disabled={booking.status === "cancelled" || updatingStatus === booking.id}
+                            >
+                              <X className="h-3.5 w-3.5 mr-1" />
+                              Cancel
+                            </Button>
+                          </div>
                         </div>
-                        <div className="flex mt-2 gap-2">
-                          <Button 
-                            size="sm" 
-                            variant={booking.status === "confirmed" ? "default" : "outline"}
-                            className="h-7 px-2"
-                            onClick={() => handleStatusChange(booking.id, "confirmed")}
-                            disabled={booking.status === "confirmed" || updatingStatus === booking.id}
-                          >
-                            <Check className="h-3.5 w-3.5 mr-1" />
-                            Confirm
-                          </Button>
-                          <Button 
-                            size="sm" 
-                            variant={booking.status === "cancelled" ? "destructive" : "outline"}
-                            className="h-7 px-2"
-                            onClick={() => handleStatusChange(booking.id, "cancelled")}
-                            disabled={booking.status === "cancelled" || updatingStatus === booking.id}
-                          >
-                            <X className="h-3.5 w-3.5 mr-1" />
-                            Cancel
-                          </Button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="mt-2 text-sm text-muted-foreground">No bookings for this date.</p>
-                )}
-              </div>
-            )}
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="flex flex-col items-center justify-center h-[200px] text-center">
+                      <p className="text-sm text-muted-foreground">No bookings for {date.toLocaleDateString()}</p>
+                      <Button variant="outline" size="sm" className="mt-2" asChild>
+                        <Link href="/bookings/new">
+                          Create a booking
+                        </Link>
+                      </Button>
+                    </div>
+                  )}
+                </>
+              ) : (
+                <div className="flex flex-col items-center justify-center h-[200px] text-center">
+                  <p className="text-muted-foreground">Select a date to view bookings</p>
+                </div>
+              )}
+            </div>
           </div>
         )}
       </CardContent>
