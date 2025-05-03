@@ -1,6 +1,6 @@
 "use client"
 
-import type { RefObject } from "react"
+import { useState, useEffect, type RefObject } from "react"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -11,6 +11,17 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { Printer, X } from "lucide-react"
+import { businessSettingsApi } from "@/lib/db"
+
+interface BusinessSettings {
+  businessName: string
+  address: string
+  phone: string
+  email: string
+  website: string
+  taxRate: string
+  openingHours: string
+}
 
 interface PrintPreviewModalProps {
   open: boolean
@@ -20,6 +31,36 @@ interface PrintPreviewModalProps {
 }
 
 export function PrintPreviewModal({ open, onOpenChange, onPrint, receiptRef }: PrintPreviewModalProps) {
+  const [businessSettings, setBusinessSettings] = useState<BusinessSettings | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
+
+  useEffect(() => {
+    async function loadSettings() {
+      try {
+        const defaultSettings = {
+          businessName: "Spa & Bistro",
+          address: "123 Relaxation Ave, Serenity, CA 90210",
+          phone: "(555) 123-4567",
+          email: "info@spaandbistro.com",
+          website: "www.spaandbistro.com",
+          taxRate: "8.5",
+          openingHours: "Monday-Friday: 9am-9pm\nSaturday-Sunday: 10am-8pm",
+        }
+        
+        const settings = await businessSettingsApi.getSettings(defaultSettings)
+        setBusinessSettings(settings as BusinessSettings)
+      } catch (error) {
+        console.error("Error loading business settings:", error)
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    if (open) {
+      loadSettings()
+    }
+  }, [open])
+
   const handlePrint = () => {
     onPrint()
     onOpenChange(false)
@@ -29,7 +70,7 @@ export function PrintPreviewModal({ open, onOpenChange, onPrint, receiptRef }: P
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-[500px] max-h-[90vh] overflow-auto">
         <DialogHeader>
-          <DialogTitle>Print Preview</DialogTitle>
+          <DialogTitle>Receipt Preview - {businessSettings?.businessName || "Spa & Bistro"}</DialogTitle>
           <DialogDescription>Preview how your receipt will look when printed</DialogDescription>
         </DialogHeader>
 

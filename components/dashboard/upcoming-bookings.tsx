@@ -4,7 +4,7 @@ import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { bookingsApi ,spaServicesApi} from "@/lib/db"
+import { bookingsApi, spaServicesApi } from "@/lib/db"
 import { useToast } from "@/components/ui/use-toast"
 
 interface Booking {
@@ -15,8 +15,8 @@ interface Booking {
   booking_type: string
   service: string
   status: string
-  party_size?: string
 }
+
 interface SpaService {
   id: string
   name: string
@@ -32,33 +32,17 @@ export function UpcomingBookings() {
   useEffect(() => {
     async function fetchUpcomingBookings() {
       try {
-        // Get all bookings
-         const services = await spaServicesApi.list() as SpaService[]
-                const servicesById: Record<string, string> = {}
-                services.forEach(service => {
-                  servicesById[service.id] = service.name
-                })
-                setServiceMap(servicesById)
-        const allBookings = await bookingsApi.list() as Booking[]
-        
-        // Filter for only upcoming bookings (today and future)
-        const today = new Date()
-        today.setHours(0, 0, 0, 0) // Set to beginning of today
-        
-        const upcomingBookings = allBookings.filter(booking => {
-          const bookingDate = new Date(booking.booking_date)
-          return bookingDate >= today && booking.status !== "cancelled"
+        // Get spa services for lookup
+        const services = await spaServicesApi.list() as SpaService[]
+        const servicesById: Record<string, string> = {}
+        services.forEach(service => {
+          servicesById[service.id] = service.name
         })
+        setServiceMap(servicesById)
         
-        // Sort by date and time
-        upcomingBookings.sort((a, b) => {
-          const dateA = new Date(`${a.booking_date}T${a.booking_time}`)
-          const dateB = new Date(`${b.booking_date}T${b.booking_time}`)
-          return dateA.getTime() - dateB.getTime()
-        })
-        
-        // Only take the next 4 bookings
-        setBookings(upcomingBookings.slice(0, 4))
+        // Get upcoming bookings using the new API method
+        const upcomingBookings = await bookingsApi.getUpcoming(4)
+        setBookings(upcomingBookings as Booking[])
       } catch (error) {
         console.error("Error fetching upcoming bookings:", error)
       } finally {
@@ -80,28 +64,28 @@ export function UpcomingBookings() {
       const time = new Date(`${bookingDate}T${bookingTime}`)
       const timeString = time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
       
-      // Check if it's today or tomorrow
+      // Display relative date for today and tomorrow
       if (date.toDateString() === today.toDateString()) {
-        return `Today, ${timeString}`
+        return `Today at ${timeString}`
       } else if (date.toDateString() === tomorrow.toDateString()) {
-        return `Tomorrow, ${timeString}`
+        return `Tomorrow at ${timeString}`
       } else {
-        return `${date.toLocaleDateString()}, ${timeString}`
+        return `${date.toLocaleDateString()} at ${timeString}`
       }
     } catch (e) {
-      return `${bookingDate}, ${bookingTime}`
+      return `${bookingDate} at ${bookingTime}`
     }
   }
-
-  // Get service description (spa treatment or restaurant booking)
+  
+  // Get service description
   const getServiceDescription = (booking: Booking) => {
     if (booking.booking_type === "spa") {
-      return  serviceMap[booking.service] || "Unknown Service"
+      return serviceMap[booking.service] || "Unknown service"
     } else {
-      return `Dinner Reservation (${booking.party_size || '?'} people)`
+      return "Restaurant reservation"
     }
   }
-
+  
   // Handle status change
   const handleStatusChange = async (bookingId: string, newStatus: string) => {
     setUpdatingStatus(bookingId)
@@ -197,7 +181,9 @@ export function UpcomingBookings() {
             ))}
           </div>
         ) : (
-          <p className="text-sm text-muted-foreground py-2">No upcoming bookings found.</p>
+          <div className="flex justify-center items-center py-4">
+            <p className="text-sm text-muted-foreground">No upcoming bookings scheduled</p>
+          </div>
         )}
       </CardContent>
     </Card>

@@ -1,40 +1,109 @@
 "use client"
 
 import type React from "react"
-
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { useToast } from "@/components/ui/use-toast"
+import { businessSettingsApi } from "@/lib/db"
+
+interface BusinessSettings {
+  id?: string
+  businessName: string
+  address: string
+  phone: string
+  email: string
+  website: string
+  taxRate: string
+  openingHours: string
+}
+
+const defaultSettings: BusinessSettings = {
+  businessName: "Spa & Bistro",
+  address: "123 Relaxation Ave, Serenity, CA 90210",
+  phone: "(555) 123-4567",
+  email: "info@spaandbistro.com",
+  website: "www.spaandbistro.com",
+  taxRate: "8.5",
+  openingHours: "Monday-Friday: 9am-9pm\nSaturday-Sunday: 10am-8pm",
+}
 
 export function BusinessSettings() {
   const { toast } = useToast()
-  const [settings, setSettings] = useState({
-    businessName: "Spa & Bistro",
-    address: "123 Relaxation Ave, Serenity, CA 90210",
-    phone: "(555) 123-4567",
-    email: "info@spaandbistro.com",
-    website: "www.spaandbistro.com",
-    taxRate: "8.5",
-    openingHours: "Monday-Friday: 9am-9pm\nSaturday-Sunday: 10am-8pm",
-  })
+  const [settings, setSettings] = useState<BusinessSettings>(defaultSettings)
+  const [isLoading, setIsLoading] = useState(true)
+  const [isSaving, setIsSaving] = useState(false)
+
+  // Load settings from database on component mount
+  useEffect(() => {
+    async function loadSettings() {
+      try {
+        // Use the specialized API method to get settings
+        const settingsData = await businessSettingsApi.getSettings(defaultSettings) as BusinessSettings
+        setSettings(settingsData)
+      } catch (error) {
+        console.error("Error loading business settings:", error)
+        toast({
+          title: "Failed to load settings",
+          description: "There was a problem loading your business settings.",
+          variant: "destructive",
+        })
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    loadSettings()
+  }, [toast])
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target
     setSettings((prev) => ({ ...prev, [name]: value }))
   }
 
-  const handleSave = () => {
-    // In a real app, this would save to SQLite
-    console.log("Saving business settings:", settings)
+  const handleSave = async () => {
+    setIsSaving(true)
+    try {
+      // Update existing settings in the database
+      if (settings.id) {
+        await businessSettingsApi.update(settings.id, settings)
+      } else {
+        // This should rarely happen, but handle the case where id is missing
+        const newSettings = await businessSettingsApi.create(settings)
+        setSettings(newSettings as BusinessSettings)
+      }
 
-    toast({
-      title: "Settings saved",
-      description: "Your business settings have been updated successfully.",
-    })
+      toast({
+        title: "Settings saved",
+        description: "Your business settings have been updated successfully.",
+      })
+    } catch (error) {
+      console.error("Error saving business settings:", error)
+      toast({
+        title: "Failed to save settings",
+        description: "There was a problem saving your business settings.",
+        variant: "destructive",
+      })
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
+  if (isLoading) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>Business Settings</CardTitle>
+          <CardDescription>Loading business settings...</CardDescription>
+        </CardHeader>
+        <CardContent className="flex items-center justify-center p-8">
+          <p>Loading settings...</p>
+        </CardContent>
+      </Card>
+    )
   }
 
   return (
@@ -132,7 +201,9 @@ export function BusinessSettings() {
         </div>
       </CardContent>
       <CardFooter className="flex justify-end">
-        <Button onClick={handleSave}>Save Changes</Button>
+        <Button onClick={handleSave} disabled={isSaving}>
+          {isSaving ? "Saving..." : "Save Changes"}
+        </Button>
       </CardFooter>
     </Card>
   )

@@ -3,6 +3,8 @@
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { cn } from "@/lib/utils"
+import { useState, useEffect } from "react"
+import { businessSettingsApi } from "@/lib/db"
 import {
   Calendar,
   ClipboardList,
@@ -73,6 +75,30 @@ const routes = [
 
 export function Sidebar() {
   const pathname = usePathname()
+  const [businessName, setBusinessName] = useState("Spa & Bistro")
+
+  useEffect(() => {
+    async function loadBusinessName() {
+      try {
+        const defaultSettings = {
+          businessName: "Spa & Bistro",
+          address: "123 Relaxation Ave, Serenity, CA 90210",
+          phone: "(555) 123-4567",
+          email: "info@spaandbistro.com",
+          website: "www.spaandbistro.com",
+          taxRate: "8.5",
+          openingHours: "Monday-Friday: 9am-9pm\nSaturday-Sunday: 10am-8pm",
+        }
+        
+        const settings = await businessSettingsApi.getSettings(defaultSettings)
+        setBusinessName(settings.businessName || "Spa & Bistro")
+      } catch (error) {
+        console.error("Error loading business settings:", error)
+      }
+    }
+
+    loadBusinessName()
+  }, [])
 
   return (
     <div className="hidden border-r bg-card md:block md:w-64">
@@ -80,7 +106,7 @@ export function Sidebar() {
         <Link href="/" className="flex items-center px-2 py-2 mb-6">
           <div className="flex items-center gap-2">
             <Home className="h-6 w-6 text-primary" />
-            <span className="text-xl font-bold">Spa & Bistro</span>
+            <span className="text-xl font-bold">{businessName}</span>
           </div>
         </Link>
         <div className="space-y-1">

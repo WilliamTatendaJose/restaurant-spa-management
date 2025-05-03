@@ -22,7 +22,8 @@ import {
   transactionsApi, 
   customersApi,
   spaServicesApi,
-  menuItemsApi, 
+  menuItemsApi,
+  businessSettingsApi,
   initDatabase,
   addSampleData
 } from "@/lib/db"
@@ -123,6 +124,16 @@ interface CustomerRecord {
   is_synced?: number
 }
 
+interface BusinessSettings {
+  businessName: string
+  address: string
+  phone: string
+  email: string
+  website: string
+  taxRate: string
+  openingHours: string
+}
+
 interface Transaction extends TransactionRecord {
   items?: CartItem[]
 }
@@ -156,6 +167,15 @@ export function POSInterface() {
     spa: [],
     restaurant: []
   })
+  const [businessSettings, setBusinessSettings] = useState<BusinessSettings>({
+    businessName: "Spa & Bistro",
+    address: "123 Relaxation Ave, Serenity, CA 90210",
+    phone: "(555) 123-4567",
+    email: "info@spaandbistro.com",
+    website: "www.spaandbistro.com",
+    taxRate: "8.5",
+    openingHours: "Monday-Friday: 9am-9pm\nSaturday-Sunday: 10am-8pm",
+  })
 
   // Initialize database and load data
   useEffect(() => {
@@ -163,6 +183,7 @@ export function POSInterface() {
       await initDatabase();
       // Add sample data if needed
       await addSampleData();
+      await loadBusinessSettings();
       await loadProducts();
       await loadRecentTransactions();
       await loadCustomers();
@@ -171,6 +192,26 @@ export function POSInterface() {
     
     initialize();
   }, []);
+
+  // Load business settings
+  const loadBusinessSettings = async () => {
+    try {
+      const defaultSettings = {
+        businessName: "Spa & Bistro",
+        address: "123 Relaxation Ave, Serenity, CA 90210",
+        phone: "(555) 123-4567",
+        email: "info@spaandbistro.com",
+        website: "www.spaandbistro.com",
+        taxRate: "8.5",
+        openingHours: "Monday-Friday: 9am-9pm\nSaturday-Sunday: 10am-8pm",
+      };
+      
+      const settings = await businessSettingsApi.getSettings(defaultSettings);
+      setBusinessSettings(settings as BusinessSettings);
+    } catch (error) {
+      console.error("Failed to load business settings:", error);
+    }
+  };
 
   // Load products from spa services and menu items
   const loadProducts = async () => {
@@ -285,6 +326,18 @@ export function POSInterface() {
 
   const calculateTotal = () => {
     return cart.reduce((total, item) => total + item.price * item.quantity, 0);
+  }
+
+  // Calculate tax using business settings
+  const calculateTax = () => {
+    const taxRate = parseFloat(businessSettings.taxRate) || 8.5;
+    return calculateTotal() * (taxRate / 100);
+  }
+
+  // Calculate total with tax
+  const calculateTotalWithTax = () => {
+    const taxRate = parseFloat(businessSettings.taxRate) || 8.5;
+    return calculateTotal() * (1 + taxRate / 100);
   }
 
   const handleCheckout = async () => {
@@ -428,9 +481,9 @@ export function POSInterface() {
         format: [80, 200], // Receipt-sized paper
       });
       
-      // Add basic receipt content
+      // Use business settings for the receipt
       doc.setFontSize(12);
-      doc.text("Spa & Bistro", 40, 10, { align: "center" });
+      doc.text(businessSettings.businessName, 40, 10, { align: "center" });
       doc.setFontSize(10);
       doc.text(`Receipt #: ${completedTransaction.id.substring(0, 8)}`, 5, 20);
       doc.text(`Date: ${completedTransaction.date.toLocaleDateString()}`, 5, 25);
@@ -459,17 +512,20 @@ export function POSInterface() {
       y += 5;
       doc.text(`Subtotal: $${completedTransaction.total.toFixed(2)}`, 40, y, { align: "right" });
       y += 5;
-      const tax = completedTransaction.total * 0.085;
-      doc.text(`Tax (8.5%): $${tax.toFixed(2)}`, 40, y, { align: "right" });
+      
+      // Use business settings tax rate
+      const taxRate = parseFloat(businessSettings.taxRate) || 8.5;
+      const tax = completedTransaction.total * (taxRate / 100);
+      doc.text(`Tax (${taxRate}%): $${tax.toFixed(2)}`, 40, y, { align: "right" });
       y += 5;
-      const grandTotal = completedTransaction.total * 1.085;
+      const grandTotal = completedTransaction.total * (1 + taxRate / 100);
       doc.text(`Total: $${grandTotal.toFixed(2)}`, 40, y, { align: "right" });
       
       // Add footer
       y += 10;
       doc.text("Thank you for your business!", 40, y, { align: "center" });
       y += 5;
-      doc.text("www.spaandbistro.com", 40, y, { align: "center" });
+      doc.text(businessSettings.website, 40, y, { align: "center" });
       
       return doc;
     } catch (error) {
@@ -495,6 +551,7 @@ export function POSInterface() {
               paymentMethod={completedTransaction.payment_method}
               onShare={() => setIsShareModalOpen(true)}
               onEmail={() => setIsShareModalOpen(true)}
+              businessSettings={businessSettings}
             />
           </CardContent>
           <CardFooter className="flex gap-2 justify-between">
@@ -664,12 +721,12 @@ export function POSInterface() {
                 <span>${calculateTotal().toFixed(2)}</span>
               </div>
               <div className="flex justify-between w-full text-sm text-muted-foreground">
-                <span>Tax (8.5%):</span>
-                <span>${(calculateTotal() * 0.085).toFixed(2)}</span>
+                <span>Tax ({businessSettings.taxRate}%):</span>
+                <span>${calculateTax().toFixed(2)}</span>
               </div>
               <div className="flex justify-between w-full text-lg font-bold">
                 <span>Final Total:</span>
-                <span>${(calculateTotal() * 1.085).toFixed(2)}</span>
+                <span>${calculateTotalWithTax().toFixed(2)}</span>
               </div>
               <div className="flex gap-2 w-full">
                 <Button variant="outline" className="w-1/2" onClick={clearCart} disabled={isProcessing}>
@@ -840,12 +897,12 @@ export function POSInterface() {
                   <span>${selectedTransaction.total_amount.toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between text-sm text-muted-foreground">
-                  <span>Tax (8.5%):</span>
-                  <span>${(selectedTransaction.total_amount * 0.085).toFixed(2)}</span>
+                  <span>Tax ({businessSettings.taxRate}%):</span>
+                  <span>${(selectedTransaction.total_amount * (parseFloat(businessSettings.taxRate) / 100)).toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between font-bold">
                   <span>Total:</span>
-                  <span>${(selectedTransaction.total_amount * 1.085).toFixed(2)}</span>
+                  <span>${(selectedTransaction.total_amount * (1 + parseFloat(businessSettings.taxRate) / 100)).toFixed(2)}</span>
                 </div>
               </div>
             </div>

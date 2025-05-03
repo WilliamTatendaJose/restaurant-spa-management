@@ -48,18 +48,9 @@ export function RecentBookings() {
         setServiceMap(servicesById)
         setServicePrices(servicesPriceById)
         
-        // Get all bookings
-        const allBookings = await bookingsApi.list() as Booking[]
-        
-        // Sort by date (newest first)
-        allBookings.sort((a, b) => {
-          const dateA = new Date(`${a.booking_date}T${a.booking_time}`)
-          const dateB = new Date(`${b.booking_date}T${b.booking_time}`)
-          return dateB.getTime() - dateA.getTime() // Descending order
-        })
-        
-        // Take only the 5 most recent bookings
-        setBookings(allBookings.slice(0, 5))
+        // Get recent bookings using the new API method
+        const recentBookings = await bookingsApi.getRecent(5)
+        setBookings(recentBookings as Booking[])
       } catch (error) {
         console.error("Error fetching recent bookings:", error)
       } finally {

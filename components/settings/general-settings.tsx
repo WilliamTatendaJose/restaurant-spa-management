@@ -1,23 +1,60 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Switch } from "@/components/ui/switch"
 import { useToast } from "@/components/ui/use-toast"
+import { generalSettingsApi } from "@/lib/db"
+
+interface GeneralSettings {
+  id?: string
+  language: string
+  timezone: string
+  dateFormat: string
+  timeFormat: string
+  enableNotifications: boolean
+  enableSounds: boolean
+}
+
+const defaultSettings: GeneralSettings = {
+  language: "en",
+  timezone: "UTC",
+  dateFormat: "MM/DD/YYYY",
+  timeFormat: "12h",
+  enableNotifications: true,
+  enableSounds: true,
+}
 
 export function GeneralSettings() {
   const { toast } = useToast()
-  const [settings, setSettings] = useState({
-    language: "en",
-    timezone: "UTC",
-    dateFormat: "MM/DD/YYYY",
-    timeFormat: "12h",
-    enableNotifications: true,
-    enableSounds: true,
-  })
+  const [settings, setSettings] = useState<GeneralSettings>(defaultSettings)
+  const [isLoading, setIsLoading] = useState(true)
+  const [isSaving, setIsSaving] = useState(false)
+
+  // Load settings from the database on component mount
+  useEffect(() => {
+    async function loadSettings() {
+      try {
+        // Use the specialized API method to get settings
+        const settingsData = await generalSettingsApi.getSettings(defaultSettings) as GeneralSettings
+        setSettings(settingsData)
+      } catch (error) {
+        console.error("Error loading general settings:", error)
+        toast({
+          title: "Failed to load settings",
+          description: "There was a problem loading your general settings.",
+          variant: "destructive",
+        })
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    loadSettings()
+  }, [toast])
 
   const handleSelectChange = (name: string, value: string) => {
     setSettings((prev) => ({ ...prev, [name]: value }))
@@ -27,14 +64,46 @@ export function GeneralSettings() {
     setSettings((prev) => ({ ...prev, [name]: checked }))
   }
 
-  const handleSave = () => {
-    // In a real app, this would save to SQLite
-    console.log("Saving general settings:", settings)
+  const handleSave = async () => {
+    setIsSaving(true)
+    try {
+      // Update existing settings in the database
+      if (settings.id) {
+        await generalSettingsApi.update(settings.id, settings)
+      } else {
+        // This should rarely happen, but handle the case where id is missing
+        const newSettings = await generalSettingsApi.create(settings)
+        setSettings(newSettings as GeneralSettings)
+      }
 
-    toast({
-      title: "Settings saved",
-      description: "Your general settings have been updated successfully.",
-    })
+      toast({
+        title: "Settings saved",
+        description: "Your general settings have been updated successfully.",
+      })
+    } catch (error) {
+      console.error("Error saving general settings:", error)
+      toast({
+        title: "Failed to save settings",
+        description: "There was a problem saving your general settings.",
+        variant: "destructive",
+      })
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
+  if (isLoading) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>General Settings</CardTitle>
+          <CardDescription>Loading general settings...</CardDescription>
+        </CardHeader>
+        <CardContent className="flex items-center justify-center p-8">
+          <p>Loading settings...</p>
+        </CardContent>
+      </Card>
+    )
   }
 
   return (
@@ -127,7 +196,9 @@ export function GeneralSettings() {
         </div>
       </CardContent>
       <CardFooter className="flex justify-end">
-        <Button onClick={handleSave}>Save Changes</Button>
+        <Button onClick={handleSave} disabled={isSaving}>
+          {isSaving ? "Saving..." : "Save Changes"}
+        </Button>
       </CardFooter>
     </Card>
   )

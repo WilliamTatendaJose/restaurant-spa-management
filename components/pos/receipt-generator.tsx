@@ -8,6 +8,16 @@ import html2canvas from "html2canvas"
 import { ComponentToPrint } from "@/components/pos/component-to-print"
 import { PrintPreviewModal } from "@/components/pos/print-preview-modal"
 
+interface BusinessSettings {
+  businessName: string
+  address: string
+  phone: string
+  email: string
+  website: string
+  taxRate: string
+  openingHours: string
+}
+
 interface CartItem {
   id: string
   name: string
@@ -24,6 +34,7 @@ interface ReceiptGeneratorProps {
   paymentMethod: string
   onShare: () => void
   onEmail: () => void
+  businessSettings?: BusinessSettings
 }
 
 export function ReceiptGenerator({
@@ -35,6 +46,15 @@ export function ReceiptGenerator({
   paymentMethod,
   onShare,
   onEmail,
+  businessSettings = {
+    businessName: "Spa & Bistro",
+    address: "123 Relaxation Ave, Serenity, CA 90210",
+    phone: "(555) 123-4567",
+    email: "info@spaandbistro.com",
+    website: "www.spaandbistro.com",
+    taxRate: "8.5",
+    openingHours: "Monday-Friday: 9am-9pm\nSaturday-Sunday: 10am-8pm",
+  },
 }: ReceiptGeneratorProps) {
   const componentRef = useRef<HTMLDivElement>(null)
   const [isPrintPreviewOpen, setIsPrintPreviewOpen] = useState(false)
@@ -167,6 +187,7 @@ export function ReceiptGenerator({
         total={total}
         date={date}
         paymentMethod={paymentMethod}
+        businessSettings={businessSettings}
       />
 
       <div className="grid grid-cols-2 gap-2">

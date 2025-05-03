@@ -26,6 +26,8 @@ let memoryDb: DatabaseStore = {
   staff: [],
   spa_services: [],
   menu_items: [],
+  business_settings: [], // Added business_settings table
+  general_settings: [], // Added general_settings table
 }
 
 // Device ID for sync tracking
@@ -638,6 +640,47 @@ export const bookingsApi = {
   update: (id: string, data: any) => updateRecord("bookings", id, data),
   delete: (id: string) => deleteRecord("bookings", id),
   list: (filters: any = {}) => listRecords("bookings", filters),
+
+  // Get recent bookings (newest first, limited to count)
+  getRecent: async (count: number = 5) => {
+    await initDatabase()
+    if (!memoryDb.bookings) return []
+
+    // Sort by date (newest first)
+    const sortedBookings = [...memoryDb.bookings].sort((a, b) => {
+      const dateA = new Date(`${a.booking_date}T${a.booking_time || '00:00:00'}`)
+      const dateB = new Date(`${b.booking_date}T${b.booking_time || '00:00:00'}`)
+      return dateB.getTime() - dateA.getTime() // Descending order
+    })
+
+    // Take only the specified number of most recent bookings
+    return sortedBookings.slice(0, count)
+  },
+
+  // Get upcoming bookings (future bookings, sorted by date)
+  getUpcoming: async (count: number = 4) => {
+    await initDatabase()
+    if (!memoryDb.bookings) return []
+
+    const today = new Date()
+    today.setHours(0, 0, 0, 0) // Start of today
+
+    // Filter for only upcoming bookings (today and future)
+    const upcomingBookings = memoryDb.bookings.filter(booking => {
+      const bookingDate = new Date(booking.booking_date)
+      return bookingDate >= today && booking.status !== "cancelled"
+    })
+
+    // Sort by date and time (ascending)
+    upcomingBookings.sort((a, b) => {
+      const dateA = new Date(`${a.booking_date}T${a.booking_time || '00:00:00'}`)
+      const dateB = new Date(`${b.booking_date}T${b.booking_time || '00:00:00'}`)
+      return dateA.getTime() - dateB.getTime()
+    })
+
+    // Take only the specified number of upcoming bookings
+    return upcomingBookings.slice(0, count)
+  }
 }
 
 export const inventoryApi = {
@@ -687,6 +730,57 @@ export const transactionsApi = {
 
     return memoryDb["transaction_items"].filter((item) => item.transaction_id === transactionId)
   },
+
+  // Get daily revenue data for the last N days
+  getDailyRevenue: async (days: number = 7) => {
+    await initDatabase()
+    if (!memoryDb.transactions) return []
+
+    // Get completed transactions
+    const completedTransactions = memoryDb.transactions.filter(
+      tx => tx.status === "completed" || tx.status === "paid"
+    )
+
+    // Get the range of days
+    const today = new Date()
+    today.setHours(23, 59, 59, 999) // End of today
+
+    const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
+    const revenueByDay: Record<string, { spa: number, restaurant: number, name: string }> = {}
+
+    // Initialize the last N days with zero values
+    for (let i = days - 1; i >= 0; i--) {
+      const date = new Date(today)
+      date.setDate(date.getDate() - i)
+      const dayName = dayNames[date.getDay()]
+      const dateString = date.toISOString().split('T')[0]
+      revenueByDay[dateString] = { spa: 0, restaurant: 0, name: dayName }
+    }
+
+    // Aggregate transaction amounts by date and service type
+    completedTransactions.forEach(transaction => {
+      const date = transaction.transaction_date.split('T')[0]
+
+      // Only include transactions from the specified days
+      if (revenueByDay[date]) {
+        const serviceType = transaction.transaction_type?.toLowerCase() || "restaurant"
+
+        if (serviceType === "spa") {
+          revenueByDay[date].spa += transaction.total_amount || 0
+        } else {
+          revenueByDay[date].restaurant += transaction.total_amount || 0
+        }
+      }
+    })
+
+    // Convert to array format for charts
+    return Object.keys(revenueByDay).map(date => ({
+      name: revenueByDay[date].name || dayNames[new Date(date).getDay()],
+      spa: revenueByDay[date].spa,
+      restaurant: revenueByDay[date].restaurant,
+      date: date,
+    }))
+  }
 }
 
 export const staffApi = {
@@ -737,6 +831,56 @@ export const menuItemsApi = {
     }
     return memoryDb["menu_items"].filter((item) => item.category === category && item.status === "active")
   },
+}
+
+// API for business settings
+export const businessSettingsApi = {
+  create: (data: any) => createRecord("business_settings", data),
+  get: (id: string) => getRecord("business_settings", id),
+  update: (id: string, data: any) => updateRecord("business_settings", id, data),
+  delete: (id: string) => deleteRecord("business_settings", id),
+  list: () => listRecords("business_settings"),
+
+  // Get business settings (returns first record or default)
+  getSettings: async (defaultSettings: any) => {
+    await initDatabase()
+
+    const settingsData = await listRecords("business_settings")
+
+    if (settingsData && settingsData.length > 0) {
+      // Use the first settings object found
+      return settingsData[0]
+    }
+
+    // If no settings exist, create default settings in the database
+    const newSettings = await createRecord("business_settings", defaultSettings)
+    return newSettings
+  }
+}
+
+// API for general settings
+export const generalSettingsApi = {
+  create: (data: any) => createRecord("general_settings", data),
+  get: (id: string) => getRecord("general_settings", id),
+  update: (id: string, data: any) => updateRecord("general_settings", id, data),
+  delete: (id: string) => deleteRecord("general_settings", id),
+  list: () => listRecords("general_settings"),
+  
+  // Get general settings (returns first record or default)
+  getSettings: async (defaultSettings: any) => {
+    await initDatabase()
+    
+    const settingsData = await listRecords("general_settings")
+    
+    if (settingsData && settingsData.length > 0) {
+      // Use the first settings object found
+      return settingsData[0]
+    }
+
+    // If no settings exist, create default settings in the database
+    const newSettings = await createRecord("general_settings", defaultSettings)
+    return newSettings
+  }
 }
 
 // Add some sample data for testing
