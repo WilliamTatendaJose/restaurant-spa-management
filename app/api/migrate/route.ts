@@ -289,7 +289,7 @@ export async function POST(request: NextRequest) {
 
     const errors = [];
     const createdTables = [];
-    const updatedTables = [];
+    const updatedTables: string[] = [];
 
     // First run specific fixes for the reported missing columns
     const specificFixResults = await addMissingColumnsIfNeeded(supabase);
@@ -383,7 +383,7 @@ export async function POST(request: NextRequest) {
           `;
           
           try {
-            const { error: execFnError } = await supabase.query(createFunctionQuery);
+            const { error: execFnError } = await supabase.rpc('exec', { query: createFunctionQuery });
             
             if (execFnError) {
               errors.push(`Error creating exec function: ${execFnError.message}`);
@@ -411,7 +411,7 @@ export async function POST(request: NextRequest) {
       `;
       
       try {
-        const { error: uuidFnError } = await supabase.query(createUuidFunctionQuery);
+        const { error: uuidFnError } = await supabase.rpc('exec', { query: createUuidFunctionQuery });
         
         if (uuidFnError) {
           errors.push(`Error creating UUID extension function: ${uuidFnError.message}`);

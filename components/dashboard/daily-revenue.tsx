@@ -4,6 +4,7 @@ import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis, Tooltip, Legend } from "recharts"
 import { transactionsApi } from "@/lib/db"
+import { useAuth } from "@/lib/auth-context"
 
 interface DailyRevenueData {
   name: string
@@ -15,6 +16,10 @@ interface DailyRevenueData {
 export function DailyRevenue() {
   const [data, setData] = useState<DailyRevenueData[]>([])
   const [isLoading, setIsLoading] = useState(true)
+    const { hasPermission } = useAuth()
+    
+    // Only managers and admins can see revenue data
+    const canViewRevenue = hasPermission("manager") || hasPermission("admin")
 
   useEffect(() => {
     async function fetchRevenueData() {
@@ -46,6 +51,10 @@ export function DailyRevenue() {
   // Format currency for the tooltip
   const formatCurrency = (value: number) => {
     return `$${value.toFixed(2)}`
+  }
+
+  if (!canViewRevenue) {
+    return null
   }
 
   return (

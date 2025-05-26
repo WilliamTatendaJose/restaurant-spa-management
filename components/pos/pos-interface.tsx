@@ -585,7 +585,6 @@ export function POSInterface() {
               customerName={customerName}
               items={completedTransaction.items}
               total={completedTransaction.total}
-              date={completedTransaction.date}
               paymentMethod={completedTransaction.payment_method}
               onShare={() => setIsShareModalOpen(true)}
               onEmail={() => setIsShareModalOpen(true)}

@@ -53,7 +53,7 @@ export async function POST(request: NextRequest) {
                   <th style="text-align: right; padding: 8px;">Qty</th>
                   <th style="text-align: right; padding: 8px;">Price</th>
                 </tr>
-                ${receiptData.items?.map(item => `
+                ${receiptData.items?.map((item: { name: any; quantity: any; price: number; }) => `
                   <tr style="border-bottom: 1px solid #e2e8f0;">
                     <td style="padding: 8px;">${item.name}</td>
                     <td style="text-align: right; padding: 8px;">${item.quantity}</td>

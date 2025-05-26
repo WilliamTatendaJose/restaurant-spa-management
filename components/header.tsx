@@ -1,11 +1,11 @@
-"use client"
+"use client";
 
-import { Button } from "@/components/ui/button"
-import { ThemeToggle } from "@/components/theme-toggle"
-import { SyncStatus } from "@/components/sync-status"
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
-import { Sidebar } from "@/components/sidebar"
-import { Menu, Bell, LogOut, User, Settings } from "lucide-react"
+import { Button } from "@/components/ui/button";
+import { ThemeToggle } from "@/components/theme-toggle";
+import { SyncStatus } from "@/components/sync-status";
+import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { Sidebar } from "@/components/sidebar";
+import { Menu, Bell, LogOut, User, Settings } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -13,49 +13,30 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { useRouter } from "next/navigation"
-import { useSession, signOut } from "next-auth/react"
-
-interface UserWithRole {
-  name?: string | null
-  email?: string | null
-  image?: string | null
-  role?: string
-}
+} from "@/components/ui/dropdown-menu";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { useRouter } from "next/navigation";
+import { useAuth } from "@/lib/auth-context";
 
 export function Header() {
-  // Extend the session user type to include 'role'
-  type SessionUser = {
-    name?: string | null
-    email?: string | null
-    image?: string | null
-    role?: string
-  }
-  type Session = {
-    user?: SessionUser
-  } | null
-
-  const { data: session } = useSession() as { data: Session }
-  const router = useRouter()
+  const { userDetails, signOut } = useAuth();
+  const router = useRouter();
 
   const handleSignOut = async () => {
-    await signOut({ redirect: false })
-    router.push("/login")
-  }
+    await signOut();
+  };
 
   const getInitials = (name: string | null | undefined) => {
-    if (!name) return "U"
+    if (!name) return "U";
     return name
       .split(" ")
       .map((n) => n[0])
       .join("")
-      .toUpperCase()
-  }
+      .toUpperCase();
+  };
 
-  const userName = session?.user?.name || "User"
-  const userRole = session?.user?.role || "guest"
+  const userName = userDetails?.name || "User";
+  const userRole = userDetails?.role || "guest";
 
   return (
     <header className="sticky top-0 z-40 border-b bg-background">
@@ -84,25 +65,32 @@ export function Header() {
         <div className="flex flex-1 items-center justify-end space-x-4">
           <SyncStatus />
           <ThemeToggle />
+
           <Button variant="ghost" size="icon">
             <Bell className="h-5 w-5" />
             <span className="sr-only">Notifications</span>
           </Button>
+
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" size="icon" className="rounded-full">
                 <Avatar className="h-8 w-8">
-                  <AvatarImage src="/placeholder.svg?height=32&width=32" alt="Avatar" />
+                  <AvatarImage
+                    src="/placeholder.svg?height=32&width=32"
+                    alt="Avatar"
+                  />
                   <AvatarFallback>{getInitials(userName)}</AvatarFallback>
                 </Avatar>
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
               <DropdownMenuLabel>
-                {session ? (
+                {userDetails ? (
                   <div className="flex flex-col">
                     <span>{userName}</span>
-                    <span className="text-xs text-muted-foreground">{userRole}</span>
+                    <span className="text-xs text-muted-foreground">
+                      {userRole}
+                    </span>
                   </div>
                 ) : (
                   "My Account"
@@ -127,5 +115,5 @@ export function Header() {
         </div>
       </div>
     </header>
-  )
+  );
 }

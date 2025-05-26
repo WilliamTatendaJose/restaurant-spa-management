@@ -3,7 +3,7 @@ import { v4 as uuidv4 } from "uuid"
 import { getSupabaseBrowserClient, isSupabaseConfigured } from "@/lib/supabase"
 
 // Track pending changes for sync
-let pendingChanges: any[] = []
+let pendingChanges: SyncData[] = []
 let isInitialized = false
 
 // Database structure
@@ -14,6 +14,28 @@ interface Record {
 
 interface DatabaseStore {
   [table: string]: Record[]
+}
+
+// Define error interface
+interface SyncData {
+  table: string;
+  id?: string;
+  data: any;
+  type: string;
+  timestamp: string;
+  device_id: string;
+}
+
+interface ErrorDetail {
+  table: string;
+  id: string;
+  type: string;
+  error: string;
+}
+
+interface SyncError {
+  change: SyncData;
+  error: string;
 }
 
 // In-memory database for operations
@@ -350,22 +372,20 @@ export async function syncWithSupabase() {
   try {
     const supabase = getSupabaseBrowserClient();
     
-    // First, check if Supabase connection is working
     try {
       const { error: pingError } = await supabase.from('sync_log').select('count', { count: 'exact', head: true });
       
-      // If we get a specific error about the table not existing, that's fine, but network errors should be caught
-      if (pingError && !pingError.message?.includes('does not exist')) {
-        return { success: false, error: `Supabase connection error: ${pingError.message || 'Unknown error'}` };
+      if (pingError && typeof pingError.message === 'string' && !pingError.message.includes('does not exist')) {
+        return { success: false, error: `Supabase connection error: ${pingError.message}` };
       }
-    } catch (pingError) {
-      console.error("Supabase connection error:", pingError);
-      return { success: false, error: `Failed to connect to Supabase: ${pingError.message || 'Unknown error'}` };
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      return { success: false, error: `Failed to connect to Supabase: ${errorMessage}` };
     }
-    
+
     let successCount = 0;
     let errorCount = 0;
-    const errors = [];
+    const errors: SyncError[] = [];
 
     // Process changes in batches to avoid overwhelming the server
     const batchSize = 50;
@@ -426,7 +446,7 @@ export async function syncWithSupabase() {
               operation: type,
               status: "success",
             });
-          } catch (logError) {
+          } catch (logError: any) {
             // If sync_log table doesn't exist yet, just continue
             if (logError.message && logError.message.includes("does not exist")) {
               console.log("sync_log table does not exist yet, skipping log entry");
@@ -453,7 +473,7 @@ export async function syncWithSupabase() {
               status: "error",
               error_message: errorMessage,
             });
-          } catch (logError) {
+          } catch (logError: any) {
             // If sync_log table doesn't exist yet, just continue
             if (logError.message && logError.message.includes("does not exist")) {
               console.log("sync_log table does not exist yet, skipping log entry");
@@ -769,7 +789,8 @@ export const transactionsApi = {
     today.setHours(23, 59, 59, 999) // End of today
 
     const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
-    const revenueByDay: Record<string, { spa: number, restaurant: number, name: string }> = {}
+    type RevenueData = { [key: string]: { spa: number, restaurant: number, name: string } };
+    const revenueByDay: RevenueData = {};
 
     // Initialize the last N days with zero values
     for (let i = days - 1; i >= 0; i--) {
