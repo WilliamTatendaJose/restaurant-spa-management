@@ -19,14 +19,6 @@ export function SettingsTabs() {
   // Only managers and admins can access ZIMRA settings
   const canAccessZIMRA = hasPermission("manager");
 
-  // Calculate grid columns based on permissions
-  const getGridCols = () => {
-    let cols = 3; // general, business, database
-    if (canManageUsers) cols++;
-    if (canAccessZIMRA) cols++;
-    return `grid-cols-${cols}`;
-  };
-
   return (
     <Tabs
       defaultValue="general"
@@ -34,7 +26,7 @@ export function SettingsTabs() {
       onValueChange={setActiveTab}
       className="w-full"
     >
-      <TabsList className={`grid w-full ${getGridCols()}`}>
+      <TabsList className="flex h-10 items-center justify-start rounded-md bg-muted p-1 text-muted-foreground">
         <TabsTrigger value="general">General</TabsTrigger>
         <TabsTrigger value="business">Business</TabsTrigger>
         {canManageUsers && (
