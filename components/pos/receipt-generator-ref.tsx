@@ -1,52 +1,62 @@
-"use client"
-import { forwardRef, useRef, useImperativeHandle, useState, useCallback } from "react"
-import { Button } from "@/components/ui/button"
-import { Separator } from "@/components/ui/separator"
-import { Printer, Mail, Share2, Loader2 } from "lucide-react"
-import { useReactToPrint } from "react-to-print"
-import { jsPDF } from "jspdf"
-import html2canvas from "html2canvas"
-import { useToast } from "@/hooks/use-toast"
+"use client";
+import {
+  forwardRef,
+  useRef,
+  useImperativeHandle,
+  useState,
+  useCallback,
+} from "react";
+import { Button } from "@/components/ui/button";
+import { Separator } from "@/components/ui/separator";
+import { Printer, Mail, Share2, Loader2 } from "lucide-react";
+import { useReactToPrint } from "react-to-print";
+import { jsPDF } from "jspdf";
+import html2canvas from "html2canvas";
+import { useToast } from "@/hooks/use-toast";
 
 interface CartItem {
-  id: string
-  name: string
-  price: number
-  quantity: number
+  id: string;
+  name: string;
+  price: number;
+  quantity: number;
 }
 interface ReceiptGeneratorProps {
-  transactionId: string
-  customerName: string
-  items: CartItem[]
-  total: number
-  date: Date
-  onShare: () => void
-  onEmail: () => void
+  transactionId: string;
+  customerName: string;
+  items: CartItem[];
+  total: number;
+  date: Date;
+  onShare: () => void;
+  onEmail: () => void;
 }
 export const ReceiptGenerator = forwardRef<any, ReceiptGeneratorProps>(
-  ({ transactionId, customerName, items, total, date, onShare, onEmail }, ref) => {
-    const receiptRef = useRef<HTMLDivElement>(null)
-    const { toast } = useToast()
-    const [isPrinting, setIsPrinting] = useState(false)
-    const [isGeneratingPDF, setIsGeneratingPDF] = useState(false)
+  (
+    { transactionId, customerName, items, total, date, onShare, onEmail },
+    ref
+  ) => {
+    const receiptRef = useRef<HTMLDivElement>(null);
+    const { toast } = useToast();
+    const [isPrinting, setIsPrinting] = useState(false);
+    const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
 
     const handlePrint = useReactToPrint({
       content: () => receiptRef.current,
       documentTitle: `Receipt-${transactionId}`,
       onBeforeGetContent: () => {
-        setIsPrinting(true)
+        setIsPrinting(true);
         return new Promise((resolve) => {
-          setTimeout(resolve, 500)
-        })
+          setTimeout(resolve, 500);
+        });
       },
       onPrintError: (error) => {
-        console.error('Print error:', error)
-        setIsPrinting(false)
+        console.error("Print error:", error);
+        setIsPrinting(false);
         toast({
           title: "Print error",
-          description: "There was an error printing your receipt. Please try again.",
+          description:
+            "There was an error printing your receipt. Please try again.",
           variant: "destructive",
-        })
+        });
       },
       pageStyle: `
         @page {
@@ -65,27 +75,28 @@ export const ReceiptGenerator = forwardRef<any, ReceiptGeneratorProps>(
       `,
       removeAfterPrint: true,
       onAfterPrint: () => {
-        setIsPrinting(false)
+        setIsPrinting(false);
         toast({
           title: "Print job sent",
           description: "Your receipt has been sent to the printer",
-        })
+        });
       },
-    })
+    });
 
     const generatePDF = async () => {
-      if (!receiptRef.current) return null
+      if (!receiptRef.current) return null;
 
       try {
-        const element = receiptRef.current
+        const element = receiptRef.current;
         await Promise.all(
           Array.from(element.getElementsByTagName("img")).map(
-            (img) => new Promise((resolve) => {
-              if (img.complete) resolve(null)
-              else img.onload = () => resolve(null)
-            })
+            (img) =>
+              new Promise((resolve) => {
+                if (img.complete) resolve(null);
+                else img.onload = () => resolve(null);
+              })
           )
-        )
+        );
 
         const canvas = await html2canvas(element, {
           scale: 3,
@@ -94,79 +105,85 @@ export const ReceiptGenerator = forwardRef<any, ReceiptGeneratorProps>(
           backgroundColor: "#ffffff",
           windowWidth: element.offsetWidth,
           windowHeight: element.offsetHeight,
-        })
+        });
 
-        const imgData = canvas.toDataURL("image/png", 1.0)
-        
-        const pdfWidth = 80
-        const pdfHeight = (canvas.height * pdfWidth) / canvas.width
-        
+        const imgData = canvas.toDataURL("image/png", 1.0);
+
+        const pdfWidth = 80;
+        const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+
         const pdf = new jsPDF({
           orientation: "portrait",
           unit: "mm",
           format: [pdfWidth, Math.min(297, pdfHeight + 10)],
           hotfixes: ["px_scaling"],
-        })
+        });
 
-        pdf.addImage(imgData, "PNG", 5, 5, pdfWidth - 10, pdfHeight)
-        return pdf
+        pdf.addImage(imgData, "PNG", 5, 5, pdfWidth - 10, pdfHeight);
+        return pdf;
       } catch (error) {
-        console.error("Error generating PDF:", error)
-        throw error
+        console.error("Error generating PDF:", error);
+        throw error;
       }
-    }
+    };
 
     const handleDownloadPDF = async () => {
-      setIsGeneratingPDF(true)
+      setIsGeneratingPDF(true);
       try {
-        await new Promise(resolve => setTimeout(resolve, 500))
-        
-        const pdf = await generatePDF()
-        if (!pdf) throw new Error("Failed to generate PDF")
-        
-        pdf.save(`Receipt-${transactionId}.pdf`)
+        await new Promise((resolve) => setTimeout(resolve, 500));
+
+        const pdf = await generatePDF();
+        if (!pdf) throw new Error("Failed to generate PDF");
+
+        pdf.save(`Receipt-${transactionId}.pdf`);
         toast({
           title: "PDF downloaded",
           description: "Your receipt has been downloaded as a PDF",
-        })
+        });
       } catch (error) {
-        console.error("Error downloading PDF:", error)
+        console.error("Error downloading PDF:", error);
         toast({
           title: "Download error",
-          description: "There was an error downloading your receipt. Please try again.",
+          description:
+            "There was an error downloading your receipt. Please try again.",
           variant: "destructive",
-        })
+        });
       } finally {
-        setIsGeneratingPDF(false)
+        setIsGeneratingPDF(false);
       }
-    }
+    };
 
     useImperativeHandle(ref, () => ({
       generatePDF,
       printReceipt: handlePrint,
-    }))
+    }));
 
     return (
       <div className="space-y-4">
-        <div 
-          className="bg-white p-4 rounded-lg shadow-sm" 
+        <div
+          className="bg-white p-4 rounded-lg shadow-sm"
           ref={receiptRef}
-          style={{ width: '80mm', margin: '0 auto' }}
+          style={{ width: "80mm", margin: "0 auto" }}
         >
           <div className="text-center mb-4">
             <h2 className="font-bold text-xl">Spa & Bistro</h2>
-            <p className="text-sm text-muted-foreground">123 Relaxation Ave, Serenity, CA 90210</p>
+            <p className="text-sm text-muted-foreground">
+              123 Relaxation Ave, Serenity, CA 90210
+            </p>
             <p className="text-sm text-muted-foreground">(555) 123-4567</p>
           </div>
           <div className="mb-4">
             <p className="text-sm">
-              <span className="font-medium">Receipt #:</span> {transactionId.substring(0, 8)}
+              <span className="font-medium">Receipt #:</span>{" "}
+              {transactionId.substring(0, 8)}
             </p>
             <p className="text-sm">
-              <span className="font-medium">Date:</span> {date.toLocaleDateString()}
+              <span className="font-medium">Date:</span>{" "}
+              {date.toLocaleDateString()}
             </p>
             <p className="text-sm">
-              <span className="font-medium">Time:</span> {date.toLocaleTimeString()}
+              <span className="font-medium">Time:</span>{" "}
+              {date.toLocaleTimeString()}
             </p>
             {customerName && (
               <p className="text-sm">
@@ -190,8 +207,12 @@ export const ReceiptGenerator = forwardRef<any, ReceiptGeneratorProps>(
                   <tr key={item.id} className="border-b border-dashed">
                     <td className="py-1">{item.name}</td>
                     <td className="text-center py-1">{item.quantity}</td>
-                    <td className="text-right py-1">${item.price.toFixed(2)}</td>
-                    <td className="text-right py-1">${(item.price * item.quantity).toFixed(2)}</td>
+                    <td className="text-right py-1">
+                      ${item.price.toFixed(2)}
+                    </td>
+                    <td className="text-right py-1">
+                      ${(item.price * item.quantity).toFixed(2)}
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -214,28 +235,38 @@ export const ReceiptGenerator = forwardRef<any, ReceiptGeneratorProps>(
           </div>
           <div className="mt-6 text-center">
             <p className="text-sm">Thank you for your business!</p>
-            <p className="text-xs text-muted-foreground mt-1">www.spaandbistro.com</p>
+            <p className="text-xs text-muted-foreground mt-1">
+              www.spaandbistro.com
+            </p>
           </div>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Button 
-            className="flex-1" 
+          <Button
+            className="flex-1"
             onClick={() => {
-              if (!isPrinting) handlePrint()
-            }} 
+              if (!isPrinting) handlePrint();
+            }}
             disabled={isPrinting}
           >
-            {isPrinting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Printer className="mr-2 h-4 w-4" />}
+            {isPrinting ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <Printer className="mr-2 h-4 w-4" />
+            )}
             {isPrinting ? "Printing..." : "Print Receipt"}
           </Button>
-          <Button 
-            className="flex-1" 
+          <Button
+            className="flex-1"
             onClick={() => {
-              if (!isGeneratingPDF) handleDownloadPDF()
-            }} 
+              if (!isGeneratingPDF) handleDownloadPDF();
+            }}
             disabled={isGeneratingPDF}
           >
-            {isGeneratingPDF ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Share2 className="mr-2 h-4 w-4" />}
+            {isGeneratingPDF ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <Share2 className="mr-2 h-4 w-4" />
+            )}
             {isGeneratingPDF ? "Generating..." : "Download PDF"}
           </Button>
           <Button className="flex-1" onClick={onEmail}>
@@ -244,8 +275,8 @@ export const ReceiptGenerator = forwardRef<any, ReceiptGeneratorProps>(
           </Button>
         </div>
       </div>
-    )
-  },
-)
+    );
+  }
+);
 
-ReceiptGenerator.displayName = "ReceiptGenerator"
+ReceiptGenerator.displayName = "ReceiptGenerator";

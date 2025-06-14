@@ -143,102 +143,90 @@ export const ZIMRAComplianceStatus: React.FC<ZIMRAComplianceStatusProps> = ({
     );
   };
 
-  const getStatusBadge = () => {
-    switch (status.submissionStatus) {
+  const getStatusBadge = (status: string) => {
+    switch (status) {
       case "success":
         return (
           <Badge variant="default" className="bg-green-500">
-            ZIMRA Compliant
+            <CheckCircle className="h-3 w-3 mr-1" />
+            Submitted
+          </Badge>
+        );
+      case "pending":
+        return (
+          <Badge variant="secondary">
+            <Clock className="h-3 w-3 mr-1" />
+            Pending
           </Badge>
         );
       case "failed":
-        return <Badge variant="destructive">Submission Failed</Badge>;
-      case "pending":
-        return <Badge variant="secondary">Submitting...</Badge>;
+        return (
+          <Badge variant="destructive">
+            <XCircle className="h-3 w-3 mr-1" />
+            Failed
+          </Badge>
+        );
       default:
-        return <Badge variant="outline">Not Submitted</Badge>;
+        return (
+          <Badge variant="outline">
+            <AlertTriangle className="h-3 w-3 mr-1" />
+            Not Attempted
+          </Badge>
+        );
     }
   };
 
   return (
-    <Card className="w-full">
-      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-        <CardTitle className="text-sm font-medium">
+    <Card className="w-full max-w-md">
+      <CardHeader>
+        <CardTitle className="flex items-center justify-between">
           ZIMRA Compliance Status
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={checkComplianceStatus}
+            disabled={isChecking}
+          >
+            <RefreshCw className={`h-4 w-4 ${isChecking ? "animate-spin" : ""}`} />
+          </Button>
         </CardTitle>
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={checkComplianceStatus}
-          disabled={isChecking}
-        >
-          <RefreshCw
-            className={`h-4 w-4 ${isChecking ? "animate-spin" : ""}`}
-          />
-        </Button>
       </CardHeader>
-      <CardContent className="space-y-3">
+      
+      <CardContent className="space-y-4">
         <div className="flex items-center justify-between">
-          <span className="text-sm">Overall Status</span>
-          {getStatusBadge()}
+          <span className="text-sm font-medium">Fiscal Code Generated</span>
+          {getStatusIcon(status.fiscalCodeGenerated)}
         </div>
-
-        <div className="space-y-2">
-          <div className="flex items-center justify-between text-sm">
-            <span className="flex items-center gap-2">
-              {getStatusIcon(status.fiscalCodeGenerated)}
-              Fiscal Code Generated
-            </span>
-            {status.fiscalCodeGenerated && (
-              <Badge variant="outline" className="text-xs">
-                ✓
-              </Badge>
-            )}
-          </div>
-
-          <div className="flex items-center justify-between text-sm">
-            <span className="flex items-center gap-2">
-              {getStatusIcon(
-                status.zimraSubmitted,
-                status.submissionStatus === "pending"
-              )}
-              ZIMRA Submission
-            </span>
-            {status.zimraReference && (
-              <Badge variant="outline" className="text-xs">
-                {status.zimraReference.substring(0, 8)}...
-              </Badge>
-            )}
-          </div>
-
-          {status.lastSubmissionAttempt && (
-            <div className="text-xs text-muted-foreground">
-              Last attempt:{" "}
-              {new Date(status.lastSubmissionAttempt).toLocaleString()}
-            </div>
-          )}
+        
+        <div className="flex items-center justify-between">
+          <span className="text-sm font-medium">ZIMRA Submission</span>
+          {getStatusBadge(status.submissionStatus)}
         </div>
-
-        {status.errors && status.errors.length > 0 && (
-          <div className="rounded-md bg-yellow-50 p-3 border border-yellow-200">
-            <div className="flex items-start gap-2">
-              <AlertTriangle className="h-4 w-4 text-yellow-600 mt-0.5" />
-              <div className="text-sm">
-                <p className="font-medium text-yellow-800 mb-1">
-                  Compliance Issues:
-                </p>
-                <ul className="text-yellow-700 space-y-1">
-                  {status.errors.map((error, index) => (
-                    <li key={index} className="text-xs">
-                      • {error}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            </div>
+        
+        {status.zimraReference && (
+          <div className="p-3 bg-green-50 rounded-md">
+            <p className="text-sm font-medium text-green-800">ZIMRA Reference</p>
+            <p className="text-xs text-green-600 font-mono">{status.zimraReference}</p>
           </div>
         )}
-
+        
+        {status.lastSubmissionAttempt && (
+          <div className="text-xs text-muted-foreground">
+            Last attempt: {new Date(status.lastSubmissionAttempt).toLocaleString()}
+          </div>
+        )}
+        
+        {status.errors && status.errors.length > 0 && (
+          <div className="p-3 bg-red-50 rounded-md">
+            <p className="text-sm font-medium text-red-800 mb-2">Submission Errors</p>
+            <ul className="text-xs text-red-600 space-y-1">
+              {status.errors.map((error, index) => (
+                <li key={index}>• {error}</li>
+              ))}
+            </ul>
+          </div>
+        )}
+        
         {status.submissionStatus === "failed" && onRetrySubmission && (
           <Button
             variant="outline"
@@ -246,15 +234,9 @@ export const ZIMRAComplianceStatus: React.FC<ZIMRAComplianceStatusProps> = ({
             onClick={handleRetrySubmission}
             className="w-full"
           >
+            <RefreshCw className="h-4 w-4 mr-2" />
             Retry ZIMRA Submission
           </Button>
-        )}
-
-        {!status.isCompliant && (
-          <div className="text-xs text-muted-foreground bg-blue-50 p-2 rounded">
-            💡 Tip: Ensure all required ZIMRA fields are complete for automatic
-            compliance
-          </div>
         )}
       </CardContent>
     </Card>

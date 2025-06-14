@@ -77,7 +77,13 @@ export const ComponentToPrint = forwardRef<HTMLDivElement, ComponentToPrintProps
     useEffect(() => {
       // If business settings are provided as a prop, use those
       if (propBusinessSettings) {
-        setBusinessSettings(propBusinessSettings)
+        // Merge with ZIMRA defaults to ensure all required fields are present
+        setBusinessSettings({
+          ...propBusinessSettings,
+          zimraTaxNumber: propBusinessSettings.zimraTaxNumber || process.env.NEXT_PUBLIC_ZIMRA_TAX_NUMBER || "1234567890",
+          zimraBusinessType: propBusinessSettings.zimraBusinessType || "HOSPITALITY",
+          zimraRegistrationNumber: propBusinessSettings.zimraRegistrationNumber || "REG/2024/001"
+        } as BusinessSettings)
         return
       }
 
@@ -97,7 +103,16 @@ export const ComponentToPrint = forwardRef<HTMLDivElement, ComponentToPrintProps
             zimraRegistrationNumber: "REG/2024/001"
           }
           const settings = await businessSettingsApi.getSettings(defaultSettings)
-          setBusinessSettings(settings as BusinessSettings)
+          
+          // Ensure ZIMRA fields are present
+          const enhancedSettings = {
+            ...settings,
+            zimraTaxNumber: settings.zimraTaxNumber || process.env.NEXT_PUBLIC_ZIMRA_TAX_NUMBER || "1234567890",
+            zimraBusinessType: settings.zimraBusinessType || "HOSPITALITY",
+            zimraRegistrationNumber: settings.zimraRegistrationNumber || "REG/2024/001"
+          }
+          
+          setBusinessSettings(enhancedSettings as BusinessSettings)
         } catch (error) {
           console.error("Error loading business settings:", error)
         }
@@ -254,12 +269,7 @@ export const ComponentToPrint = forwardRef<HTMLDivElement, ComponentToPrintProps
                 return (
                   <tr key={item.id} className="border-b border-dashed" style={{ borderBottom: "1px dashed #000" }}>
                     <td className="py-1 text-black print:text-black" style={{ padding: "4px 0" }}>
-                      <div>
-                        <div>{item.name}</div>
-                        <div className="text-xs text-gray-600">
-                          {item.category ? item.category.toUpperCase() : transactionType.toUpperCase()} SERVICE
-                        </div>
-                      </div>
+                      <div>{item.name}</div>
                     </td>
                     <td className="text-center py-1 text-black print:text-black" style={{ textAlign: "center", padding: "4px 0" }}>
                       {item.quantity}

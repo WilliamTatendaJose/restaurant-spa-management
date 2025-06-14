@@ -39,17 +39,18 @@ export function PrintPreviewModal({
   const [businessSettings, setBusinessSettings] =
     useState<BusinessSettings | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [previewContent, setPreviewContent] = useState("");
 
   useEffect(() => {
     async function loadSettings() {
       try {
         const defaultSettings = {
           businessName: "Spa & Bistro",
-          address: "123 Relaxation Ave, Serenity, CA 90210",
-          phone: "(555) 123-4567",
+          address: "123 Relaxation Ave, Harare, Zimbabwe",
+          phone: "+263 4 123-4567",
           email: "info@spaandbistro.com",
           website: "www.spaandbistro.com",
-          taxRate: "8.5",
+          taxRate: "14", // Zimbabwe VAT rate
           openingHours: "Monday-Friday: 9am-9pm\nSaturday-Sunday: 10am-8pm",
         };
 
@@ -64,35 +65,47 @@ export function PrintPreviewModal({
 
     if (open) {
       loadSettings();
+      // Generate preview content when modal opens
+      generatePreviewContent();
     }
-  }, [open]);
+  }, [open, receiptRef]);
+
+  const generatePreviewContent = () => {
+    // Try multiple approaches to get the receipt element
+    let receiptElement = null;
+
+    // First, try the passed ref
+    if (receiptRef?.current) {
+      receiptElement = receiptRef.current;
+    }
+
+    // If that fails, try to find by ID
+    if (!receiptElement) {
+      receiptElement = document.getElementById("receipt-to-print");
+    }
+
+    // If still no element, try querySelector
+    if (!receiptElement) {
+      receiptElement = document.querySelector('[data-receipt="true"] #receipt-to-print');
+    }
+
+    if (receiptElement) {
+      // Get the innerHTML and apply preview styles
+      const content = receiptElement.innerHTML;
+      setPreviewContent(content);
+    } else {
+      console.error("Receipt element not found for preview");
+      setPreviewContent("<div>Receipt content not available for preview</div>");
+    }
+  };
 
   const handlePrint = () => {
     if (!receiptRef?.current) {
-      console.error('Receipt reference is not available');
+      console.error("Receipt reference is not available");
       return;
     }
     onPrint();
     onOpenChange(false);
-  };
-
-  // Safely get the receipt HTML content
-  const getReceiptHTML = () => {
-    if (!receiptRef?.current) return '';
-    
-    // Clone the node to avoid modifying the original
-    const clone = receiptRef.current.cloneNode(true) as HTMLElement;
-    
-    // Preserve the styling
-    const styles = window.getComputedStyle(receiptRef.current);
-    clone.style.cssText = styles.cssText;
-    
-    // Ensure print-specific styling
-    clone.style.width = '100%';
-    clone.style.margin = '0';
-    clone.style.padding = '1rem';
-    
-    return clone.outerHTML;
   };
 
   return (
@@ -111,10 +124,85 @@ export function PrintPreviewModal({
           {isLoading ? (
             <div className="text-center py-8">Loading preview...</div>
           ) : (
-            <div 
-              className="receipt-preview print:w-full print:m-0 print:p-4" 
-              dangerouslySetInnerHTML={{ __html: getReceiptHTML() }}
-            />
+            <div
+              className="receipt-preview"
+              style={{
+                fontFamily: "Arial, sans-serif",
+                color: "#000",
+                fontSize: "14px",
+                lineHeight: "1.4",
+                maxWidth: "350px",
+                margin: "0 auto",
+              }}
+            >
+              <style>{`
+                .receipt-preview * {
+                  color: #000 !important;
+                }
+                .receipt-preview table {
+                  width: 100%;
+                  border-collapse: collapse;
+                  margin: 8px 0;
+                }
+                .receipt-preview th,
+                .receipt-preview td {
+                  padding: 4px;
+                  text-align: left;
+                  color: #000 !important;
+                }
+                .receipt-preview .text-right {
+                  text-align: right !important;
+                }
+                .receipt-preview .text-center {
+                  text-align: center !important;
+                }
+                .receipt-preview .font-bold {
+                  font-weight: 700 !important;
+                }
+                .receipt-preview .font-medium {
+                  font-weight: 500 !important;
+                }
+                .receipt-preview .text-sm {
+                  font-size: 12px !important;
+                }
+                .receipt-preview .text-xs {
+                  font-size: 10px !important;
+                }
+                .receipt-preview .text-xl {
+                  font-size: 18px !important;
+                }
+                .receipt-preview .mb-4 {
+                  margin-bottom: 16px !important;
+                }
+                .receipt-preview .mt-4 {
+                  margin-top: 16px !important;
+                }
+                .receipt-preview .py-2 {
+                  padding-top: 8px !important;
+                  padding-bottom: 8px !important;
+                }
+                .receipt-preview .border-t {
+                  border-top: 1px solid #000 !important;
+                }
+                .receipt-preview .border-b {
+                  border-bottom: 1px solid #000 !important;
+                }
+                .receipt-preview .border-dashed {
+                  border-style: dashed !important;
+                }
+                .receipt-preview img {
+                  max-width: 100%;
+                  height: auto;
+                  display: block;
+                  margin: 0 auto;
+                }
+                .receipt-preview .bg-black {
+                  background-color: #000 !important;
+                  height: 1px !important;
+                }
+              `}</style>
+              <div dangerouslySetInnerHTML={{ __html: previewContent }} />
+            </div>
           )}
         </div>
 
@@ -123,10 +211,7 @@ export function PrintPreviewModal({
             <X className="mr-2 h-4 w-4" />
             Cancel
           </Button>
-          <Button 
-            onClick={handlePrint}
-            disabled={!receiptRef?.current}
-          >
+          <Button onClick={handlePrint} disabled={!receiptRef?.current}>
             <Printer className="mr-2 h-4 w-4" />
             Print
           </Button>

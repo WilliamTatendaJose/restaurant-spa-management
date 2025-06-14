@@ -10,6 +10,7 @@ import { ComponentToPrint } from "@/components/pos/component-to-print";
 import { PrintPreviewModal } from "@/components/pos/print-preview-modal";
 import { ZIMRAApiClient } from "@/lib/zimra-api";
 import { useToast } from "@/hooks/use-toast";
+import { businessSettingsApi } from "@/lib/db";
 
 interface BusinessSettings {
   businessName: string;
@@ -114,15 +115,7 @@ export const ReceiptGenerator = forwardRef<
       onShare,
       onEmail,
       onZimraSubmission,
-      businessSettings = {
-        businessName: "Spa & Bistro",
-        address: "123 Relaxation Ave, Serenity, CA 90210",
-        phone: "(555) 123-4567",
-        email: "info@spaandbistro.com",
-        website: "www.spaandbistro.com",
-        taxRate: "8.5",
-        openingHours: "Monday-Friday: 9am-9pm\nSaturday-Sunday: 10am-8pm",
-      },
+      businessSettings: propBusinessSettings,
     },
     ref
   ) => {
@@ -132,6 +125,15 @@ export const ReceiptGenerator = forwardRef<
     const [isSubmittingToZimra, setIsSubmittingToZimra] = useState(false);
     const [isPrintPreviewOpen, setIsPrintPreviewOpen] = useState(false);
     const [isDownloading, setIsDownloading] = useState(false);
+    const [businessSettings, setBusinessSettings] = useState<BusinessSettings>({
+      businessName: "Spa & Bistro",
+      address: "123 Relaxation Ave, Serenity, CA 90210",
+      phone: "(555) 123-4567",
+      email: "info@spaandbistro.com",
+      website: "www.spaandbistro.com",
+      taxRate: "8.5",
+      openingHours: "Monday-Friday: 9am-9pm\nSaturday-Sunday: 10am-8pm",
+    });
     const [qrCodes, setQrCodes] = useState<{
       verification: string;
       paymentLink: string;
@@ -140,6 +142,42 @@ export const ReceiptGenerator = forwardRef<
       paymentLink: "",
     });
     const { toast } = useToast();
+
+    // Load business settings from database
+    useEffect(() => {
+      async function loadBusinessSettings() {
+        if (propBusinessSettings) {
+          setBusinessSettings(propBusinessSettings);
+          return;
+        }
+
+        try {
+          const defaultSettings = {
+            businessName: "Spa & Bistro",
+            address: "123 Relaxation Ave, Harare, Zimbabwe",
+            phone: "+263 4 123-4567",
+            email: "info@spaandbistro.com",
+            website: "www.spaandbistro.com",
+            taxRate: "14", // Zimbabwe VAT rate
+            openingHours: "Monday-Friday: 9am-9pm\nSaturday-Sunday: 10am-8pm",
+          };
+
+          const settings = await businessSettingsApi.getSettings(
+            defaultSettings
+          );
+          setBusinessSettings(settings as BusinessSettings);
+        } catch (error) {
+          console.error("Error loading business settings:", error);
+          toast({
+            title: "Settings Load Error",
+            description: "Failed to load business settings. Using defaults.",
+            variant: "destructive",
+          });
+        }
+      }
+
+      loadBusinessSettings();
+    }, [propBusinessSettings, toast]);
 
     // Generate fiscal code on component mount
     useEffect(() => {
@@ -238,116 +276,467 @@ export const ReceiptGenerator = forwardRef<
       }
     };
 
-    // Custom print function that doesn't rely on react-to-print
+    // Improved print function with better debugging
     const handlePrintReceipt = () => {
+      // Add debugging to understand what's happening
+      console.log("Print function called");
+      console.log("Ref object:", ref);
+      console.log(
+        "Ref current:",
+        ref && "current" in ref ? ref.current : "No current property"
+      );
+
+      // Try multiple approaches to get the receipt content
+      let receiptElement = null;
+
+      // First, try the passed ref
       if (ref && "current" in ref && ref.current) {
-        const printContent = ref.current.innerHTML;
+        receiptElement = ref.current;
+        console.log("Using passed ref");
+      }
 
-        // Create a new window with just the receipt content
+      // If that fails, try to find the element by ID
+      if (!receiptElement) {
+        receiptElement = document.getElementById("receipt-to-print");
+        console.log("Using getElementById, found:", receiptElement);
+      }
+
+      // If still no element, try querySelector
+      if (!receiptElement) {
+        receiptElement = document.querySelector('[data-receipt="true"]');
+        console.log("Using querySelector, found:", receiptElement);
+      }
+
+      if (!receiptElement) {
+        console.error("No receipt element found");
+        toast({
+          title: "Print Error",
+          description: "Receipt content not found. Please try again.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      try {
+        const printContent = receiptElement.innerHTML;
+        console.log("Receipt content length:", printContent.length);
+
+        if (!printContent || printContent.trim().length === 0) {
+          throw new Error("Receipt content is empty");
+        }
+
         const printWindow = window.open("", "_blank");
-        if (!printWindow) return;
 
-        // Add necessary styles
+        if (!printWindow) {
+          toast({
+            title: "Print Error",
+            description:
+              "Unable to open print window. Please check your browser's popup settings.",
+            variant: "destructive",
+          });
+          return;
+        }
+
         printWindow.document.write(`
+          <!DOCTYPE html>
           <html>
             <head>
               <title>Receipt-${transactionId}</title>
+              <meta charset="utf-8">
               <style>
-                body { 
-                  font-family: Arial, sans-serif; 
-                  margin: 0; 
-                  padding: 20px; 
-                  color: #000;
-                  background-color: #fff;
+                * {
+                  margin: 0;
+                  padding: 0;
+                  box-sizing: border-box;
                 }
+                
+                body { 
+                  font-family: 'Courier New', monospace; 
+                  margin: 0; 
+                  padding: 10px; 
+                  color: #000 !important;
+                  background-color: #fff;
+                  -webkit-print-color-adjust: exact;
+                  print-color-adjust: exact;
+                  font-size: 12px;
+                  line-height: 1.2;
+                }
+                
                 .receipt-content { 
                   max-width: 350px; 
                   margin: 0 auto; 
+                  color: #000 !important;
                 }
-                table { width: 100%; border-collapse: collapse; }
-                th, td { padding: 4px 0; }
-                th { text-align: left; }
-                .text-right { text-align: right; }
-                .text-center { text-align: center; }
-                .border-bottom { border-bottom: 1px solid #e2e8f0; }
-                .border-dashed { border-bottom: 1px dashed #e2e8f0; }
-                .font-medium { font-weight: 500; }
-                .font-bold { font-weight: 700; }
-                .text-sm { font-size: 0.875rem; }
-                .text-xs { font-size: 0.75rem; }
-                .text-lg { font-size: 1.125rem; }
-                .mb-2 { margin-bottom: 0.5rem; }
-                .mb-4 { margin-bottom: 1rem; }
-                .mt-2 { margin-top: 0.5rem; }
-                .mt-4 { margin-top: 1rem; }
-                .mt-6 { margin-top: 1.5rem; }
-                .p-4 { padding: 1rem; }
-                .text-muted { color: #6b7280; }
-                .text-center { text-align: center; }
+                
+                table { 
+                  width: 100%; 
+                  border-collapse: collapse; 
+                  color: #000 !important;
+                  margin: 8px 0;
+                }
+                
+                th, td { 
+                  padding: 2px 4px; 
+                  color: #000 !important;
+                  vertical-align: top;
+                }
+                
+                th { 
+                  text-align: left; 
+                  font-weight: bold;
+                  border-bottom: 1px solid #000;
+                }
+                
+                .text-right { 
+                  text-align: right !important; 
+                }
+                
+                .text-center { 
+                  text-align: center !important; 
+                }
+                
+                .border-bottom { 
+                  border-bottom: 1px solid #000; 
+                }
+                
+                .border-dashed { 
+                  border-bottom: 1px dashed #000; 
+                }
+                
+                .font-medium { 
+                  font-weight: 500; 
+                }
+                
+                .font-bold { 
+                  font-weight: 700; 
+                }
+                
+                .text-sm { 
+                  font-size: 11px; 
+                }
+                
+                .text-xs { 
+                  font-size: 10px; 
+                }
+                
+                .text-lg { 
+                  font-size: 14px; 
+                }
+                
+                .mb-2 { 
+                  margin-bottom: 8px; 
+                }
+                
+                .mb-4 { 
+                  margin-bottom: 16px; 
+                }
+                
+                .mt-2 { 
+                  margin-top: 8px; 
+                }
+                
+                .mt-4 { 
+                  margin-top: 16px; 
+                }
+                
+                .mt-6 { 
+                  margin-top: 24px; 
+                }
+                
+                .p-4 { 
+                  padding: 16px; 
+                }
+                
+                .py-1 {
+                  padding-top: 4px;
+                  padding-bottom: 4px;
+                }
+                
+                .py-2 {
+                  padding-top: 8px;
+                  padding-bottom: 8px;
+                }
+                
+                .pt-2 {
+                  padding-top: 8px;
+                }
+                
+                .border-t {
+                  border-top: 1px solid #000;
+                }
+                
+                .text-muted { 
+                  color: #666 !important; 
+                }
+                
+                img {
+                  max-width: 100%;
+                  height: auto;
+                  display: block;
+                  margin: 0 auto;
+                }
+                
+                /* Print-specific styles */
+                @page {
+                  size: 80mm auto;
+                  margin: 2mm;
+                }
+                
+                @media print {
+                  body {
+                    margin: 0;
+                    padding: 5px;
+                    color: #000 !important;
+                    font-size: 11px;
+                  }
+                  
+                  * {
+                    color: #000 !important;
+                    -webkit-print-color-adjust: exact;
+                    print-color-adjust: exact;
+                  }
+                  
+                  .no-print {
+                    display: none !important;
+                  }
+                }
+                
+                /* Ensure all text is black */
+                h1, h2, h3, h4, h5, h6, p, span, div, td, th {
+                  color: #000 !important;
+                }
               </style>
             </head>
-            <body>
+            <body onload="window.print(); setTimeout(() => window.close(), 1000);">
               <div class="receipt-content">${printContent}</div>
-              <script>
-                window.onload = function() { 
-                  window.print();
-                  window.setTimeout(function() { window.close(); }, 500);
-                }
-              </script>
             </body>
           </html>
         `);
 
         printWindow.document.close();
+
+        // Focus the print window to ensure print dialog appears
+        printWindow.focus();
+
+        toast({
+          title: "Print Started",
+          description: "Receipt has been sent to printer.",
+        });
+      } catch (error) {
+        console.error("Print error:", error);
+        toast({
+          title: "Print Error",
+          description: "Failed to print receipt. Please try again.",
+          variant: "destructive",
+        });
       }
     };
 
-    // Generate PDF from the receipt
+    // Improved PDF generation
+    const generatePDF = async () => {
+      // Try multiple approaches to get the receipt element
+      let receiptElement = null;
+
+      // First, try the passed ref
+      if (ref && "current" in ref && ref.current) {
+        receiptElement = ref.current;
+      }
+
+      // If that fails, try to find the element by ID
+      if (!receiptElement) {
+        receiptElement = document.getElementById("receipt-to-print");
+      }
+
+      // If still no element, try querySelector
+      if (!receiptElement) {
+        receiptElement = document.querySelector(
+          '[data-receipt="true"] #receipt-to-print'
+        );
+      }
+
+      if (!receiptElement) {
+        console.error("Receipt element not found for PDF generation");
+        toast({
+          title: "Error",
+          description: "Receipt content not found for PDF generation",
+          variant: "destructive",
+        });
+        return null;
+      }
+
+      try {
+        // Create a simple text-based PDF as the primary method
+        const doc = new jsPDF({
+          orientation: "portrait",
+          unit: "mm",
+          format: [80, 200],
+        });
+
+        // Header
+        doc.setFontSize(14);
+        doc.text(businessSettings.businessName, 40, 10, { align: "center" });
+
+        doc.setFontSize(8);
+        doc.text(businessSettings.address, 40, 16, { align: "center" });
+        doc.text(businessSettings.phone, 40, 20, { align: "center" });
+        doc.text(businessSettings.email, 40, 24, { align: "center" });
+
+        // Receipt details
+        doc.setFontSize(10);
+        let yPos = 35;
+        doc.text(`Receipt #: ${transactionId.substring(0, 8)}`, 5, yPos);
+        yPos += 4;
+        doc.text(`Date: ${date.toLocaleDateString()}`, 5, yPos);
+        yPos += 4;
+        doc.text(`Time: ${date.toLocaleTimeString()}`, 5, yPos);
+        yPos += 4;
+        if (customerName) {
+          doc.text(`Customer: ${customerName}`, 5, yPos);
+          yPos += 4;
+        }
+        doc.text(`Payment: ${paymentMethod}`, 5, yPos);
+        yPos += 4;
+        if (fiscalCode) {
+          doc.text(`Fiscal Code: ${fiscalCode}`, 5, yPos);
+          yPos += 4;
+        }
+        if (zimraReference) {
+          doc.text(`ZIMRA Ref: ${zimraReference}`, 5, yPos);
+          yPos += 4;
+        }
+
+        // Items header
+        yPos += 5;
+        doc.line(5, yPos, 75, yPos); // Horizontal line
+        yPos += 5;
+        doc.text("Item", 5, yPos);
+        doc.text("Qty", 45, yPos);
+        doc.text("Rate", 55, yPos);
+        doc.text("Amount", 65, yPos);
+        yPos += 3;
+        doc.line(5, yPos, 75, yPos); // Horizontal line
+        yPos += 3;
+
+        // Items
+        items.forEach((item) => {
+          const itemName =
+            item.name.length > 25
+              ? item.name.substring(0, 25) + "..."
+              : item.name;
+          const itemTotal = item.price * item.quantity;
+
+          doc.text(itemName, 5, yPos);
+          doc.text(item.quantity.toString(), 45, yPos);
+          doc.text(`$${item.price.toFixed(2)}`, 55, yPos);
+          doc.text(`$${itemTotal.toFixed(2)}`, 65, yPos);
+          yPos += 4;
+        });
+
+        // Tax summary
+        yPos += 3;
+        doc.line(5, yPos, 75, yPos); // Horizontal line
+        yPos += 5;
+
+        const vatRate = 14; // Zimbabwe VAT rate
+        const netAmount = total / 1.14;
+        const vatAmount = total - netAmount;
+
+        doc.text(`Taxable Amount: $${netAmount.toFixed(2)}`, 5, yPos);
+        yPos += 4;
+        doc.text(`VAT @ ${vatRate}%: $${vatAmount.toFixed(2)}`, 5, yPos);
+        yPos += 4;
+
+        doc.line(5, yPos, 75, yPos); // Horizontal line
+        yPos += 5;
+
+        doc.setFontSize(12);
+        doc.text(`TOTAL: $${total.toFixed(2)}`, 40, yPos, { align: "center" });
+        yPos += 8;
+
+        // Footer
+        doc.setFontSize(8);
+        doc.text("Thank you for your business!", 40, yPos, { align: "center" });
+        yPos += 4;
+        doc.text(businessSettings.website, 40, yPos, { align: "center" });
+        yPos += 4;
+        doc.text("ZIMRA Compliant Tax Invoice", 40, yPos, { align: "center" });
+
+        return doc;
+      } catch (error) {
+        console.error("Error generating text-based PDF:", error);
+
+        // Fallback: Try html2canvas approach
+        try {
+          console.log("Attempting html2canvas fallback...");
+
+          // Wait for images to load
+          const images = receiptElement.getElementsByTagName("img");
+          const imagePromises = Array.from(images).map((img) => {
+            return new Promise<void>((resolve) => {
+              if (img.complete) {
+                resolve();
+              } else {
+                img.onload = () => resolve();
+                img.onerror = () => resolve();
+                setTimeout(() => resolve(), 1000); // Shorter timeout
+              }
+            });
+          });
+
+          await Promise.all(imagePromises);
+          await new Promise((resolve) => setTimeout(resolve, 300));
+
+          const canvas = await html2canvas(receiptElement, {
+            scale: 1,
+            logging: false,
+            useCORS: true,
+            allowTaint: true,
+            backgroundColor: "#ffffff",
+            width: receiptElement.offsetWidth,
+            height: receiptElement.offsetHeight,
+          });
+
+          const imgData = canvas.toDataURL("image/jpeg", 0.8);
+          const imgWidth = 70;
+          const imgHeight = (canvas.height * imgWidth) / canvas.width;
+
+          const doc = new jsPDF({
+            orientation: "portrait",
+            unit: "mm",
+            format: [80, Math.max(120, imgHeight + 20)],
+          });
+
+          doc.addImage(imgData, "JPEG", 5, 10, imgWidth, imgHeight);
+          return doc;
+        } catch (canvasError) {
+          console.error("html2canvas fallback also failed:", canvasError);
+          throw error; // Re-throw original error
+        }
+      }
+    };
+
     const handleDownloadPDF = async () => {
       setIsDownloading(true);
       try {
         const pdf = await generatePDF();
         if (pdf) {
           pdf.save(`Receipt-${transactionId.substring(0, 8)}.pdf`);
+          toast({
+            title: "PDF Downloaded",
+            description: "Receipt has been downloaded successfully.",
+          });
+        } else {
+          throw new Error("Failed to generate PDF");
         }
       } catch (error) {
         console.error("Error downloading PDF:", error);
+        toast({
+          title: "Download Error",
+          description: "Failed to download PDF. Please try again.",
+          variant: "destructive",
+        });
       } finally {
         setIsDownloading(false);
-      }
-    };
-
-    const generatePDF = async () => {
-      if (!ref || !("current" in ref) || !ref.current) return null;
-
-      // Wait for any pending renders to complete
-      await new Promise((resolve) => setTimeout(resolve, 100));
-
-      try {
-        const canvas = await html2canvas(ref.current, {
-          scale: 2,
-          logging: false,
-          useCORS: true,
-          backgroundColor: "#ffffff",
-          windowWidth: ref.current.offsetWidth,
-          windowHeight: ref.current.offsetHeight,
-        });
-
-        const imgData = canvas.toDataURL("image/png");
-        const pdf = new jsPDF({
-          orientation: "portrait",
-          unit: "mm",
-          format: [80, 200], // Receipt-sized paper
-        });
-
-        const imgWidth = 70;
-        const imgHeight = (canvas.height * imgWidth) / canvas.width;
-        pdf.addImage(imgData, "PNG", 5, 5, imgWidth, imgHeight);
-
-        return pdf;
-      } catch (error) {
-        console.error("Error generating PDF:", error);
-        return null;
       }
     };
 
@@ -357,20 +746,22 @@ export const ReceiptGenerator = forwardRef<
 
     return (
       <div className="space-y-4">
-        <ComponentToPrint
-          ref={ref}
-          transactionId={transactionId}
-          customerName={customerName}
-          items={items}
-          total={total}
-          date={date}
-          paymentMethod={paymentMethod}
-          fiscalCode={fiscalCode}
-          zimraReference={zimraReference}
-          transactionType={transactionType}
-          businessSettings={businessSettings}
-          verificationQrCode={qrCodes.verification}
-        />
+        <div data-receipt="true">
+          <ComponentToPrint
+            ref={ref}
+            transactionId={transactionId}
+            customerName={customerName}
+            items={items}
+            total={total}
+            date={date}
+            paymentMethod={paymentMethod}
+            fiscalCode={fiscalCode}
+            zimraReference={zimraReference}
+            transactionType={transactionType}
+            businessSettings={businessSettings}
+            verificationQrCode={qrCodes.verification}
+          />
+        </div>
 
         {/* QR Code Section */}
         <div className="qr-section border-t pt-4 mt-4">
