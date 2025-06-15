@@ -1,20 +1,33 @@
 "use client"
 
-import type React from "react"
-
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent } from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
 import { useToast } from "@/components/ui/use-toast"
-import { useSyncStatus } from "@/components/sync-status-provider"
-import { bookingsApi, customersApi, spaServicesApi, staffApi } from "@/lib/db"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { bookingsApi, spaServicesApi, customersApi } from "@/lib/db"
+
+interface BookingFormProps {
+  bookingId?: string
+}
+
+interface Booking {
+  id?: string
+  customer_name: string
+  customer_id?: string
+  booking_date: string
+  booking_time: string
+  booking_type: "spa" | "restaurant"
+  service: string
+  status: "pending" | "confirmed" | "cancelled"
+  staff?: string
+  party_size?: string
+  notes?: string
+}
 
 interface Customer {
   id: string
@@ -23,118 +36,102 @@ interface Customer {
   phone: string
 }
 
-interface StaffMember {
-  id: string
-  name: string
-  department: string
-  status: string
-}
-
 interface SpaService {
   id: string
   name: string
   duration: number
   price: number
-  category: string
 }
 
-export function BookingForm() {
+export function BookingForm({ bookingId }: BookingFormProps) {
   const router = useRouter()
   const { toast } = useToast()
-  const { isOnline } = useSyncStatus()
-
-  // State for loading data
-  const [loadingCustomers, setLoadingCustomers] = useState(true)
-  const [loadingStaff, setLoadingStaff] = useState(true)
-  const [loadingServices, setLoadingServices] = useState(true)
-  
-  // State for database content
+  const [isLoading, setIsLoading] = useState(!!bookingId)
+  const [isSubmitting, setIsSubmitting] = useState(false)
   const [customers, setCustomers] = useState<Customer[]>([])
-  const [staffMembers, setStaffMembers] = useState<StaffMember[]>([])
   const [spaServices, setSpaServices] = useState<SpaService[]>([])
   
-  // Form state
-  const [bookingType, setBookingType] = useState("spa")
-  const [customerMode, setCustomerMode] = useState("existing")
-  const [selectedCustomerId, setSelectedCustomerId] = useState("")
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<Booking>({
     customer_name: "",
-    customer_phone: "",
-    customer_email: "",
+    customer_id: "",
     booking_date: "",
     booking_time: "",
+    booking_type: "spa",
     service: "",
+    status: "pending",
     staff: "",
-    notes: "",
-    party_size: "1",
+    party_size: "",
+    notes: ""
   })
-  const [isSubmitting, setIsSubmitting] = useState(false)
 
-  // Fetch customers, staff and services data
+  // Fetch initial data
   useEffect(() => {
     async function fetchData() {
       try {
-        // Fetch customers
-        const customersData = await customersApi.list() as Customer[]
-        setCustomers(customersData)
-        setLoadingCustomers(false)
+        // Fetch customers and spa services
+        const [customersData, servicesData] = await Promise.all([
+          customersApi.list(),
+          spaServicesApi.list()
+        ])
         
-        // Fetch staff members who are active
-        const staffData = await staffApi.list({ status: "active" }) as StaffMember[]
-        setStaffMembers(staffData)
-        setLoadingStaff(false)
-        
-        // Fetch spa services
-        const servicesData = await spaServicesApi.listActive() as SpaService[]
-        setSpaServices(servicesData)
-        setLoadingServices(false)
+        setCustomers(customersData as Customer[])
+        setSpaServices(servicesData as SpaService[])
+
+        // If editing, fetch the booking data
+        if (bookingId) {
+          const booking = await bookingsApi.get(bookingId)
+          if (booking) {
+            setFormData({
+              customer_name: booking.customer_name || "",
+              customer_id: booking.customer_id || "",
+              booking_date: booking.booking_date || "",
+              booking_time: booking.booking_time || "",
+              booking_type: booking.booking_type || "spa",
+              service: booking.service || "",
+              status: booking.status || "pending",
+              staff: booking.staff || "",
+              party_size: booking.party_size || "",
+              notes: booking.notes || ""
+            })
+          } else {
+            toast({
+              title: "Error",
+              description: "Booking not found",
+              variant: "destructive"
+            })
+            router.push("/bookings")
+          }
+        }
       } catch (error) {
         console.error("Error fetching data:", error)
         toast({
           title: "Error",
-          description: "Failed to load necessary data. Please try again.",
-          variant: "destructive",
+          description: "Failed to load data",
+          variant: "destructive"
         })
+      } finally {
+        setIsLoading(false)
       }
     }
 
     fetchData()
-  }, [toast])
+  }, [bookingId, toast, router])
 
-  // When a customer is selected, populate the form fields
-  useEffect(() => {
-    if (customerMode === "existing" && selectedCustomerId) {
-      const selectedCustomer = customers.find(customer => customer.id === selectedCustomerId)
-      if (selectedCustomer) {
-        setFormData(prev => ({
-          ...prev,
-          customer_name: selectedCustomer.name,
-          customer_phone: selectedCustomer.phone,
-          customer_email: selectedCustomer.email
-        }))
-      }
-    } else if (customerMode === "new") {
-      // Clear customer fields when switching to new customer mode
-      setFormData(prev => ({
-        ...prev,
-        customer_name: "",
-        customer_phone: "",
-        customer_email: ""
-      }))
-    }
-  }, [customerMode, selectedCustomerId, customers])
-
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target
-    setFormData((prev) => ({ ...prev, [name]: value }))
+    setFormData(prev => ({ ...prev, [name]: value }))
   }
 
   const handleSelectChange = (name: string, value: string) => {
-    setFormData((prev) => ({ ...prev, [name]: value }))
-  }
-
-  const handleCustomerSelect = (customerId: string) => {
-    setSelectedCustomerId(customerId)
+    setFormData(prev => ({ ...prev, [name]: value }))
+    
+    // Update customer name when customer is selected
+    if (name === "customer_id") {
+      const selectedCustomer = customers.find(c => c.id === value)
+      if (selectedCustomer) {
+        setFormData(prev => ({ ...prev, customer_name: selectedCustomer.name }))
+      }
+    }
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -142,271 +139,241 @@ export function BookingForm() {
     setIsSubmitting(true)
 
     try {
-      let customerId = selectedCustomerId
-      
-      // If this is a new customer or we're in new customer mode, create a customer record
-      if (customerMode === "new" && formData.customer_name) {
-        const newCustomer = await customersApi.create({
-          name: formData.customer_name,
-          phone: formData.customer_phone,
-          email: formData.customer_email,
-          customer_type: bookingType === "spa" ? "spa" : "restaurant",
-          visits: 1,
-          last_visit: new Date().toISOString()
+      // Validation
+      if (!formData.customer_name || !formData.booking_date || !formData.booking_time) {
+        toast({
+          title: "Error",
+          description: "Please fill in all required fields",
+          variant: "destructive"
         })
-        customerId = newCustomer.id
+        return
       }
 
-      // Save booking to database
-      await bookingsApi.create({
-        ...formData,
-        customer_id: customerId, // Link to the customer
-        booking_type: bookingType,
-        status: "pending",
-        created_at: new Date().toISOString(),
-      })
+      if (formData.booking_type === "spa" && !formData.service) {
+        toast({
+          title: "Error",
+          description: "Please select a spa service",
+          variant: "destructive"
+        })
+        return
+      }
 
-      toast({
-        title: "Booking created",
-        description: isOnline
-          ? "The booking has been successfully created."
-          : "The booking has been saved offline and will sync when connection is restored.",
-      })
+      if (formData.booking_type === "restaurant" && !formData.party_size) {
+        toast({
+          title: "Error",
+          description: "Please specify party size for restaurant booking",
+          variant: "destructive"
+        })
+        return
+      }
+
+      if (bookingId) {
+        // Update existing booking
+        await bookingsApi.update(bookingId, formData)
+        toast({
+          title: "Success",
+          description: "Booking updated successfully"
+        })
+      } else {
+        // Create new booking
+        await bookingsApi.create(formData)
+        toast({
+          title: "Success",
+          description: "Booking created successfully"
+        })
+      }
 
       router.push("/bookings")
     } catch (error) {
-      console.error("Error creating booking:", error)
+      console.error("Error saving booking:", error)
       toast({
         title: "Error",
-        description: "Failed to create booking. Please try again.",
-        variant: "destructive",
+        description: "Failed to save booking",
+        variant: "destructive"
       })
     } finally {
       setIsSubmitting(false)
     }
   }
 
-  // Filter staff members based on department
-  const filteredStaff = staffMembers.filter(staff => 
-    staff.department === bookingType || staff.department === "both"
-  )
+  if (isLoading) {
+    return (
+      <Card>
+        <CardContent className="pt-6">
+          <div className="flex justify-center items-center p-8">
+            <p>Loading booking data...</p>
+          </div>
+        </CardContent>
+      </Card>
+    )
+  }
 
   return (
     <Card>
-      <CardContent className="pt-6">
+      <CardHeader>
+        <CardTitle>{bookingId ? "Edit Booking" : "New Booking"}</CardTitle>
+      </CardHeader>
+      <CardContent>
         <form onSubmit={handleSubmit} className="space-y-6">
-          <div className="space-y-4">
-            <div>
-              <Label>Booking Type</Label>
-              <RadioGroup defaultValue="spa" className="flex gap-4 mt-2" onValueChange={setBookingType} value={bookingType}>
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="spa" id="spa-type" />
-                  <Label htmlFor="spa-type">Spa Service</Label>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="restaurant" id="restaurant-type" />
-                  <Label htmlFor="restaurant-type">Restaurant</Label>
-                </div>
-              </RadioGroup>
+          {/* Customer Selection */}
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="space-y-2">
+              <Label htmlFor="customer_id">Customer</Label>
+              <Select value={formData.customer_id} onValueChange={(value) => handleSelectChange("customer_id", value)}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select a customer" />
+                </SelectTrigger>
+                <SelectContent>
+                  {customers.map(customer => (
+                    <SelectItem key={customer.id} value={customer.id}>
+                      {customer.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
-            <div className="grid gap-4">
-              <Label>Customer Information</Label>
-              <Tabs defaultValue="existing" onValueChange={setCustomerMode} value={customerMode}>
-                <TabsList className="grid w-full grid-cols-2">
-                  <TabsTrigger value="existing">Existing Customer</TabsTrigger>
-                  <TabsTrigger value="new">New Customer</TabsTrigger>
-                </TabsList>
-                
-                <TabsContent value="existing" className="mt-2">
-                  {loadingCustomers ? (
-                    <div className="text-center py-4">Loading customers...</div>
-                  ) : (
-                    <Select value={selectedCustomerId} onValueChange={handleCustomerSelect}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select a customer" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {customers.length === 0 ? (
-                          <SelectItem value="none" disabled>No customers found</SelectItem>
-                        ) : (
-                          customers.map(customer => (
-                            <SelectItem key={customer.id} value={customer.id}>
-                              {customer.name} - {customer.phone}
-                            </SelectItem>
-                          ))
-                        )}
-                      </SelectContent>
-                    </Select>
-                  )}
-                  
-                  {selectedCustomerId && (
-                    <div className="mt-4 p-3 bg-muted rounded-md">
-                      <p className="text-sm font-medium">{formData.customer_name}</p>
-                      <p className="text-sm">{formData.customer_phone}</p>
-                      <p className="text-sm text-muted-foreground">{formData.customer_email}</p>
-                    </div>
-                  )}
-                </TabsContent>
-                
-                <TabsContent value="new" className="mt-2 space-y-4">
-                  <div className="grid gap-2">
-                    <Label htmlFor="customer_name">Customer Name</Label>
-                    <Input
-                      id="customer_name"
-                      name="customer_name"
-                      value={formData.customer_name}
-                      onChange={handleChange}
-                      required={customerMode === "new"}
-                    />
-                  </div>
-
-                  <div className="grid gap-2">
-                    <Label htmlFor="customer_phone">Phone Number</Label>
-                    <Input
-                      id="customer_phone"
-                      name="customer_phone"
-                      value={formData.customer_phone}
-                      onChange={handleChange}
-                      required={customerMode === "new"}
-                    />
-                  </div>
-
-                  <div className="grid gap-2">
-                    <Label htmlFor="customer_email">Email</Label>
-                    <Input
-                      id="customer_email"
-                      name="customer_email"
-                      type="email"
-                      value={formData.customer_email}
-                      onChange={handleChange}
-                    />
-                  </div>
-                </TabsContent>
-              </Tabs>
-            </div>
-
-            <div className="grid gap-4 md:grid-cols-2">
-              <div className="grid gap-2">
-                <Label htmlFor="booking_date">Date</Label>
-                <Input
-                  id="booking_date"
-                  name="booking_date"
-                  type="date"
-                  value={formData.booking_date}
-                  onChange={handleChange}
-                  required
-                />
-              </div>
-
-              <div className="grid gap-2">
-                <Label htmlFor="booking_time">Time</Label>
-                <Input
-                  id="booking_time"
-                  name="booking_time"
-                  type="time"
-                  value={formData.booking_time}
-                  onChange={handleChange}
-                  required
-                />
-              </div>
-            </div>
-
-            {bookingType === "spa" ? (
-              <div className="grid gap-4 md:grid-cols-2">
-                <div className="grid gap-2">
-                  <Label htmlFor="service">Service</Label>
-                  <Select
-                    value={formData.service}
-                    onValueChange={(value) => handleSelectChange("service", value)}
-                    required
-                  >
-                    <SelectTrigger id="service">
-                      <SelectValue placeholder="Select service" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {loadingServices ? (
-                        <SelectItem value="loading" disabled>Loading services...</SelectItem>
-                      ) : (
-                        spaServices.map(service => (
-                          <SelectItem key={service.id} value={service.id}>
-                            {service.name} ({service.duration} min)
-                          </SelectItem>
-                        ))
-                      )}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="grid gap-2">
-                  <Label htmlFor="staff">Staff Member</Label>
-                  <Select value={formData.staff} onValueChange={(value) => handleSelectChange("staff", value)}>
-                    <SelectTrigger id="staff">
-                      <SelectValue placeholder="Select staff (optional)" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {loadingStaff ? (
-                        <SelectItem value="loading" disabled>Loading staff...</SelectItem>
-                      ) : (
-                        filteredStaff.map(staff => (
-                          <SelectItem key={staff.id} value={staff.id}>{staff.name}</SelectItem>
-                        ))
-                      )}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-            ) : (
-              <div className="grid gap-4 md:grid-cols-2">
-                <div className="grid gap-2">
-                  <Label htmlFor="party_size">Party Size</Label>
-                  <Select
-                    value={formData.party_size}
-                    onValueChange={(value) => handleSelectChange("party_size", value)}
-                    required
-                  >
-                    <SelectTrigger id="party_size">
-                      <SelectValue placeholder="Select party size" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {[1, 2, 3, 4, 5, 6, 7, 8].map((size) => (
-                        <SelectItem key={size} value={size.toString()}>
-                          {size} {size === 1 ? "person" : "people"}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="grid gap-2">
-                  <Label htmlFor="service">Table Preference</Label>
-                  <Select value={formData.service} onValueChange={(value) => handleSelectChange("service", value)}>
-                    <SelectTrigger id="service">
-                      <SelectValue placeholder="Select preference (optional)" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="window">Window Seat</SelectItem>
-                      <SelectItem value="booth">Booth</SelectItem>
-                      <SelectItem value="patio">Patio/Outdoor</SelectItem>
-                      <SelectItem value="private">Private Room</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-            )}
-
-            <div className="grid gap-2">
-              <Label htmlFor="notes">Special Requests/Notes</Label>
-              <Textarea id="notes" name="notes" value={formData.notes} onChange={handleChange} rows={3} />
+            <div className="space-y-2">
+              <Label htmlFor="customer_name">Customer Name</Label>
+              <Input
+                id="customer_name"
+                name="customer_name"
+                value={formData.customer_name}
+                onChange={handleInputChange}
+                placeholder="Enter customer name"
+                required
+              />
             </div>
           </div>
 
-          <div className="flex justify-end gap-2">
-            <Button type="button" variant="outline" onClick={() => router.push("/bookings")} disabled={isSubmitting}>
+          {/* Date and Time */}
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="space-y-2">
+              <Label htmlFor="booking_date">Date</Label>
+              <Input
+                id="booking_date"
+                name="booking_date"
+                type="date"
+                value={formData.booking_date}
+                onChange={handleInputChange}
+                required
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="booking_time">Time</Label>
+              <Input
+                id="booking_time"
+                name="booking_time"
+                type="time"
+                value={formData.booking_time}
+                onChange={handleInputChange}
+                required
+              />
+            </div>
+          </div>
+
+          {/* Booking Type */}
+          <div className="space-y-2">
+            <Label htmlFor="booking_type">Booking Type</Label>
+            <Select value={formData.booking_type} onValueChange={(value) => handleSelectChange("booking_type", value)}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="spa">Spa</SelectItem>
+                <SelectItem value="restaurant">Restaurant</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Conditional Fields */}
+          {formData.booking_type === "spa" ? (
+            <div className="space-y-2">
+              <Label htmlFor="service">Spa Service</Label>
+              <Select value={formData.service} onValueChange={(value) => handleSelectChange("service", value)}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select a service" />
+                </SelectTrigger>
+                <SelectContent>
+                  {spaServices.map(service => (
+                    <SelectItem key={service.id} value={service.id}>
+                      {service.name} - ${service.price}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              <Label htmlFor="party_size">Party Size</Label>
+              <Input
+                id="party_size"
+                name="party_size"
+                type="number"
+                min="1"
+                max="20"
+                value={formData.party_size}
+                onChange={handleInputChange}
+                placeholder="Number of people"
+                required
+              />
+            </div>
+          )}
+
+          {/* Status and Staff */}
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="space-y-2">
+              <Label htmlFor="status">Status</Label>
+              <Select value={formData.status} onValueChange={(value) => handleSelectChange("status", value)}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="pending">Pending</SelectItem>
+                  <SelectItem value="confirmed">Confirmed</SelectItem>
+                  <SelectItem value="cancelled">Cancelled</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="staff">Assigned Staff (Optional)</Label>
+              <Input
+                id="staff"
+                name="staff"
+                value={formData.staff}
+                onChange={handleInputChange}
+                placeholder="Staff member name"
+              />
+            </div>
+          </div>
+
+          {/* Notes */}
+          <div className="space-y-2">
+            <Label htmlFor="notes">Notes (Optional)</Label>
+            <Textarea
+              id="notes"
+              name="notes"
+              value={formData.notes}
+              onChange={handleInputChange}
+              placeholder="Any special requests or notes..."
+              rows={3}
+            />
+          </div>
+
+          {/* Action Buttons */}
+          <div className="flex gap-2 pt-4">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => router.push("/bookings")}
+              disabled={isSubmitting}
+            >
               Cancel
             </Button>
-            <Button type="submit" disabled={isSubmitting || (customerMode === "existing" && !selectedCustomerId)}>
-              {isSubmitting ? "Saving..." : isOnline ? "Create Booking" : "Save Offline"}
+            <Button type="submit" disabled={isSubmitting}>
+              {isSubmitting ? "Saving..." : bookingId ? "Update Booking" : "Create Booking"}
             </Button>
           </div>
         </form>

@@ -5,7 +5,7 @@ import { Calendar } from "@/components/ui/calendar"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { bookingsApi, spaServicesApi } from "@/lib/db"
+import { bookingsApi, spaServicesApi, customersApi } from "@/lib/db"
 import { useToast } from "@/components/ui/use-toast"
 import { Button } from "@/components/ui/button"
 import { Edit, Check, X } from "lucide-react"
@@ -20,6 +20,7 @@ interface Booking {
   service: string
   status: string
   party_size?: string
+  customer_id?: string
 }
 
 interface SpaService {
@@ -62,7 +63,10 @@ export function BookingCalendar() {
         const dateMap = new Map<string, string[]>()
         
         data.forEach(booking => {
-          const dateKey = booking.booking_date
+          // Ensure consistent date format (YYYY-MM-DD) without timezone issues
+          const bookingDate = new Date(booking.booking_date + 'T00:00:00')
+          const dateKey = bookingDate.toISOString().split('T')[0]
+          
           if (!dateMap.has(dateKey)) {
             dateMap.set(dateKey, [])
           }
@@ -90,10 +94,14 @@ export function BookingCalendar() {
   // Function to update selected date bookings
   const updateSelectedDateBookings = (selectedDate: Date | undefined, bookingsList: Booking[]) => {
     if (selectedDate && bookingsList.length > 0) {
+      // Use consistent date formatting to avoid timezone issues
       const formattedDate = selectedDate.toISOString().split('T')[0]
-      const dayBookings = bookingsList.filter(booking => 
-        booking.booking_date === formattedDate
-      )
+      const dayBookings = bookingsList.filter(booking => {
+        // Ensure booking date is also formatted consistently
+        const bookingDate = new Date(booking.booking_date + 'T00:00:00')
+        const bookingDateString = bookingDate.toISOString().split('T')[0]
+        return bookingDateString === formattedDate
+      })
       
       // Sort bookings by time
       dayBookings.sort((a, b) => a.booking_time.localeCompare(b.booking_time))
@@ -164,7 +172,11 @@ export function BookingCalendar() {
       // Update the bookingDates map to reflect the new status
       if (date) {
         const dateString = date.toISOString().split('T')[0]
-        const dayBookings = updatedBookings.filter(b => b.booking_date === dateString)
+        const dayBookings = updatedBookings.filter(b => {
+          const bookingDate = new Date(b.booking_date + 'T00:00:00')
+          const bookingDateString = bookingDate.toISOString().split('T')[0]
+          return bookingDateString === dateString
+        })
         
         const statuses = new Set<string>()
         dayBookings.forEach(b => statuses.add(b.status))
@@ -172,12 +184,92 @@ export function BookingCalendar() {
         const newBookingDates = new Map(bookingDates)
         newBookingDates.set(dateString, Array.from(statuses))
         setBookingDates(newBookingDates)
+        
+        // Update the selected date bookings to reflect the status change
+        updateSelectedDateBookings(date, updatedBookings)
       }
       
-      toast({
-        title: "Status updated",
-        description: `Booking status has been updated to ${newStatus}`,
-      })
+      // Send confirmation notification if status changed to "confirmed"
+      if (newStatus === "confirmed") {
+        const booking = bookings.find(b => b.id === bookingId)
+        if (booking) {
+          try {
+            // Get customer details
+            let customerEmail = ""
+            let customerPhone = ""
+            
+            if (booking.customer_id) {
+              const customer = await customersApi.get(booking.customer_id)
+              if (customer) {
+                customerEmail = customer.email || ""
+                customerPhone = customer.phone || ""
+              }
+            }
+
+            // Get service name
+            let serviceName = ""
+            if (booking.booking_type === "spa") {
+              serviceName = serviceMap[booking.service] || "Spa Service"
+            } else {
+              serviceName = `Table for ${booking.party_size || '?'} - Restaurant`
+            }
+
+            // Send confirmation notification
+            const confirmationResponse = await fetch("/api/bookings/confirm", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                bookingId: booking.id,
+                customerName: booking.customer_name,
+                customerEmail,
+                customerPhone,
+                serviceName,
+                bookingDate: booking.booking_date,
+                bookingTime: booking.booking_time,
+                notificationType: "both"
+              })
+            })
+
+            const confirmationResult = await confirmationResponse.json()
+            
+            if (confirmationResult.success) {
+              const notifications = []
+              if (confirmationResult.results?.email?.success) notifications.push("email")
+              if (confirmationResult.results?.whatsapp?.success) notifications.push("WhatsApp")
+              
+              if (notifications.length > 0) {
+                toast({
+                  title: "Booking confirmed & customer notified",
+                  description: `Confirmation sent via ${notifications.join(" and ")} to ${booking.customer_name}`,
+                })
+              } else {
+                toast({
+                  title: "Booking confirmed",
+                  description: "No customer contact information available for notifications",
+                })
+              }
+            } else {
+              toast({
+                title: "Booking confirmed",
+                description: "Customer notification failed, but booking status updated",
+                variant: "default",
+              })
+            }
+          } catch (notificationError) {
+            console.error("Error sending confirmation notification:", notificationError)
+            toast({
+              title: "Booking confirmed", 
+              description: "Status updated successfully, but notification failed",
+              variant: "default",
+            })
+          }
+        }
+      } else {
+        toast({
+          title: "Status updated",
+          description: `Booking status has been updated to ${newStatus}`,
+        })
+      }
     } catch (error) {
       console.error("Error updating booking status:", error)
       toast({

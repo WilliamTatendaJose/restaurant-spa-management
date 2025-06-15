@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Plus } from "lucide-react"
 import Link from "next/link"
-import { bookingsApi, spaServicesApi } from "@/lib/db"
+import { bookingsApi, spaServicesApi, customersApi } from "@/lib/db"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -17,6 +17,7 @@ import { useToast } from "@/components/ui/use-toast"
 interface Booking {
   id: string
   customer_name: string
+  customer_id?: string
   booking_date: string
   booking_time: string
   booking_type: string
@@ -156,10 +157,97 @@ export default function BookingsPage() {
       )
       setBookings(updatedBookings)
       
-      toast({
-        title: "Status updated",
-        description: `Booking status has been updated to ${newStatus}`,
-      })
+      // Send confirmation notification if status changed to "confirmed"
+      if (newStatus === "confirmed") {
+        const booking = bookings.find(b => b.id === bookingId)
+        if (booking) {
+          try {
+            // Get customer details
+            let customerEmail = ""
+            let customerPhone = ""
+            
+            if (booking.customer_id) {
+              const customer = await customersApi.get(booking.customer_id)
+              if (customer) {
+                customerEmail = customer.email || ""
+                customerPhone = customer.phone || ""
+              }
+            }
+
+            // Get service name for spa bookings
+            let serviceName = ""
+            if (booking.booking_type === "spa") {
+              serviceName = serviceMap[booking.service] || "Spa Service"
+            } else {
+              serviceName = `Table for ${booking.party_size || '?'} - Restaurant`
+            }
+
+            // Send confirmation notification
+            const confirmationResponse = await fetch("/api/bookings/confirm", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                bookingId: booking.id,
+                customerName: booking.customer_name,
+                customerEmail,
+                customerPhone,
+                serviceName,
+                bookingDate: booking.booking_date,
+                bookingTime: booking.booking_time,
+                notificationType: "both" // Send both email and WhatsApp if available
+              })
+            })
+
+            const confirmationResult = await confirmationResponse.json()
+            
+            if (confirmationResult.success) {
+              const notifications = []
+              const manualActions = []
+              
+              if (confirmationResult.results?.email?.success) notifications.push("email")
+              if (confirmationResult.results?.whatsapp?.success) {
+                if (confirmationResult.results.whatsapp.method === "deep_link") {
+                  manualActions.push("WhatsApp (click to send)")
+                } else {
+                  notifications.push("WhatsApp")
+                }
+              }
+              
+              let description = ""
+              if (notifications.length > 0) {
+                description += `Confirmation sent via ${notifications.join(" and ")} to ${booking.customer_name}`
+              }
+              if (manualActions.length > 0) {
+                if (description) description += ". "
+                description += `${manualActions.join(" and ")} ready for manual sending`
+              }
+              
+              toast({
+                title: "Booking confirmed & customer notified",
+                description,
+              })
+            } else {
+              toast({
+                title: "Booking confirmed",
+                description: "Customer notification failed, but booking status updated",
+                variant: "default",
+              })
+            }
+          } catch (notificationError) {
+            console.error("Error sending confirmation notification:", notificationError)
+            toast({
+              title: "Booking confirmed", 
+              description: "Status updated successfully, but notification failed",
+              variant: "default",
+            })
+          }
+        }
+      } else {
+        toast({
+          title: "Status updated",
+          description: `Booking status has been updated to ${newStatus}`,
+        })
+      }
     } catch (error) {
       console.error("Error updating booking status:", error)
       toast({
