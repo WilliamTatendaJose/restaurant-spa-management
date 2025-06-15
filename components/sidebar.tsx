@@ -95,7 +95,7 @@ const allRoutes: Route[] = [
 
 export function Sidebar() {
   const pathname = usePathname();
-  const [businessName, setBusinessName] = useState("Spa & Bistro");
+  const [businessName, setBusinessName] = useState("LEWA HOSPITALITY");
   const { userDetails, hasPermission } = useAuth();
 
   // Filter routes based on user role
@@ -108,17 +108,17 @@ export function Sidebar() {
     async function loadBusinessName() {
       try {
         const defaultSettings = {
-          businessName: "Spa & Bistro",
-          address: "123 Relaxation Ave, Serenity, CA 90210",
+          businessName: "LEWA HOSPITALITY",
+          address: "29 Montgomery Road, Highlands, Harare, Zimbabwe",
           phone: "(555) 123-4567",
-          email: "info@spaandbistro.com",
-          website: "www.spaandbistro.com",
-          taxRate: "8.5",
-          openingHours: "Monday-Friday: 9am-9pm\nSaturday-Sunday: 10am-8pm",
+          email: "info@lewa.co.zw",
+          website: "www.lewa.co.zw",
+          taxRate: "14%",
+          openingHours: "Sunday-Friday: 9am-9pm\nSaturday:Closed",
         };
 
         const settings = await businessSettingsApi.getSettings(defaultSettings);
-        setBusinessName(settings.businessName || "Spa & Bistro");
+        setBusinessName(settings.businessName || "LEWA HOSPITALITY");
       } catch (error) {
         console.error("Error loading business settings:", error);
       }

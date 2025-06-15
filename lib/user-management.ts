@@ -8,6 +8,7 @@ export interface UserCreateInput {
   password: string
   role?: 'admin' | 'manager' | 'staff'
   department?: string
+  phone?: string
 }
 
 export interface UserUpdateInput {
@@ -15,6 +16,7 @@ export interface UserUpdateInput {
   name?: string
   role?: 'admin' | 'manager' | 'staff'
   department?: string
+  phone?: string
 }
 
 // Create a new user
@@ -24,7 +26,8 @@ export async function createUser(userData: UserCreateInput) {
     email: userData.email,
     password: userData.password,
     role: userData.role || 'staff',
-    department: userData.department
+    department: userData.department,
+    phone: userData.phone
   });
 }
 

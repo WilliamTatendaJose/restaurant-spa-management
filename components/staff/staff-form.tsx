@@ -13,6 +13,7 @@ import { Switch } from "@/components/ui/switch"
 import { useToast } from "@/components/ui/use-toast"
 import { useSyncStatus } from "@/components/sync-status-provider"
 import { staffApi } from "@/lib/db"
+import { listUsers, updateUser } from "@/lib/user-management"
 
 interface StaffMember {
   id?: string
@@ -121,6 +122,26 @@ export function StaffForm({ staff, staffId }: StaffFormProps) {
       if (currentStaff?.id || staffId) {
         // Update existing staff
         await staffApi.update(currentStaff?.id || staffId!, formData)
+        
+        // Check if this staff member is also a user and sync the changes
+        try {
+          const users = await listUsers()
+          const correspondingUser = users.find(user => user.email === formData.email)
+          
+          if (correspondingUser) {
+            await updateUser({
+              id: correspondingUser.id,
+              name: formData.name,
+              role: formData.role as "admin" | "manager" | "staff",
+              department: formData.department,
+              phone: formData.phone
+            })
+          }
+        } catch (error) {
+          console.error("Error syncing to user account:", error)
+          // Don't fail the staff update if user sync fails
+        }
+        
         toast({
           title: "Staff updated",
           description: isOnline

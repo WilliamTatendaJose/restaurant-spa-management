@@ -43,6 +43,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Edit, Plus, Trash2, AlertCircle } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import * as offlineAuth from "@/lib/offline-auth";
+import { staffApi } from "@/lib/db";
 import {
   createUser,
   listUsers,
@@ -67,6 +68,7 @@ interface UserData {
   role: string;
   status: string;
   department?: string;
+  phone?: string; // Add phone field
 }
 
 export function UserSettings() {
@@ -85,6 +87,7 @@ export function UserSettings() {
     email: "",
     role: "staff",
     department: "both",
+    phone: "", // Add phone field
     password: "",
     confirmPassword: "",
   });
@@ -94,7 +97,21 @@ export function UserSettings() {
     try {
       setIsLoading(true);
       const users = await listUsers();
-      setUserList(users || []);
+      
+      // Fetch staff data to merge phone numbers and other details
+      const staffData = await staffApi.list();
+      
+      // Merge user data with staff data for enhanced information
+      const enhancedUsers = users.map(user => {
+        const staffRecord = staffData.find((staff: any) => staff.email === user.email);
+        return {
+          ...user,
+          phone: staffRecord?.phone || user.phone || '',
+          // Add any other staff-specific data that should be displayed
+        };
+      });
+      
+      setUserList(enhancedUsers || []);
     } catch (error) {
       console.error("Error fetching users:", error);
       toast({
@@ -126,6 +143,7 @@ export function UserSettings() {
       email: "",
       role: "staff",
       department: "both",
+      phone: "", // Add phone field
       password: "",
       confirmPassword: "",
     });
@@ -139,6 +157,7 @@ export function UserSettings() {
       email: user.email,
       role: user.role,
       department: user.department || "both",
+      phone: user.phone || "", // Add phone field
       password: "",
       confirmPassword: "",
     });
@@ -224,6 +243,7 @@ export function UserSettings() {
           name: formData.name,
           role: formData.role as "admin" | "manager" | "staff",
           department: formData.department,
+          phone: formData.phone, // Add phone field
         };
 
         await updateUser(updateData);
@@ -231,6 +251,40 @@ export function UserSettings() {
         // Update password if provided
         if (formData.password) {
           await offlineAuth.resetPassword(selectedUserId, formData.password);
+        }
+
+        // If role is staff, ensure they appear in staff table
+        if (formData.role === 'staff') {
+          try {
+            const existingStaff = await staffApi.list();
+            const staffExists = existingStaff.some((staff: any) => staff.email === formData.email);
+            
+            if (!staffExists) {
+              await staffApi.create({
+                name: formData.name,
+                role: formData.role,
+                department: formData.department,
+                email: formData.email,
+                phone: formData.phone, // Add phone field
+                status: 'active'
+              });
+            } else {
+              // Update existing staff record
+              const existingStaffRecord = existingStaff.find((staff: any) => staff.email === formData.email);
+              if (existingStaffRecord) {
+                await staffApi.update(existingStaffRecord.id, {
+                  name: formData.name,
+                  role: formData.role,
+                  department: formData.department,
+                  email: formData.email,
+                  phone: formData.phone || existingStaffRecord.phone, // Add phone field
+                  status: 'active'
+                });
+              }
+            }
+          } catch (error) {
+            console.error("Error syncing to staff table:", error);
+          }
         }
 
         toast({
@@ -245,7 +299,24 @@ export function UserSettings() {
           password: formData.password,
           role: formData.role as "admin" | "manager" | "staff",
           department: formData.department,
+          phone: formData.phone, // Add phone field
         });
+
+        // If role is staff, add to staff table
+        if (formData.role === 'staff') {
+          try {
+            await staffApi.create({
+              name: formData.name,
+              role: formData.role,
+              department: formData.department,
+              email: formData.email,
+              phone: formData.phone, // Add phone field
+              status: 'active'
+            });
+          } catch (error) {
+            console.error("Error adding to staff table:", error);
+          }
+        }
 
         toast({
           title: "Success",
@@ -491,6 +562,17 @@ export function UserSettings() {
                   <SelectItem value="both">Both</SelectItem>
                 </SelectContent>
               </Select>
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="phone">Phone</Label>
+              <Input
+                id="phone"
+                name="phone"
+                type="tel"
+                value={formData.phone}
+                onChange={handleInputChange}
+                placeholder="Enter phone number"
+              />
             </div>
             <div className="grid gap-2">
               <Label htmlFor="password">
