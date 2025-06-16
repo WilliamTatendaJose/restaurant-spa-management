@@ -78,8 +78,8 @@ export function MenuItemForm({ menuItem }: MenuItemFormProps) {
         description: formData.description,
         price: parseFloat(formData.price),
         category: formData.category,
-        dietary: dietary,
         status: formData.status,
+        // Note: dietary field removed due to database schema compatibility
       }
 
       if (menuItem?.id) {

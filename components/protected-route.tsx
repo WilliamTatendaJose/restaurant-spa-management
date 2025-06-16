@@ -1,73 +1,49 @@
 "use client";
-import { useEffect } from "react";
+
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import { Loader2 } from "lucide-react";
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
-  requiredRole?: "admin" | "manager" | "staff"; // Optional, defaults to any authenticated user
+  redirectTo?: string;
 }
 
-export default function ProtectedRoute({
+export function ProtectedRoute({
   children,
-  requiredRole,
+  redirectTo = "/login",
 }: ProtectedRouteProps) {
-  const { userDetails, isLoading, hasPermission } = useAuth();
+  const { user, isLoading } = useAuth();
   const router = useRouter();
+  const [isChecking, setIsChecking] = useState(true);
 
   useEffect(() => {
-    // Only check after the auth state has been determined
     if (!isLoading) {
-      // If no user is logged in, redirect to login
-      if (!userDetails) {
-        router.push("/login");
-        return;
-      }
-
-      // If a specific role is required and the user doesn't have permission
-      if (requiredRole && !hasPermission(requiredRole)) {
-        // Redirect to a more appropriate page based on their role
-        const userRole = userDetails.role;
-        if (userRole === "staff") {
-          router.push("/dashboard");
-        } else {
-          router.push("/");
-        }
+      if (!user) {
+        console.log("No authenticated user, redirecting to login...");
+        router.push(redirectTo);
+      } else {
+        console.log("User authenticated:", user.email);
+        setIsChecking(false);
       }
     }
-  }, [userDetails, isLoading, requiredRole, router, hasPermission]);
+  }, [user, isLoading, router, redirectTo]);
 
-  // Show loading state while checking auth
-  if (isLoading) {
+  if (isLoading || isChecking) {
     return (
-      <div className="flex h-screen w-full items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        <span className="ml-2">Loading...</span>
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center space-y-4">
+          <Loader2 className="h-8 w-8 animate-spin mx-auto" />
+          <p className="text-muted-foreground">Checking authentication...</p>
+        </div>
       </div>
     );
   }
 
-  // If no user is logged in, don't render children (will redirect from useEffect)
-  if (!userDetails) {
-    return (
-      <div className="flex h-screen w-full items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        <span className="ml-2">Redirecting to login...</span>
-      </div>
-    );
+  if (!user) {
+    return null; // Will redirect in useEffect
   }
 
-  // If a specific role is required and the user doesn't have permission, don't render children
-  if (requiredRole && !hasPermission(requiredRole)) {
-    return (
-      <div className="flex h-screen w-full items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        <span className="ml-2">Redirecting to appropriate page...</span>
-      </div>
-    );
-  }
-
-  // User is authenticated and has the required permissions
   return <>{children}</>;
 }

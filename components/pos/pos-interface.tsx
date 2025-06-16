@@ -11,7 +11,7 @@ import {
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useToast } from "@/hooks/use-toast";
+import { useToast } from "@/components/ui/use-toast";
 import { useSyncStatus } from "@/components/sync-status-provider";
 import {
   MinusCircle,
@@ -23,6 +23,8 @@ import {
   CreditCard,
   DollarSign,
   QrCode,
+  AlertCircle,
+  Loader2,
 } from "lucide-react";
 import {
   transactionsApi,
@@ -51,6 +53,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 // Define interfaces for our data types
 interface CartItem {
@@ -193,6 +196,59 @@ export function POSInterface() {
     taxRate: "8.5",
     openingHours: "Monday-Friday: 9am-9pm\nSaturday-Sunday: 10am-8pm",
   });
+  const [errors, setErrors] = useState<{ [key: string]: string }>({});
+  const [loadingStates, setLoadingStates] = useState({
+    products: false,
+    transactions: false,
+    customers: false,
+    checkout: false,
+  });
+
+  // Enhanced error handling wrapper
+  const withErrorHandling = async (
+    operation: () => Promise<void>,
+    errorKey: string
+  ) => {
+    try {
+      setErrors((prev) => ({ ...prev, [errorKey]: "" }));
+      await operation();
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "An unexpected error occurred";
+      setErrors((prev) => ({ ...prev, [errorKey]: message }));
+      toast({
+        title: "Error",
+        description: message,
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Enhanced validation
+  const validateCheckout = (): boolean => {
+    const newErrors: { [key: string]: string } = {};
+
+    if (cart.length === 0) {
+      newErrors.cart = "Cart cannot be empty";
+    }
+
+    if (customerName.trim().length > 50) {
+      newErrors.customerName = "Customer name must be 50 characters or less";
+    }
+
+    const total = calculateTotal();
+    if (total <= 0) {
+      newErrors.total = "Total amount must be greater than 0";
+    }
+
+    if (total > 10000) {
+      newErrors.total =
+        "Transaction amount too large. Please split into multiple transactions.";
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
 
   // Initialize database and load data
   useEffect(() => {
@@ -230,47 +286,74 @@ export function POSInterface() {
     }
   };
 
-  // Load products from spa services and menu items
+  // Enhanced load products with better error handling
   const loadProducts = async () => {
-    try {
-      // Load spa services
-      const spaServices = (await spaServicesApi.listActive()) as SpaService[];
+    await withErrorHandling(async () => {
+      setLoadingStates((prev) => ({ ...prev, products: true }));
 
-      // Convert spa services to product format
-      const spaProducts = spaServices.map((service) => ({
-        id: service.id,
-        name: service.name,
-        price: Number(service.price),
-        description: service.description,
-        category: service.category,
-        duration: service.duration, // Additional property specific to spa services
-      }));
+      // Load spa services with timeout
+      const spaServicesPromise = Promise.race([
+        spaServicesApi.listActive(),
+        new Promise((_, reject) =>
+          setTimeout(() => reject(new Error("Spa services load timeout")), 10000)
+        ),
+      ]);
 
-      // Load menu items
-      const menuItems = (await menuItemsApi.listActive()) as MenuItem[];
+      // Load menu items with timeout
+      const menuItemsPromise = Promise.race([
+        menuItemsApi.listActive(),
+        new Promise((_, reject) =>
+          setTimeout(() => reject(new Error("Menu items load timeout")), 10000)
+        ),
+      ]);
 
-      // Convert menu items to product format
-      const restaurantProducts = menuItems.map((item) => ({
-        id: item.id,
-        name: item.name,
-        price: Number(item.price),
-        description: item.description,
-        category: item.category,
-        image_url: item.image_url,
-      }));
+      const [spaServices, menuItems] = await Promise.all([
+        spaServicesPromise as Promise<SpaService[]>,
+        menuItemsPromise as Promise<MenuItem[]>,
+      ]);
+
+      // Validate and transform data
+      const spaProducts = (spaServices || [])
+        .filter(
+          (service) =>
+            service &&
+            service.id &&
+            service.name &&
+            typeof service.price === "number"
+        )
+        .map((service) => ({
+          id: service.id,
+          name: service.name.trim(),
+          price: Math.max(0, Number(service.price)),
+          description: service.description?.trim() || "",
+          category: service.category || "general",
+          duration: Math.max(0, service.duration || 0),
+        }));
+
+      const restaurantProducts = (menuItems || [])
+        .filter(
+          (item) =>
+            item &&
+            item.id &&
+            item.name &&
+            typeof item.price === "number"
+        )
+        .map((item) => ({
+          id: item.id,
+          name: item.name.trim(),
+          price: Math.max(0, Number(item.price)),
+          description: item.description?.trim() || "",
+          category: item.category || "general",
+          image_url: item.image_url,
+        }));
 
       setProducts({
         spa: spaProducts,
         restaurant: restaurantProducts,
       });
-    } catch (error) {
-      console.error("Failed to load products:", error);
-      toast({
-        title: "Error",
-        description: "Failed to load products. Using default items.",
-        variant: "destructive",
-      });
-    }
+
+      setLoadingStates((prev) => ({ ...prev, products: false }));
+    }, "products");
   };
 
   // Load recent transactions from database
@@ -406,77 +489,107 @@ export function POSInterface() {
     return calculateTotal() * (1 + taxRate / 100);
   };
 
+  // Enhanced checkout with better validation and error handling
   const handleCheckout = async () => {
-    if (cart.length === 0) return;
-    setIsProcessing(true);
-    try {
-      // Create transaction in database
-      const transaction = (await transactionsApi.create({
-        customer_name: customerName || "Guest",
-        transaction_date: new Date().toISOString(),
-        total_amount: calculateTotal(),
-        payment_method: paymentMethod,
-        transaction_type: activeTab,
-        status: "completed", // Set status to completed
-        notes: "",
-      })) as TransactionRecord;
+    if (!validateCheckout()) return;
 
-      // Add transaction items
-      for (const item of cart) {
-        await transactionsApi.addItem(transaction.id, {
-          name: item.name,
-          quantity: item.quantity,
-          price: item.price,
-        });
+    await withErrorHandling(async () => {
+      setLoadingStates((prev) => ({ ...prev, checkout: true }));
+
+      // Double-check cart hasn't been modified
+      if (cart.length === 0) {
+        throw new Error("Cart is empty");
       }
 
-      // If this is a new customer, add them to the customers database
-      if (customerName && !customers.some((c) => c.name === customerName)) {
+      const sanitizedCustomerName = (customerName || "Guest")
+        .trim()
+        .substring(0, 50);
+      const total = calculateTotal();
+
+      // Create transaction with retry logic
+      let transaction: TransactionRecord;
+      let attempts = 0;
+      const maxAttempts = 3;
+
+      while (attempts < maxAttempts) {
+        try {
+          transaction = await transactionsApi.create({
+            customer_name: sanitizedCustomerName,
+            transaction_date: new Date().toISOString(),
+            total_amount: total,
+            payment_method: paymentMethod,
+            transaction_type: activeTab,
+            status: "completed",
+            notes: "",
+          }) as TransactionRecord;
+          break;
+        } catch (error) {
+          attempts++;
+          if (attempts >= maxAttempts) throw error;
+
+          // Wait before retry
+          await new Promise((resolve) => setTimeout(resolve, 1000 * attempts));
+        }
+      }
+
+      // Add transaction items with validation
+      const itemPromises = cart.map(async (item) => {
+        if (!item.id || !item.name || item.quantity <= 0 || item.price < 0) {
+          throw new Error(`Invalid item data: ${item.name}`);
+        }
+
+        return transactionsApi.addItem(transaction!.id, {
+          name: item.name.trim(),
+          quantity: Math.floor(item.quantity),
+          price: Number(item.price.toFixed(2)),
+        });
+      });
+
+      await Promise.all(itemPromises);
+
+      // Handle customer creation safely
+      if (
+        sanitizedCustomerName !== "Guest" &&
+        !customers.some(
+          (c) =>
+            c.name.toLowerCase() === sanitizedCustomerName.toLowerCase()
+        )
+      ) {
         try {
           await customersApi.create({
-            name: customerName,
+            name: sanitizedCustomerName,
             email: "",
             phone: "",
             visits: 1,
             last_visit: new Date().toISOString(),
             customer_type: activeTab,
           });
-
-          // Refresh customers list
           await loadCustomers();
         } catch (customerError) {
-          console.error("Error adding new customer:", customerError);
+          console.warn("Could not create customer record:", customerError);
+          // Don't fail the transaction for customer creation issues
         }
       }
 
       toast({
         title: "Transaction complete",
         description: isOnline
-          ? "The transaction has been processed successfully."
-          : "The transaction has been saved offline and will sync when connection is restored.",
+          ? `Transaction #${transaction!.id.substring(0, 8)} processed successfully.`
+          : "Transaction saved offline and will sync when connection is restored.",
       });
 
-      // Update recent transactions
       await loadRecentTransactions();
 
-      // Set completed transaction for receipt
       setCompletedTransaction({
-        id: transaction.id,
+        id: transaction!.id,
         items: [...cart],
-        total: calculateTotal(),
+        total: total,
         date: new Date(),
         payment_method: paymentMethod,
       });
-    } catch (error) {
-      console.error("Error processing transaction:", error);
-      toast({
-        title: "Error",
-        description: "Failed to process transaction. Please try again.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsProcessing(false);
-    }
+
+      setLoadingStates((prev) => ({ ...prev, checkout: false }));
+    }, "checkout");
   };
 
   const handleNewTransaction = () => {
@@ -614,6 +727,21 @@ export function POSInterface() {
 
   return (
     <div className="grid gap-6 md:grid-cols-[1fr_400px]">
+      {/* Error Alert */}
+      {Object.entries(errors).some(([_, error]) => error) && (
+        <div className="md:col-span-2">
+          <Alert variant="destructive">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>
+              {Object.entries(errors)
+                .filter(([_, error]) => error)
+                .map(([key, error]) => error)
+                .join("; ")}
+            </AlertDescription>
+          </Alert>
+        </div>
+      )}
+
       {completedTransaction ? (
         <Card>
           <CardHeader>
@@ -651,24 +779,33 @@ export function POSInterface() {
               onValueChange={setActiveTab}
             >
               <TabsList className="grid w-full grid-cols-2">
-                <TabsTrigger value="spa">Spa Services</TabsTrigger>
-                <TabsTrigger value="restaurant">Restaurant</TabsTrigger>
+                <TabsTrigger value="spa" disabled={loadingStates.products}>
+                  Spa Services
+                </TabsTrigger>
+                <TabsTrigger value="restaurant" disabled={loadingStates.products}>
+                  Restaurant
+                </TabsTrigger>
               </TabsList>
             </Tabs>
-
             <Button
               variant="ghost"
               onClick={() => setIsHistoryOpen(true)}
               className="ml-2"
+              disabled={loadingStates.transactions}
             >
-              <HistoryIcon className="h-4 w-4 mr-2" />
+              {loadingStates.transactions ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <HistoryIcon className="h-4 w-4 mr-2" />
+              )}
               History
             </Button>
           </CardHeader>
           <CardContent>
-            {!isInitialized ? (
-              <div className="text-center py-8 text-muted-foreground">
-                Loading products...
+            {loadingStates.products ? (
+              <div className="text-center py-8">
+                <Loader2 className="h-8 w-8 animate-spin mx-auto mb-2" />
+                <p className="text-muted-foreground">Loading products...</p>
               </div>
             ) : (
               <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
@@ -678,18 +815,24 @@ export function POSInterface() {
                       <Button
                         key={product.id}
                         variant="outline"
-                        className="h-auto flex flex-col items-center justify-center p-4 gap-2"
+                        className="h-auto flex flex-col items-center justify-center p-4 gap-2 hover:bg-accent transition-colors"
                         onClick={() => addToCart(product)}
+                        disabled={loadingStates.checkout}
                       >
-                        <span className="text-lg font-medium">
+                        <span className="text-lg font-medium text-center">
                           {product.name}
                         </span>
                         <span className="text-sm text-muted-foreground">
                           ${product.price.toFixed(2)}
                         </span>
-                        {typeof (product as any).duration === "number" && (
+                        {typeof (product as any).duration === "number" && (product as any).duration > 0 && (
                           <span className="text-xs text-muted-foreground">
                             {(product as any).duration} min
+                          </span>
+                        )}
+                        {product.description && (
+                          <span className="text-xs text-muted-foreground text-center line-clamp-2">
+                            {product.description}
                           </span>
                         )}
                       </Button>
@@ -697,7 +840,22 @@ export function POSInterface() {
                   )
                 ) : (
                   <div className="col-span-3 text-center py-8 text-muted-foreground">
-                    No {activeTab} products found
+                    {errors.products ? (
+                      <div>
+                        <AlertCircle className="h-8 w-8 mx-auto mb-2 text-destructive" />
+                        <p>Failed to load {activeTab} products</p>
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          className="mt-2"
+                          onClick={loadProducts}
+                        >
+                          Retry
+                        </Button>
+                      </div>
+                    ) : (
+                      <p>No {activeTab} products found</p>
+                    )}
                   </div>
                 )}
               </div>
@@ -720,12 +878,19 @@ export function POSInterface() {
                     <Input
                       id="customerName"
                       value={customerName}
-                      onChange={(e) => setCustomerName(e.target.value)}
+                      onChange={(e) => {
+                        const value = e.target.value.substring(0, 50); // Limit length
+                        setCustomerName(value);
+                        if (errors.customerName) {
+                          setErrors(prev => ({ ...prev, customerName: '' }));
+                        }
+                      }}
                       placeholder="Enter customer name"
-                      className="flex-1"
+                      className={`flex-1 ${errors.customerName ? 'border-destructive' : ''}`}
+                      disabled={loadingStates.checkout}
                     />
                     {customers.length > 0 && (
-                      <Select onValueChange={handleCustomerSelect}>
+                      <Select onValueChange={handleCustomerSelect} disabled={loadingStates.checkout}>
                         <SelectTrigger className="w-[140px]">
                           <SelectValue placeholder="Select..." />
                         </SelectTrigger>
@@ -739,6 +904,9 @@ export function POSInterface() {
                       </Select>
                     )}
                   </div>
+                  {errors.customerName && (
+                    <p className="text-sm text-destructive">{errors.customerName}</p>
+                  )}
                 </div>
 
                 <div className="grid gap-2 mt-2">
@@ -778,7 +946,11 @@ export function POSInterface() {
 
                 {cart.length === 0 ? (
                   <div className="text-center py-8 text-muted-foreground">
-                    No items in cart
+                    {errors.cart ? (
+                      <p className="text-destructive">{errors.cart}</p>
+                    ) : (
+                      <p>No items in cart</p>
+                    )}
                   </div>
                 ) : (
                   <div className="space-y-4 mt-4">
@@ -842,12 +1014,18 @@ export function POSInterface() {
                 <span>Final Total:</span>
                 <span>${calculateTotalWithTax().toFixed(2)}</span>
               </div>
+              {errors.total && (
+                <Alert variant="destructive" className="w-full">
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertDescription>{errors.total}</AlertDescription>
+                </Alert>
+              )}
               <div className="flex gap-2 w-full">
                 <Button
                   variant="outline"
                   className="w-1/2"
                   onClick={clearCart}
-                  disabled={isProcessing}
+                  disabled={loadingStates.checkout}
                 >
                   <Trash2 className="mr-2 h-4 w-4" />
                   Clear
@@ -855,10 +1033,17 @@ export function POSInterface() {
                 <Button
                   className="w-1/2"
                   onClick={handleCheckout}
-                  disabled={cart.length === 0 || isProcessing}
+                  disabled={
+                    cart.length === 0 ||
+                    loadingStates.checkout ||
+                    Object.values(errors).some((error) => error)
+                  }
                 >
-                  {isProcessing ? (
-                    "Processing..."
+                  {loadingStates.checkout ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Processing...
+                    </>
                   ) : isOnline ? (
                     <>
                       <Receipt className="mr-2 h-4 w-4" />

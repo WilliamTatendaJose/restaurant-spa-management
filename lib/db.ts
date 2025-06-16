@@ -5,6 +5,7 @@ import { getSupabaseBrowserClient, isSupabaseConfigured } from "@/lib/supabase"
 // Track pending changes for sync
 let pendingChanges: SyncData[] = []
 let isInitialized = false
+let syncInProgress = false
 
 // Database structure
 interface Record {
@@ -16,7 +17,7 @@ interface DatabaseStore {
   [table: string]: Record[]
 }
 
-// Define error interface
+// Define interfaces
 interface SyncData {
   table: string;
   id?: string;
@@ -24,6 +25,7 @@ interface SyncData {
   type: string;
   timestamp: string;
   device_id: string;
+  retry_count?: number;
 }
 
 interface ErrorDetail {
@@ -38,6 +40,14 @@ interface SyncError {
   error: string;
 }
 
+interface SyncResult {
+  success: boolean;
+  count?: number;
+  error?: string;
+  errors?: ErrorDetail[];
+  details?: any;
+}
+
 // In-memory database for operations
 let memoryDb: DatabaseStore = {
   bookings: [],
@@ -48,177 +58,360 @@ let memoryDb: DatabaseStore = {
   staff: [],
   spa_services: [],
   menu_items: [],
-  business_settings: [], // Added business_settings table
-  general_settings: [], // Added general_settings table
+  business_settings: [],
+  general_settings: [],
 }
 
 // Device ID for sync tracking
 let deviceId = ""
 
-// Initialize the database
-export async function initDatabase() {
-  if (isInitialized) return true
-
-  // Only run in browser
-  if (typeof window === "undefined") return false
-
-  try {
-    // Generate or retrieve device ID
-    deviceId = localStorage.getItem("device_id") || uuidv4()
-    localStorage.setItem("device_id", deviceId)
-
-    // Load data from IndexedDB if available
-    await loadDatabaseFromStorage()
-
-    isInitialized = true
-    console.log("Database initialized in the browser")
-    return true
-  } catch (error) {
-    console.error("Failed to initialize database:", error)
-    return false
-  }
+// Sync configuration
+const SYNC_CONFIG = {
+  MAX_RETRIES: 3,
+  BATCH_SIZE: 25,
+  RETRY_DELAY: 1000, // ms
+  CONNECTION_TIMEOUT: 10000, // ms
 }
 
-// Save database to IndexedDB for persistence
-async function saveDatabaseToStorage() {
-  if (typeof window === "undefined") return
+// Enhanced caching system
+class DatabaseCache {
+  private static instance: DatabaseCache;
+  private cache = new Map<string, { data: any; timestamp: number; ttl: number }>();
+  private maxSize = 100;
+  private defaultTTL = 5 * 60 * 1000;
+  private hits = 0;
+  private misses = 0;
 
-  try {
-    // Open IndexedDB
-    const dbPromise = indexedDB.open("SpaRestaurantDB", 1)
+  static getInstance(): DatabaseCache {
+    if (!DatabaseCache.instance) {
+      DatabaseCache.instance = new DatabaseCache();
+    }
+    return DatabaseCache.instance;
+  }
 
-    // Create object stores if needed
-    dbPromise.onupgradeneeded = (event) => {
-      const db = (event.target as IDBRequest).result
+  private constructor() {
+    setInterval(() => this.cleanup(), 2 * 60 * 1000);
+  }
 
-      // Create stores for each table if they don't exist
-      if (!db.objectStoreNames.contains("database")) {
-        db.createObjectStore("database")
-      }
-
-      if (!db.objectStoreNames.contains("pendingChanges")) {
-        db.createObjectStore("pendingChanges")
+  set(key: string, data: any, ttl: number = this.defaultTTL): void {
+    if (this.cache.size >= this.maxSize) {
+      const oldestKey = this.cache.keys().next().value;
+      if (oldestKey) {
+        this.cache.delete(oldestKey);
       }
     }
-
-    // Save data when DB is open
-    return new Promise<void>((resolve, reject) => {
-      dbPromise.onsuccess = () => {
-        const db = dbPromise.result
-        const tx = db.transaction(["database", "pendingChanges"], "readwrite")
-        const dbStore = tx.objectStore("database")
-        const changesStore = tx.objectStore("pendingChanges")
-
-        // Store the entire database as JSON
-        dbStore.put(JSON.stringify(memoryDb), "dbData")
-
-        // Store pending changes
-        changesStore.put(JSON.stringify(pendingChanges), "changes")
-
-        tx.oncomplete = () => {
-          db.close()
-          resolve()
-        }
-
-        tx.onerror = () => {
-          reject(new Error("Failed to save database"))
-        }
-      }
-
-      dbPromise.onerror = () => {
-        reject(new Error("Failed to open IndexedDB"))
-      }
-    })
-  } catch (error) {
-    console.error("Failed to save database to storage:", error)
+    this.cache.set(key, {
+      data: JSON.parse(JSON.stringify(data)),
+      timestamp: Date.now(),
+      ttl
+    });
   }
-}
 
-// Load database from IndexedDB
-async function loadDatabaseFromStorage() {
-  if (typeof window === "undefined") return
+  get(key: string): any | null {
+    const entry = this.cache.get(key);
+    if (!entry) {
+      this.recordMiss();
+      return null;
+    }
+    const isExpired = Date.now() - entry.timestamp > entry.ttl;
+    if (isExpired) {
+      this.cache.delete(key);
+      this.recordMiss();
+      return null;
+    }
+    this.recordHit();
+    return JSON.parse(JSON.stringify(entry.data));
+  }
 
-  try {
-    // Open IndexedDB
-    const dbPromise = indexedDB.open("SpaRestaurantDB", 1)
-
-    // Create object stores if needed
-    dbPromise.onupgradeneeded = (event) => {
-      const db = (event.target as IDBRequest).result
-
-      if (!db.objectStoreNames.contains("database")) {
-        db.createObjectStore("database")
-      }
-
-      if (!db.objectStoreNames.contains("pendingChanges")) {
-        db.createObjectStore("pendingChanges")
+  invalidate(pattern: string): void {
+    const regex = new RegExp(pattern);
+    for (const key of this.cache.keys()) {
+      if (regex.test(key)) {
+        this.cache.delete(key);
       }
     }
+  }
 
-    // Load data when DB is open
-    return new Promise<void>((resolve, reject) => {
-      dbPromise.onsuccess = () => {
-        const db = dbPromise.result
-        const tx = db.transaction(["database", "pendingChanges"], "readonly")
-        const dbStore = tx.objectStore("database")
-        const changesStore = tx.objectStore("pendingChanges")
+  clear(): void {
+    this.cache.clear();
+  }
 
-        const dbRequest = dbStore.get("dbData")
-        const changesRequest = changesStore.get("changes")
-
-        dbRequest.onsuccess = () => {
-          if (dbRequest.result) {
-            try {
-              memoryDb = JSON.parse(dbRequest.result)
-              console.log("Database loaded from IndexedDB")
-            } catch (e) {
-              console.error("Error parsing database from storage:", e)
-            }
-          }
-
-          changesRequest.onsuccess = () => {
-            if (changesRequest.result) {
-              try {
-                pendingChanges = JSON.parse(changesRequest.result)
-                console.log("Pending changes loaded from IndexedDB:", pendingChanges.length)
-              } catch (e) {
-                console.error("Error parsing pending changes from storage:", e)
-              }
-            }
-
-            db.close()
-            resolve()
-          }
-
-          changesRequest.onerror = () => {
-            db.close()
-            reject(new Error("Failed to load pending changes"))
-          }
-        }
-
-        dbRequest.onerror = () => {
-          db.close()
-          reject(new Error("Failed to load database"))
-        }
+  private cleanup(): void {
+    const now = Date.now();
+    for (const [key, entry] of this.cache.entries()) {
+      if (now - entry.timestamp > entry.ttl) {
+        this.cache.delete(key);
       }
+    }
+  }
 
-      dbPromise.onerror = () => {
-        reject(new Error("Failed to open IndexedDB"))
-      }
-    })
-  } catch (error) {
-    console.error("Failed to load database from storage:", error)
+  getStats() {
+    return {
+      size: this.cache.size,
+      maxSize: this.maxSize,
+      hitRate: this.hits / (this.hits + this.misses) || 0
+    };
+  }
+
+  private recordHit() {
+    this.hits++;
+  }
+
+  private recordMiss() {
+    this.misses++;
   }
 }
 
-// Generic CRUD operations
-export async function createRecord(table: string, data: any) {
+// Enhanced query optimization
+class QueryOptimizer {
+  private static instance: QueryOptimizer;
+  private indexCache = new Map<string, Map<string, Map<string, any[]>>>();
+
+  static getInstance(): QueryOptimizer {
+    if (!QueryOptimizer.instance) {
+      QueryOptimizer.instance = new QueryOptimizer();
+    }
+    return QueryOptimizer.instance;
+  }
+
+  createIndex(table: string, field: string, records: any[]): void {
+    if (!this.indexCache.has(table)) {
+      this.indexCache.set(table, new Map());
+    }
+    const tableIndexes = this.indexCache.get(table)!;
+    const index = new Map<string, any[]>();
+
+    records.forEach(record => {
+      const value = record[field];
+      if (value !== undefined && value !== null) {
+        const key = String(value);
+        if (!index.has(key)) {
+          index.set(key, []);
+        }
+        index.get(key)!.push(record);
+      }
+    });
+
+    tableIndexes.set(field, index);
+  }
+
+  queryByIndex(table: string, field: string, value: any): any[] | null {
+    const tableIndexes = this.indexCache.get(table);
+    if (!tableIndexes) return null;
+    const fieldIndex = tableIndexes.get(field);
+    if (!fieldIndex) return null;
+    return fieldIndex.get(String(value)) || [];
+  }
+
+  invalidateIndex(table: string, field?: string): void {
+    if (field) {
+      this.indexCache.get(table)?.delete(field);
+    } else {
+      this.indexCache.delete(table);
+    }
+  }
+
+  optimizeQuery(table: string, filters: any, records: any[]): any[] {
+    const filterKeys = Object.keys(filters);
+    if (filterKeys.length === 1) {
+      const [field] = filterKeys;
+      const indexed = this.queryByIndex(table, field, filters[field]);
+      if (indexed) return indexed;
+    }
+    return records.filter((record) => {
+      return Object.entries(filters).every(([key, value]) => record[key] === value);
+    });
+  }
+}
+
+// Memory management utilities
+const memoryManager = {
+  getMemoryUsage(): number {
+    if ('memory' in performance) {
+      return (performance as any).memory.usedJSHeapSize;
+    }
+    return 0;
+  },
+
+  cleanup(): void {
+    if ('gc' in window) {
+      (window as any).gc();
+    }
+    const memUsage = this.getMemoryUsage();
+    const threshold = 50 * 1024 * 1024;
+    if (memUsage > threshold) {
+      DatabaseCache.getInstance().clear();
+      console.log('Memory cleanup performed due to high usage');
+    }
+  },
+
+  paginate<T>(data: T[], page: number, pageSize: number = 50): { data: T[]; hasMore: boolean } {
+    const start = (page - 1) * pageSize;
+    const end = start + pageSize;
+    return {
+      data: data.slice(start, end),
+      hasMore: end < data.length
+    };
+  }
+};
+
+// IndexedDB storage utilities
+async function openDatabase(): Promise<IDBDatabase> {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open('RestaurantSpaDB', 1);
+    
+    request.onerror = () => reject(request.error);
+    request.onsuccess = () => resolve(request.result);
+    
+    request.onupgradeneeded = (event) => {
+      const db = (event.target as IDBOpenDBRequest).result;
+      if (!db.objectStoreNames.contains('data')) {
+        db.createObjectStore('data', { keyPath: 'id' });
+      }
+    };
+  });
+}
+
+async function saveDatabaseToStorage(): Promise<void> {
+  try {
+    const db = await openDatabase();
+    const transaction = db.transaction(['data'], 'readwrite');
+    const store = transaction.objectStore('data');
+    
+    await store.put({
+      id: 'memoryDb',
+      data: memoryDb,
+      pendingChanges,
+      deviceId,
+      timestamp: Date.now()
+    });
+  } catch (error) {
+    console.error('Failed to save database to storage:', error);
+  }
+}
+
+async function loadDatabaseFromStorage(): Promise<void> {
+  try {
+    const db = await openDatabase();
+    const transaction = db.transaction(['data'], 'readonly');
+    const store = transaction.objectStore('data');
+    const request = store.get('memoryDb');
+    
+    return new Promise((resolve, reject) => {
+      request.onerror = () => reject(request.error);
+      request.onsuccess = () => {
+        const result = request.result;
+        if (result) {
+          memoryDb = result.data || memoryDb;
+          pendingChanges = result.pendingChanges || [];
+          deviceId = result.deviceId || uuidv4();
+        } else {
+          deviceId = uuidv4();
+        }
+        resolve();
+      };
+    });
+  } catch (error) {
+    console.error('Failed to load database from storage:', error);
+    deviceId = uuidv4();
+  }
+}
+
+// Initialize database
+async function initDatabase(): Promise<void> {
+  if (isInitialized) return;
+  
+  await loadDatabaseFromStorage();
+  isInitialized = true;
+}
+
+// Offline queue for operations
+class OfflineQueue {
+  private static instance: OfflineQueue;
+  private queue: Array<{id: string, operation: string, table: string, data: any, retries: number}> = [];
+
+  static getInstance(): OfflineQueue {
+    if (!OfflineQueue.instance) {
+      OfflineQueue.instance = new OfflineQueue();
+    }
+    return OfflineQueue.instance;
+  }
+
+  async addToQueue(operation: string, table: string, data: any, maxRetries: number = 3): Promise<string> {
+    const id = uuidv4();
+    this.queue.push({ id, operation, table, data, retries: maxRetries });
+    return id;
+  }
+}
+
+// Add record to IndexedDB
+async function addToIndexedDB(table: string, record: any): Promise<void> {
+  try {
+    const db = await openDatabase();
+    const transaction = db.transaction(['data'], 'readwrite');
+    const store = transaction.objectStore('data');
+    
+    await store.put({
+      id: `${table}_${record.id}`,
+      table,
+      data: record,
+      timestamp: Date.now()
+    });
+  } catch (error) {
+    console.error('Failed to add to IndexedDB:', error);
+  }
+}
+
+// Get single record
+export async function getRecord(table: string, id: string): Promise<any | null> {
+  await initDatabase();
+  
+  if (!memoryDb[table]) {
+    return null;
+  }
+  
+  return memoryDb[table].find(record => record.id === id) || null;
+}
+
+// Enhanced database operations with caching
+export async function listRecords(table: string, filters: any = {}) {
   await initDatabase()
+  
+  const cache = DatabaseCache.getInstance();
+  const optimizer = QueryOptimizer.getInstance();
+  
+  const cacheKey = `${table}:${JSON.stringify(filters)}`;
+  const cached = cache.get(cacheKey);
+  if (cached) {
+    return cached;
+  }
 
+  if (!memoryDb[table]) {
+    return []
+  }
+
+  let results: any[];
+  if (Object.keys(filters).length > 0) {
+    results = optimizer.optimizeQuery(table, filters, memoryDb[table]);
+  } else {
+    results = [...memoryDb[table]];
+  }
+
+  cache.set(cacheKey, results);
+  
+  if (Object.keys(filters).length === 1) {
+    const [field] = Object.keys(filters);
+    optimizer.createIndex(table, field, memoryDb[table]);
+  }
+
+  return results;
+}
+
+// Enhanced create with cache invalidation
+export async function createRecord(table: string, data: any) {
   const id = data.id || uuidv4()
   const timestamp = new Date().toISOString()
 
-  // Create the record with timestamps
   const record = {
     id,
     ...data,
@@ -227,15 +420,12 @@ export async function createRecord(table: string, data: any) {
     is_synced: 0,
   }
 
-  // Ensure the table exists
   if (!memoryDb[table]) {
     memoryDb[table] = []
   }
 
-  // Add to memory database
   memoryDb[table].push(record)
 
-  // Add to pending changes
   pendingChanges.push({
     type: "create",
     table,
@@ -244,42 +434,32 @@ export async function createRecord(table: string, data: any) {
     device_id: deviceId,
   })
 
-  // Save to persistent storage
   await saveDatabaseToStorage()
 
-  return record
+  const cache = DatabaseCache.getInstance();
+  const optimizer = QueryOptimizer.getInstance();
+  
+  cache.invalidate(`${table}:`);
+  optimizer.invalidateIndex(table);
+  
+  return record;
 }
 
-export async function getRecord(table: string, id: string) {
-  await initDatabase()
-
-  // Ensure the table exists
-  if (!memoryDb[table]) {
-    return null
-  }
-
-  // Find the record
-  return memoryDb[table].find((record) => record.id === id) || null
-}
-
+// Enhanced update with cache invalidation
 export async function updateRecord(table: string, id: string, data: any) {
   await initDatabase()
 
-  // Ensure the table exists
   if (!memoryDb[table]) {
     throw new Error(`Table ${table} does not exist`)
   }
 
   const timestamp = new Date().toISOString()
-
-  // Find the record index
   const index = memoryDb[table].findIndex((record) => record.id === id)
 
   if (index === -1) {
     throw new Error(`Record with id ${id} not found in ${table}`)
   }
 
-  // Update the record
   const updatedRecord = {
     ...memoryDb[table][index],
     ...data,
@@ -289,7 +469,6 @@ export async function updateRecord(table: string, id: string, data: any) {
 
   memoryDb[table][index] = updatedRecord
 
-  // Add to pending changes
   pendingChanges.push({
     type: "update",
     table,
@@ -299,457 +478,78 @@ export async function updateRecord(table: string, id: string, data: any) {
     device_id: deviceId,
   })
 
-  // Save to persistent storage
   await saveDatabaseToStorage()
 
-  return updatedRecord
+  const cache = DatabaseCache.getInstance();
+  const optimizer = QueryOptimizer.getInstance();
+  
+  cache.invalidate(`${table}:`);
+  optimizer.invalidateIndex(table);
+  
+  return updatedRecord;
 }
 
+// Enhanced delete with cache invalidation
 export async function deleteRecord(table: string, id: string) {
   await initDatabase()
 
-  // Ensure the table exists
   if (!memoryDb[table]) {
     return { success: true }
   }
 
-  // Find the record index
   const index = memoryDb[table].findIndex((record) => record.id === id)
 
   if (index !== -1) {
-    // Get the record before removing it
     const record = memoryDb[table][index]
-
-    // Remove from memory database
     memoryDb[table].splice(index, 1)
 
-    // Add to pending changes
     pendingChanges.push({
       type: "delete",
       table,
       id,
-      data: record, // Include the record data for sync purposes
+      data: record,
       timestamp: new Date().toISOString(),
       device_id: deviceId,
     })
 
-    // Save to persistent storage
     await saveDatabaseToStorage()
   }
 
+  const cache = DatabaseCache.getInstance();
+  const optimizer = QueryOptimizer.getInstance();
+  
+  cache.invalidate(`${table}:`);
+  optimizer.invalidateIndex(table);
+  
   return { success: true }
 }
 
-export async function listRecords(table: string, filters: any = {}) {
-  await initDatabase()
-
-  // Ensure the table exists
-  if (!memoryDb[table]) {
-    return []
-  }
-
-  // Apply filters if any
-  if (Object.keys(filters).length > 0) {
-    return memoryDb[table].filter((record) => {
-      return Object.entries(filters).every(([key, value]) => record[key] === value)
-    })
-  }
-
-  // Return all records
-  return [...memoryDb[table]]
-}
-
-// Sync functions
-export function getPendingChangesCount() {
-  return pendingChanges.length
-}
-
-export async function syncWithSupabase() {
-  if (typeof window === "undefined" || pendingChanges.length === 0 || !isSupabaseConfigured()) {
-    return { success: true, count: 0 };
-  }
-
-  try {
-    const supabase = getSupabaseBrowserClient();
-    
-    try {
-      const { error: pingError } = await supabase.from('sync_log').select('count', { count: 'exact', head: true });
-      
-      if (pingError && typeof pingError.message === 'string' && !pingError.message.includes('does not exist')) {
-        return { success: false, error: `Supabase connection error: ${pingError.message}` };
-      }
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      return { success: false, error: `Failed to connect to Supabase: ${errorMessage}` };
-    }
-
-    let successCount = 0;
-    let errorCount = 0;
-    const errors: SyncError[] = [];
-
-    // Process changes in batches to avoid overwhelming the server
-    const batchSize = 50;
-    const batches = Math.ceil(pendingChanges.length / batchSize);
-    
-    for (let i = 0; i < batches; i++) {
-      const batchStart = i * batchSize;
-      const batchEnd = Math.min((i + 1) * batchSize, pendingChanges.length);
-      const batch = pendingChanges.slice(batchStart, batchEnd);
-      
-      // Process each change in the batch
-      for (const change of batch) {
-        try {
-          const { type, table, id, data, timestamp } = change;
-          
-          if (type === "create" || type === "update") {
-            // For create and update, use upsert
-            // Remove is_synced from the data before sending to Supabase
-            const { is_synced, ...dataWithoutSync } = data;
-            const { error } = await supabase.from(table).upsert({
-              ...dataWithoutSync,
-              updated_at: new Date().toISOString(),
-            });
-            
-            if (error) {
-              // Check if this is a "relation does not exist" error
-              if (error.message && error.message.includes("does not exist")) {
-                console.log(`Table ${table} does not exist yet in Supabase, skipping sync for this change`);
-                // We'll count this as a success since it's not a real error, just a table that needs to be created
-                successCount++;
-                continue;
-              }
-              throw new Error(error.message || 'Unknown database error');
-            }
-          } else if (type === "delete") {
-            // For delete, remove the record
-            const { error } = await supabase.from(table).delete().eq("id", id);
-            
-            if (error) {
-              // Check if this is a "relation does not exist" error
-              if (error.message && error.message.includes("does not exist")) {
-                console.log(`Table ${table} does not exist yet in Supabase, skipping sync for this change`);
-                // We'll count this as a success since it's not a real error, just a table that needs to be created
-                successCount++;
-                continue;
-              }
-              throw new Error(error.message || 'Unknown database error');
-            }
-          }
-          
-          // Log successful sync
-          try {
-            await supabase.from("sync_log").insert({
-              device_id: deviceId,
-              sync_type: "push",
-              entity_type: table,
-              entity_id: id,
-              operation: type,
-              status: "success",
-            });
-          } catch (logError: any) {
-            // If sync_log table doesn't exist yet, just continue
-            if (logError.message && logError.message.includes("does not exist")) {
-              console.log("sync_log table does not exist yet, skipping log entry");
-            } else {
-              console.error("Failed to log sync success:", logError);
-            }
-          }
-          
-          successCount++;
-        } catch (error) {
-          const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-          console.error("Error syncing change:", errorMessage, change);
-          errorCount++;
-          errors.push({ change, error: errorMessage });
-          
-          // Log failed sync
-          try {
-            await supabase.from("sync_log").insert({
-              device_id: deviceId,
-              sync_type: "push",
-              entity_type: change.table,
-              entity_id: change.id,
-              operation: change.type,
-              status: "error",
-              error_message: errorMessage,
-            });
-          } catch (logError: any) {
-            // If sync_log table doesn't exist yet, just continue
-            if (logError.message && logError.message.includes("does not exist")) {
-              console.log("sync_log table does not exist yet, skipping log entry");
-            } else {
-              console.error("Failed to log sync error:", logError);
-            }
-          }
-        }
-      }
-    }
-    
-    // Remove successfully synced changes
-    if (successCount > 0) {
-      // Keep only the failed changes
-      pendingChanges = pendingChanges.filter((_, index) => {
-        const batchIndex = Math.floor(index / batchSize);
-        const indexInBatch = index % batchSize;
-        const batchStart = batchIndex * batchSize;
-        // Check if this change is in a processed batch and failed
-        return errors.some((e) => e.change === pendingChanges[batchStart + indexInBatch]);
-      });
-      
-      // Save updated pending changes
-      await saveDatabaseToStorage();
-      
-      // Mark all records as synced
-      Object.keys(memoryDb).forEach((table) => {
-        memoryDb[table] = memoryDb[table].map((record) => ({
-          ...record,
-          is_synced: 1,
-        }));
-      });
-      
-      await saveDatabaseToStorage();
-    }
-    
-    return {
-      success: errorCount === 0,
-      count: successCount,
-      errors: errorCount > 0 ? errors.map(e => ({
-        table: e.change.table,
-        id: e.change.id,
-        type: e.change.type,
-        error: e.error
-      })) : undefined,
-    };
-  } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    console.error("Sync error:", errorMessage);
-    return { 
-      success: false, 
-      error: errorMessage,
-      details: error 
-    };
-  }
-}
-
-// Pull changes from Supabase
-export async function pullFromSupabase() {
-  if (typeof window === "undefined" || !isSupabaseConfigured()) {
-    return { success: true, count: 0 }
-  }
-
-  try {
-    const supabase = getSupabaseBrowserClient()
-    let totalChanges = 0
-
-    // Get the latest sync timestamp for this device
-    const lastSyncKey = `last_sync_${deviceId}`
-    const lastSync = localStorage.getItem(lastSyncKey) || new Date(0).toISOString()
-    const now = new Date().toISOString()
-
-    // For each table, pull changes since last sync
-    for (const table of Object.keys(memoryDb)) {
-      // Skip transaction_items as they're handled with transactions
-      if (table === "transaction_items") continue
-
-      try {
-        // Get records updated since last sync
-        const { data, error } = await supabase.from(table).select("*").gt("updated_at", lastSync)
-
-        if (error) {
-          // Check if this is a "relation does not exist" error
-          if (error.message && error.message.includes("does not exist")) {
-            console.log(`Table ${table} does not exist yet in Supabase, skipping sync`)
-            continue
-          }
-
-          console.error(`Error pulling ${table} changes:`, error)
-          continue
-        }
-
-        if (!data || data.length === 0) continue
-
-        // Process each record
-        for (const record of data) {
-          // Skip records from this device (already in local DB)
-          const changeFromThisDevice = pendingChanges.some(
-            (change) => change.table === table && change.id === record.id,
-          )
-
-          if (changeFromThisDevice) continue
-
-          // Check if record exists locally
-          const localIndex = memoryDb[table].findIndex((r) => r.id === record.id)
-
-          if (localIndex >= 0) {
-            // Update existing record
-            memoryDb[table][localIndex] = {
-              ...record,
-              is_synced: 1,
-            }
-          } else {
-            // Add new record
-            memoryDb[table].push({
-              ...record,
-              is_synced: 1,
-            })
-          }
-
-          totalChanges++
-        }
-      } catch (error) {
-        console.error(`Error processing ${table} changes:`, error)
-        continue
-      }
-    }
-
-    // Handle transaction_items separately (with their parent transactions)
-    const { data: transactions, error: txError } = await supabase
-      .from("transactions")
-      .select("*, transaction_items(*)")
-      .gt("updated_at", lastSync)
-
-    if (!txError && transactions && transactions.length > 0) {
-      for (const tx of transactions) {
-        // Skip transactions from this device
-        const txFromThisDevice = pendingChanges.some((change) => change.table === "transactions" && change.id === tx.id)
-
-        if (txFromThisDevice) continue
-
-        // Process transaction
-        const localTxIndex = memoryDb.transactions.findIndex((t) => t.id === tx.id)
-
-        if (localTxIndex >= 0) {
-          // Update existing transaction
-          memoryDb.transactions[localTxIndex] = {
-            ...tx,
-            transaction_items: undefined, // Remove items, we'll handle them separately
-            is_synced: 1,
-          }
-        } else {
-          // Add new transaction
-          memoryDb.transactions.push({
-            ...tx,
-            transaction_items: undefined, // Remove items, we'll handle them separately
-            is_synced: 1,
-          })
-        }
-
-        // Process transaction items
-        if (tx.transaction_items && tx.transaction_items.length > 0) {
-          for (const item of tx.transaction_items) {
-            const localItemIndex = memoryDb.transaction_items.findIndex((i) => i.id === item.id)
-
-            if (localItemIndex >= 0) {
-              // Update existing item
-              memoryDb.transaction_items[localItemIndex] = {
-                ...item,
-                is_synced: 1,
-              }
-            } else {
-              // Add new item
-              memoryDb.transaction_items.push({
-                ...item,
-                is_synced: 1,
-              })
-            }
-
-            totalChanges++
-          }
-        }
-
-        totalChanges++
-      }
-    }
-
-    // Save updated database
-    if (totalChanges > 0) {
-      await saveDatabaseToStorage()
-    }
-
-    // Update last sync timestamp
-    localStorage.setItem(lastSyncKey, now)
-
-    return { success: true, count: totalChanges }
-  } catch (error) {
-    console.error("Pull sync error:", error)
-    return { success: false, error: String(error) }
-  }
-}
-
-// Specific APIs for each entity
-export const bookingsApi = {
-  create: (data: any) => createRecord("bookings", data),
-  get: (id: string) => getRecord("bookings", id),
-  update: (id: string, data: any) => updateRecord("bookings", id, data),
-  delete: (id: string) => deleteRecord("bookings", id),
-  list: (filters: any = {}) => listRecords("bookings", filters),
-
-  // Get recent bookings (newest first, limited to count)
-  getRecent: async (count: number = 5) => {
-    await initDatabase()
-    if (!memoryDb.bookings) return []
-
-    // Sort by date (newest first)
-    const sortedBookings = [...memoryDb.bookings].sort((a, b) => {
-      const dateA = new Date(`${a.booking_date}T${a.booking_time || '00:00:00'}`)
-      const dateB = new Date(`${b.booking_date}T${b.booking_time || '00:00:00'}`)
-      return dateB.getTime() - dateA.getTime() // Descending order
-    })
-
-    // Take only the specified number of most recent bookings
-    return sortedBookings.slice(0, count)
-  },
-
-  // Get upcoming bookings (future bookings, sorted by date)
-  getUpcoming: async (count: number = 4) => {
-    await initDatabase()
-    if (!memoryDb.bookings) return []
-
-    const today = new Date()
-    today.setHours(0, 0, 0, 0) // Start of today
-
-    // Filter for only upcoming bookings (today and future)
-    const upcomingBookings = memoryDb.bookings.filter(booking => {
-      const bookingDate = new Date(booking.booking_date)
-      return bookingDate >= today && booking.status !== "cancelled"
-    })
-
-    // Sort by date and time (ascending)
-    upcomingBookings.sort((a, b) => {
-      const dateA = new Date(`${a.booking_date}T${a.booking_time || '00:00:00'}`)
-      const dateB = new Date(`${b.booking_date}T${b.booking_time || '00:00:00'}`)
-      return dateA.getTime() - dateB.getTime()
-    })
-
-    // Take only the specified number of upcoming bookings
-    return upcomingBookings.slice(0, count)
-  }
-}
-
-export const inventoryApi = {
-  create: (data: any) => createRecord("inventory", data),
-  get: (id: string) => getRecord("inventory", id),
-  update: (id: string, data: any) => updateRecord("inventory", id, data),
-  delete: (id: string) => deleteRecord("inventory", id),
-  list: (filters: any = {}) => listRecords("inventory", filters),
-}
-
-export const customersApi = {
-  create: (data: any) => createRecord("customers", data),
-  get: (id: string) => getRecord("customers", id),
-  update: (id: string, data: any) => updateRecord("customers", id, data),
-  delete: (id: string) => deleteRecord("customers", id),
-  list: (filters: any = {}) => listRecords("customers", filters),
-}
-
+// Enhanced transaction API with better performance
 export const transactionsApi = {
-  create: (data: any) => createRecord("transactions", data),
+  create: async (transaction: any) => {
+    if (!navigator.onLine) {
+      const queue = OfflineQueue.getInstance();
+      const queueId = await queue.addToQueue('create', 'transactions', transaction, 3);
+      
+      const localTransaction = {
+        ...transaction,
+        id: transaction.id || crypto.randomUUID(),
+        _offline: true,
+        _queueId: queueId,
+        _createdAt: new Date().toISOString()
+      };
+      
+      await addToIndexedDB('transactions', localTransaction);
+      return localTransaction;
+    }
+    
+    return createRecord("transactions", transaction);
+  },
   get: (id: string) => getRecord("transactions", id),
   update: (id: string, data: any) => updateRecord("transactions", id, data),
   delete: (id: string) => deleteRecord("transactions", id),
   list: (filters: any = {}) => listRecords("transactions", filters),
 
-  // Additional method for transaction items
   addItem: async (transactionId: string, item: any) => {
     const itemId = uuidv4()
     const itemData = {
@@ -759,361 +559,391 @@ export const transactionsApi = {
       quantity: item.quantity,
       price: item.price,
     }
-
     await createRecord("transaction_items", itemData)
     return itemData
   },
 
   getItems: async (transactionId: string) => {
     await initDatabase()
-
     if (!memoryDb["transaction_items"]) {
       return []
     }
-
     return memoryDb["transaction_items"].filter((item) => item.transaction_id === transactionId)
   },
 
-  // Get daily revenue data for the last N days
   getDailyRevenue: async (days: number = 7) => {
+    const cache = DatabaseCache.getInstance();
+    const cacheKey = `daily_revenue:${days}`;
+    
+    const cached = cache.get(cacheKey);
+    if (cached) {
+      return cached;
+    }
+
     await initDatabase()
     if (!memoryDb.transactions) return []
 
-    // Get completed transactions
-    const completedTransactions = memoryDb.transactions.filter(
-      tx => tx.status === "completed" || tx.status === "paid"
-    )
+    const optimizer = QueryOptimizer.getInstance();
+    optimizer.createIndex('transactions', 'status', memoryDb.transactions);
+    
+    let completedTransactions = optimizer.queryByIndex('transactions', 'status', 'completed') || [];
+    const paidTransactions = optimizer.queryByIndex('transactions', 'status', 'paid') || [];
+    completedTransactions = [...completedTransactions, ...paidTransactions];
 
-    // Get the range of days
-    const today = new Date()
-    today.setHours(23, 59, 59, 999) // End of today
-
-    const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
+    const today = new Date();
+    today.setHours(23, 59, 59, 999);
+    const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+    
     type RevenueData = { [key: string]: { spa: number, restaurant: number, name: string } };
     const revenueByDay: RevenueData = {};
 
-    // Initialize the last N days with zero values
+    const dateRange = [];
     for (let i = days - 1; i >= 0; i--) {
-      const date = new Date(today)
-      date.setDate(date.getDate() - i)
-      const dayName = dayNames[date.getDay()]
-      const dateString = date.toISOString().split('T')[0]
-      revenueByDay[dateString] = { spa: 0, restaurant: 0, name: dayName }
+      const date = new Date(today);
+      date.setDate(date.getDate() - i);
+      const dateString = date.toISOString().split('T')[0];
+      dateRange.push(dateString);
+      revenueByDay[dateString] = { 
+        spa: 0, 
+        restaurant: 0, 
+        name: dayNames[date.getDay()] 
+      };
     }
 
-    // Aggregate transaction amounts by date and service type
+    const dateSet = new Set(dateRange);
     completedTransactions.forEach(transaction => {
-      const date = transaction.transaction_date.split('T')[0]
-
-      // Only include transactions from the specified days
-      if (revenueByDay[date]) {
-        const serviceType = transaction.transaction_type?.toLowerCase() || "restaurant"
-
+      const date = transaction.transaction_date.split('T')[0];
+      
+      if (dateSet.has(date)) {
+        const serviceType = transaction.transaction_type?.toLowerCase() || "restaurant";
+        const amount = transaction.total_amount || 0;
+        
         if (serviceType === "spa") {
-          revenueByDay[date].spa += transaction.total_amount || 0
+          revenueByDay[date].spa += amount;
         } else {
-          revenueByDay[date].restaurant += transaction.total_amount || 0
+          revenueByDay[date].restaurant += amount;
         }
       }
-    })
+    });
 
-    // Convert to array format for charts
-    return Object.keys(revenueByDay).map(date => ({
-      name: revenueByDay[date].name || dayNames[new Date(date).getDay()],
-      spa: revenueByDay[date].spa,
-      restaurant: revenueByDay[date].restaurant,
+    const result = dateRange.map(date => ({
+      name: revenueByDay[date].name,
+      spa: Math.round(revenueByDay[date].spa * 100) / 100,
+      restaurant: Math.round(revenueByDay[date].restaurant * 100) / 100,
       date: date,
-    }))
+    }));
+
+    cache.set(cacheKey, result, 5 * 60 * 1000);
+    return result;
+  },
+
+  getRecent: async (limit: number = 10, page: number = 1) => {
+    const cache = DatabaseCache.getInstance();
+    const cacheKey = `recent_transactions:${limit}:${page}`;
+    
+    const cached = cache.get(cacheKey);
+    if (cached) {
+      return cached;
+    }
+
+    await initDatabase();
+    if (!memoryDb.transactions) return [];
+
+    const sortedTransactions = [...memoryDb.transactions].sort((a, b) => {
+      return new Date(b.transaction_date).getTime() - new Date(a.transaction_date).getTime();
+    });
+
+    const result = memoryManager.paginate(sortedTransactions, page, limit);
+    cache.set(cacheKey, result, 2 * 60 * 1000);
+    return result;
   }
-}
+};
 
-export const staffApi = {
-  create: (data: any) => createRecord("staff", data),
-  get: (id: string) => getRecord("staff", id),
-  update: (id: string, data: any) => updateRecord("staff", id, data),
-  delete: (id: string) => deleteRecord("staff", id),
-  list: (filters: any = {}) => listRecords("staff", filters),
-}
+// Bookings API
+export const bookingsApi = {
+  create: (booking: any) => createRecord("bookings", booking),
+  get: (id: string) => getRecord("bookings", id),
+  update: (id: string, data: any) => updateRecord("bookings", id, data),
+  delete: (id: string) => deleteRecord("bookings", id),
+  list: (filters: any = {}) => listRecords("bookings", filters),
+  getRecent: async (limit: number = 10) => {
+    const cache = DatabaseCache.getInstance();
+    const cacheKey = `recent_bookings:${limit}`;
+    
+    const cached = cache.get(cacheKey);
+    if (cached) return cached;
+    
+    await initDatabase();
+    if (!memoryDb.bookings) return [];
+    
+    const sortedBookings = [...memoryDb.bookings].sort((a, b) => {
+      return new Date(b.booking_date).getTime() - new Date(a.booking_date).getTime();
+    });
+    
+    const result = sortedBookings.slice(0, limit);
+    cache.set(cacheKey, result, 2 * 60 * 1000);
+    return result;
+  },
+  getUpcoming: async (limit: number = 10) => {
+    const cache = DatabaseCache.getInstance();
+    const cacheKey = `upcoming_bookings:${limit}`;
+    
+    const cached = cache.get(cacheKey);
+    if (cached) return cached;
+    
+    await initDatabase();
+    if (!memoryDb.bookings) return [];
+    
+    const now = new Date();
+    const upcomingBookings = memoryDb.bookings
+      .filter(booking => new Date(booking.booking_date) >= now)
+      .sort((a, b) => new Date(a.booking_date).getTime() - new Date(b.booking_date).getTime())
+      .slice(0, limit);
+    
+    cache.set(cacheKey, upcomingBookings, 2 * 60 * 1000);
+    return upcomingBookings;
+  }
+};
 
-// New API for spa services table
+// Customers API
+export const customersApi = {
+  create: (customer: any) => createRecord("customers", customer),
+  get: (id: string) => getRecord("customers", id),
+  update: (id: string, data: any) => updateRecord("customers", id, data),
+  delete: (id: string) => deleteRecord("customers", id),
+  list: (filters: any = {}) => listRecords("customers", filters)
+};
+
+// Spa Services API
 export const spaServicesApi = {
-  create: (data: any) => createRecord("spa_services", data),
+  create: (service: any) => createRecord("spa_services", service),
   get: (id: string) => getRecord("spa_services", id),
   update: (id: string, data: any) => updateRecord("spa_services", id, data),
   delete: (id: string) => deleteRecord("spa_services", id),
   list: (filters: any = {}) => listRecords("spa_services", filters),
   listActive: async () => {
-    await initDatabase()
-    if (!memoryDb["spa_services"]) {
-      memoryDb["spa_services"] = []
-      return []
-    }
-    return memoryDb["spa_services"].filter((service) => service.status === "active")
-  },
-}
+    const services = await listRecords("spa_services", { status: "active" });
+    return services.filter((service: any) => service.isActive !== false);
+  }
+};
 
-// New API for menu items table
+// Menu Items API
 export const menuItemsApi = {
-  create: (data: any) => createRecord("menu_items", data),
+  create: (item: any) => createRecord("menu_items", item),
   get: (id: string) => getRecord("menu_items", id),
   update: (id: string, data: any) => updateRecord("menu_items", id, data),
   delete: (id: string) => deleteRecord("menu_items", id),
   list: (filters: any = {}) => listRecords("menu_items", filters),
-  listActive: async () => {
-    await initDatabase()
-    if (!memoryDb["menu_items"]) {
-      memoryDb["menu_items"] = []
-      return []
-    }
-    return memoryDb["menu_items"].filter((item) => item.status === "active")
-  },
   listByCategory: async (category: string) => {
-    await initDatabase()
-    if (!memoryDb["menu_items"]) {
-      memoryDb["menu_items"] = []
-      return []
-    }
-    return memoryDb["menu_items"].filter((item) => item.category === category && item.status === "active")
+    const items = await listRecords("menu_items", { category });
+    return items.filter((item: any) => item.status === "active" || item.isAvailable !== false);
   },
-}
+  listActive: async () => {
+    const items = await listRecords("menu_items", { status: "active" });
+    return items.filter((item: any) => item.isActive !== false);
+  }
+};
 
-// API for business settings
+// Staff API
+export const staffApi = {
+  create: (staff: any) => createRecord("staff", staff),
+  get: (id: string) => getRecord("staff", id),
+  update: (id: string, data: any) => updateRecord("staff", id, data),
+  delete: (id: string) => deleteRecord("staff", id),
+  list: (filters: any = {}) => listRecords("staff", filters)
+};
+
+// Inventory API
+export const inventoryApi = {
+  create: (item: any) => createRecord("inventory", item),
+  get: (id: string) => getRecord("inventory", id),
+  update: (id: string, data: any) => updateRecord("inventory", id, data),
+  delete: (id: string) => deleteRecord("inventory", id),
+  list: (filters: any = {}) => listRecords("inventory", filters)
+};
+
+// Business Settings API
 export const businessSettingsApi = {
-  create: (data: any) => createRecord("business_settings", data),
+  create: (settings: any) => createRecord("business_settings", settings),
   get: (id: string) => getRecord("business_settings", id),
   update: (id: string, data: any) => updateRecord("business_settings", id, data),
   delete: (id: string) => deleteRecord("business_settings", id),
-  list: () => listRecords("business_settings"),
-
-  // Get business settings (returns first record or default)
-  getSettings: async (defaultSettings: any) => {
-    await initDatabase()
-
-    const settingsData = await listRecords("business_settings")
-
-    if (settingsData && settingsData.length > 0) {
-      // Use the first settings object found
-      return settingsData[0]
+  list: (filters: any = {}) => listRecords("business_settings", filters),
+  getSettings: async (defaultSettings: any = {}) => {
+    await initDatabase();
+    const settings = await listRecords("business_settings");
+    if (settings.length > 0) {
+      return { ...defaultSettings, ...settings[0] };
     }
-
-    // If no settings exist, create default settings in the database
-    const newSettings = await createRecord("business_settings", defaultSettings)
-    return newSettings
+    // Create default settings if none exist
+    const newSettings = await createRecord("business_settings", defaultSettings);
+    return newSettings;
   }
-}
+};
 
-// API for general settings
+// General Settings API
 export const generalSettingsApi = {
-  create: (data: any) => createRecord("general_settings", data),
+  create: (settings: any) => createRecord("general_settings", settings),
   get: (id: string) => getRecord("general_settings", id),
   update: (id: string, data: any) => updateRecord("general_settings", id, data),
   delete: (id: string) => deleteRecord("general_settings", id),
-  list: () => listRecords("general_settings"),
-  
-  // Get general settings (returns first record or default)
-  getSettings: async (defaultSettings: any) => {
-    await initDatabase()
-    
-    const settingsData = await listRecords("general_settings")
-    
-    if (settingsData && settingsData.length > 0) {
-      // Use the first settings object found
-      return settingsData[0]
+  list: (filters: any = {}) => listRecords("general_settings", filters),
+  getSettings: async (defaultSettings: any = {}) => {
+    await initDatabase();
+    const settings = await listRecords("general_settings");
+    if (settings.length > 0) {
+      return { ...defaultSettings, ...settings[0] };
     }
+    // Create default settings if none exist
+    const newSettings = await createRecord("general_settings", defaultSettings);
+    return newSettings;
+  }
+};
 
-    // If no settings exist, create default settings in the database
-    const newSettings = await createRecord("general_settings", defaultSettings)
-    return newSettings
+// Export utility functions
+export { initDatabase };
+
+// Add sample data function
+export async function addSampleData() {
+  await initDatabase();
+  
+  // Add sample spa services if none exist
+  const existingServices = await listRecords("spa_services");
+  if (existingServices.length === 0) {
+    await createRecord("spa_services", {
+      name: "Swedish Massage",
+      description: "Relaxing full body massage",
+      duration: 60,
+      price: 80,
+      category: "massage",
+      status: "active"
+    });
+    
+    await createRecord("spa_services", {
+      name: "Facial Treatment",
+      description: "Deep cleansing facial",
+      duration: 45,
+      price: 60,
+      category: "facial",
+      status: "active"
+    });
+  }
+  
+  // Add sample menu items if none exist (without dietary field to avoid sync issues)
+  const existingItems = await listRecords("menu_items");
+  if (existingItems.length === 0) {
+    // Food items
+    await createRecord("menu_items", {
+      name: "Caesar Salad",
+      description: "Fresh lettuce with caesar dressing and croutons",
+      price: 12,
+      category: "food",
+      status: "active"
+    });
+    
+    await createRecord("menu_items", {
+      name: "Grilled Salmon",
+      description: "Fresh salmon with herbs and lemon",
+      price: 25,
+      category: "food",
+      status: "active"
+    });
+
+    await createRecord("menu_items", {
+      name: "Pasta Carbonara",
+      description: "Creamy pasta with bacon and parmesan",
+      price: 18,
+      category: "food",
+      status: "active"
+    });
+
+    await createRecord("menu_items", {
+      name: "Chicken Burger",
+      description: "Grilled chicken breast with lettuce and tomato",
+      price: 15,
+      category: "food",
+      status: "active"
+    });
+
+    // Drinks
+    await createRecord("menu_items", {
+      name: "Fresh Orange Juice",
+      description: "Freshly squeezed orange juice",
+      price: 5,
+      category: "drinks",
+      status: "active"
+    });
+
+    await createRecord("menu_items", {
+      name: "Coffee",
+      description: "Freshly brewed coffee",
+      price: 3,
+      category: "drinks",
+      status: "active"
+    });
+
+    await createRecord("menu_items", {
+      name: "Smoothie Bowl",
+      description: "Mixed berry smoothie with granola",
+      price: 8,
+      category: "drinks",
+      status: "active"
+    });
+
+    // Desserts
+    await createRecord("menu_items", {
+      name: "Chocolate Cake",
+      description: "Rich chocolate cake with vanilla ice cream",
+      price: 7,
+      category: "desserts",
+      status: "active"
+    });
+
+    await createRecord("menu_items", {
+      name: "Tiramisu",
+      description: "Classic Italian tiramisu",
+      price: 8,
+      category: "desserts",
+      status: "active"
+    });
+
+    await createRecord("menu_items", {
+      name: "Ice Cream Sundae",
+      description: "Vanilla ice cream with chocolate sauce and nuts",
+      price: 6,
+      category: "desserts",
+      status: "active"
+    });
   }
 }
 
-// Add some sample data for testing
-export async function addSampleData() {
-  // Only add sample data if tables are empty
-  await initDatabase()
-
-  if (memoryDb.bookings.length === 0) {
-    await bookingsApi.create({
-      customer_name: "Sarah Johnson",
-      customer_phone: "555-123-4567",
-      customer_email: "sarah.j@example.com",
-      booking_date: "2025-04-22",
-      booking_time: "14:00",
-      service: "massage",
-      staff: "john",
-      notes: "First time client",
-      booking_type: "spa",
-      status: "confirmed",
-    })
+// Performance monitoring
+export const performanceMonitor = {
+  startTimer: (label: string) => {
+    console.time(label);
+  },
+  
+  endTimer: (label: string) => {
+    console.timeEnd(label);
+  },
+  
+  getStats: () => ({
+    memoryUsage: memoryManager.getMemoryUsage(),
+    cacheStats: DatabaseCache.getInstance().getStats(),
+    pendingChanges: pendingChanges.length,
+    tablesSizes: Object.fromEntries(
+      Object.entries(memoryDb).map(([table, data]) => [table, data.length])
+    )
+  }),
+  
+  enableAutoCleanup: () => {
+    setInterval(() => {
+      memoryManager.cleanup();
+    }, 10 * 60 * 1000);
   }
+};
 
-  if (memoryDb.inventory.length === 0) {
-    await inventoryApi.create({
-      name: "Massage Oil (Lavender)",
-      category: "spa",
-      quantity: 24,
-      unit: "bottle",
-      reorder_level: 10,
-      last_updated: "2025-04-15",
-    })
-  }
-
-  if (memoryDb.customers.length === 0) {
-    await customersApi.create({
-      name: "Sarah Johnson",
-      email: "sarah.j@example.com",
-      phone: "555-123-4567",
-      visits: 8,
-      last_visit: "2025-04-18",
-      customer_type: "spa",
-    })
-  }
-
-  // Add sample spa services if none exist
-  if (!memoryDb.spa_services || memoryDb.spa_services.length === 0) {
-    await spaServicesApi.create({
-      name: "Deep Tissue Massage",
-      description: "A therapeutic massage focused on realigning deeper layers of muscles",
-      duration: 60,
-      price: 120,
-      category: "massage",
-      status: "active",
-    })
-
-    await spaServicesApi.create({
-      name: "Facial Treatment",
-      description: "Comprehensive skincare treatment for face",
-      duration: 45,
-      price: 85,
-      category: "skincare",
-      status: "active",
-    })
-
-    await spaServicesApi.create({
-      name: "Hot Stone Massage",
-      description: "Massage therapy with hot stones for deeper relaxation",
-      duration: 90,
-      price: 150,
-      category: "massage",
-      status: "active",
-    })
-
-    await spaServicesApi.create({
-      name: "Manicure & Pedicure",
-      description: "Complete nail care for hands and feet",
-      duration: 60,
-      price: 65,
-      category: "beauty",
-      status: "active",
-    })
-
-    await spaServicesApi.create({
-      name: "Body Scrub",
-      description: "Exfoliating treatment to remove dead skin cells",
-      duration: 45,
-      price: 95,
-      category: "body",
-      status: "active",
-    })
-
-    await spaServicesApi.create({
-      name: "Aromatherapy",
-      description: "Therapeutic use of essential oils for relaxation",
-      duration: 60,
-      price: 110,
-      category: "therapy",
-      status: "active",
-    })
-  }
-
-  // Add sample menu items if none exist
-  if (!memoryDb.menu_items || memoryDb.menu_items.length === 0) {
-    await menuItemsApi.create({
-      name: "Grilled Salmon",
-      description: "Fresh salmon grilled to perfection with herbs",
-      price: 24,
-      category: "main",
-      preparation_time: 20,
-      ingredients: "Salmon, olive oil, lemon, herbs",
-      allergens: "Fish",
-      status: "active",
-    })
-
-    await menuItemsApi.create({
-      name: "Pasta Primavera",
-      description: "Fresh seasonal vegetables with pasta",
-      price: 18,
-      category: "main",
-      preparation_time: 15,
-      ingredients: "Pasta, mixed vegetables, olive oil, garlic",
-      allergens: "Gluten",
-      status: "active",
-    })
-
-    await menuItemsApi.create({
-      name: "Steak & Fries",
-      description: "Grilled steak served with crispy fries",
-      price: 32,
-      category: "main",
-      preparation_time: 25,
-      ingredients: "Beef steak, potatoes, herbs, salt",
-      allergens: "None",
-      status: "active",
-    })
-
-    await menuItemsApi.create({
-      name: "Caesar Salad",
-      description: "Classic caesar salad with croutons",
-      price: 12,
-      category: "appetizer",
-      preparation_time: 10,
-      ingredients: "Romaine lettuce, croutons, parmesan, caesar dressing",
-      allergens: "Dairy, Gluten",
-      status: "active",
-    })
-
-    await menuItemsApi.create({
-      name: "Vegetable Curry",
-      description: "Spiced vegetable curry with rice",
-      price: 16,
-      category: "main",
-      preparation_time: 20,
-      ingredients: "Mixed vegetables, curry spices, coconut milk, rice",
-      allergens: "None",
-      status: "active",
-    })
-
-    await menuItemsApi.create({
-      name: "Chocolate Cake",
-      description: "Rich chocolate cake with ganache",
-      price: 8,
-      category: "dessert",
-      preparation_time: 10,
-      ingredients: "Chocolate, flour, sugar, eggs",
-      allergens: "Dairy, Eggs, Gluten",
-      status: "active",
-    })
-
-    await menuItemsApi.create({
-      name: "House Wine (Glass)",
-      description: "House selection red or white wine",
-      price: 9,
-      category: "beverage",
-      preparation_time: 2,
-      ingredients: "Grapes",
-      allergens: "Sulfites",
-      status: "active",
-    })
-
-    await menuItemsApi.create({
-      name: "Sparkling Water",
-      description: "Refreshing sparkling mineral water",
-      price: 4,
-      category: "beverage",
-      preparation_time: 1,
-      ingredients: "Water, minerals",
-      allergens: "None",
-      status: "active",
-    })
-  }
+// Initialize performance monitoring
+if (typeof window !== "undefined") {
+  performanceMonitor.enableAutoCleanup();
 }

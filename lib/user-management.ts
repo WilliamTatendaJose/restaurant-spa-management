@@ -1,6 +1,6 @@
 "use client"
 
-import * as offlineAuth from '@/lib/offline-auth'
+import { createUser as offlineCreateUser, listAllUsers, updateUserProfile, deleteUser as offlineDeleteUser } from "@/lib/offline-auth"
 
 export interface UserCreateInput {
   name: string
@@ -21,35 +21,30 @@ export interface UserUpdateInput {
 
 // Create a new user
 export async function createUser(userData: UserCreateInput) {
-  return offlineAuth.createUser({
+  return offlineCreateUser({
     name: userData.name,
     email: userData.email,
     password: userData.password,
     role: userData.role || 'staff',
     department: userData.department,
-    phone: userData.phone
   });
 }
 
 // List all users
 export async function listUsers() {
-  const users = await offlineAuth.listAllUsers();
-  return users.map(user => ({
-    ...user,
-    status: user.status || 'active' // Ensure status is always set
-  }));
+  return await listAllUsers();
 }
 
 // Update a user
 export async function updateUser(userData: UserUpdateInput) {
-  const result = await offlineAuth.updateUserProfile(userData.id, userData);
-  if (!result) {
-    throw new Error('User not found');
-  }
-  return result;
+  return await updateUserProfile(userData.id, {
+    name: userData.name,
+    role: userData.role,
+    department: userData.department,
+  });
 }
 
 // Delete a user
 export async function deleteUser(userId: string) {
-  return offlineAuth.deleteUser(userId);
+  return await offlineDeleteUser(userId);
 }

@@ -1,197 +1,204 @@
-"use client"
+"use client";
 
-import { useSyncStatus } from "@/components/sync-status-provider"
-import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
-import { Alert, AlertDescription } from "@/components/ui/alert"
-import { AlertCircle, Cloud, CloudOff, RefreshCw, XCircle, Clock, Database } from "lucide-react"
-import { useState } from "react"
-import { isSupabaseConfigured } from "@/lib/supabase"
-import { useRouter } from "next/navigation"
+import React from "react";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Progress } from "@/components/ui/progress";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import {
+  Wifi,
+  WifiOff,
+  RefreshCw,
+  CheckCircle,
+  AlertCircle,
+  Clock,
+  Activity,
+} from "lucide-react";
+import { useSyncStatus } from "./sync-status-provider";
+import { cn } from "@/lib/utils";
 
 export function SyncStatus() {
-  const { 
-    isOnline, 
-    pendingChanges, 
-    sync, 
-    lastSyncTime, 
-    syncError, 
-    isSyncing: syncInProgress,
-    schemaErrors,
-    disableAutoSync,
-    toggleAutoSync
-  } = useSyncStatus()
-  
-  const [isManualSyncing, setIsManualSyncing] = useState(false)
-  const [showError, setShowError] = useState(false)
-  const supabaseConfigured = isSupabaseConfigured()
-  const router = useRouter()
-  
-  const handleSync = async () => {
-    if (isManualSyncing || syncInProgress || !isOnline || !supabaseConfigured) return
-    setIsManualSyncing(true)
-    setShowError(false)
-    
-    try {
-      const result = await sync()
-      if (!result.success && result.error) {
-        setShowError(true)
-      }
-    } finally {
-      setIsManualSyncing(false)
+  const {
+    isOnline,
+    isSyncing,
+    lastSyncTime,
+    pendingChanges,
+    syncProgress,
+    connectionQuality,
+    triggerSync,
+    getConnectionStatus,
+  } = useSyncStatus();
+
+  const getStatusIcon = () => {
+    if (!isOnline) {
+      return <WifiOff className="h-4 w-4 text-destructive" />;
     }
-  }
-  
+
+    if (isSyncing) {
+      return <RefreshCw className="h-4 w-4 animate-spin text-blue-500" />;
+    }
+
+    if (pendingChanges > 0) {
+      return <AlertCircle className="h-4 w-4 text-orange-500" />;
+    }
+
+    switch (connectionQuality) {
+      case "good":
+        return <CheckCircle className="h-4 w-4 text-green-500" />;
+      case "poor":
+        return <Activity className="h-4 w-4 text-yellow-500" />;
+      default:
+        return <Wifi className="h-4 w-4 text-muted-foreground" />;
+    }
+  };
+
+  const getStatusVariant = (): "default" | "secondary" | "destructive" | "outline" => {
+    if (!isOnline) return "destructive";
+    if (isSyncing) return "default";
+    if (pendingChanges > 0) return "secondary";
+    return "outline";
+  };
+
+  const getStatusColor = () => {
+    if (!isOnline) return "text-destructive";
+    if (isSyncing) return "text-blue-500";
+    if (pendingChanges > 0) return "text-orange-500";
+    if (connectionQuality === "good") return "text-green-500";
+    if (connectionQuality === "poor") return "text-yellow-500";
+    return "text-muted-foreground";
+  };
+
   const formatLastSync = () => {
-    if (!lastSyncTime) return "Never synced"
-    // If synced today, show time
-    const now = new Date()
-    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
-    const syncDate = new Date(lastSyncTime)
-    if (syncDate >= today) {
-      return `Last sync: Today at ${syncDate.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`
+    if (!lastSyncTime) return "Never synced";
+
+    const now = new Date();
+    const diffMs = now.getTime() - lastSyncTime.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMins / 60);
+    const diffDays = Math.floor(diffHours / 24);
+
+    if (diffMins < 1) return "Just now";
+    if (diffMins < 60) return `${diffMins}m ago`;
+    if (diffHours < 24) return `${diffHours}h ago`;
+    return `${diffDays}d ago`;
+  };
+
+  const getDetailedStatus = () => {
+    const status = getConnectionStatus();
+    const lastSyncText = formatLastSync();
+
+    if (isSyncing) {
+      return `${status} • Last sync: ${lastSyncText}`;
     }
-    // If synced yesterday
-    const yesterday = new Date(today)
-    yesterday.setDate(yesterday.getDate() - 1)
-    if (syncDate >= yesterday) {
-      return `Last sync: Yesterday at ${syncDate.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`
+
+    if (pendingChanges > 0) {
+      return `${status} changes • Last sync: ${lastSyncText}`;
     }
-    // Otherwise show date
-    return `Last sync: ${syncDate.toLocaleDateString()}`
-  }
-  
-  const isSyncing = isManualSyncing || syncInProgress;
-  
+
+    return `${status} • Last sync: ${lastSyncText}`;
+  };
+
   return (
-    <div>
-      <TooltipProvider>
+    <TooltipProvider>
+      <div className="flex items-center gap-2">
         <Tooltip>
           <TooltipTrigger asChild>
-            <div className="flex items-center gap-2">
-              {isOnline ? (
-                <Badge
-                  variant="outline"
-                  className={`gap-1 ${schemaErrors ? "border-red-500 text-red-500" : supabaseConfigured ? "border-green-500 text-green-500" : "border-amber-500 text-amber-500"}`}
-                >
-                  {schemaErrors ? (
-                    <>
-                      <Database className="h-3 w-3" />
-                      Schema Mismatch
-                    </>
-                  ) : (
-                    <>
-                      <Cloud className="h-3 w-3" />
-                      {supabaseConfigured ? "Online" : "Local Only"}
-                    </>
-                  )}
-                </Badge>
-              ) : (
-                <Badge variant="outline" className="gap-1 border-amber-500 text-amber-500">
-                  <CloudOff className="h-3 w-3" />
-                  Offline
-                  {pendingChanges > 0 && ` (${pendingChanges})`}
-                </Badge>
+            <Badge
+              variant={getStatusVariant()}
+              className={cn(
+                "flex items-center gap-1.5 px-2 py-1 text-xs font-medium cursor-help",
+                getStatusColor()
               )}
-              
-              {isOnline && supabaseConfigured && (
-                <>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className={`h-7 px-2 text-xs ${disableAutoSync ? "border-amber-500 text-amber-500" : ""}`}
-                    onClick={toggleAutoSync}
-                    title={disableAutoSync ? "Enable auto-sync" : "Disable auto-sync"}
-                  >
-                    <Clock className="h-3 w-3 mr-1" />
-                    {disableAutoSync ? "Auto: Off" : "Auto: On"}
-                  </Button>
-                  
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="h-7 px-2 text-xs"
-                    onClick={handleSync}
-                    disabled={isSyncing}
-                  >
-                    <RefreshCw className={`h-3 w-3 mr-1 ${isSyncing ? "animate-spin" : ""}`} />
-                    {pendingChanges > 0 ? `Sync (${pendingChanges})` : "Sync"}
-                  </Button>
-                </>
-              )}
-              
-              {lastSyncTime && (
-                <span className="text-xs text-muted-foreground hidden md:inline-block">
-                  {formatLastSync()}
-                </span>
-              )}
-              
-              {schemaErrors && isOnline && supabaseConfigured && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="h-7 px-2 text-xs border-red-500 text-red-500"
-                  onClick={() => router.push('/settings/database')}
-                >
-                  <Database className="h-3 w-3 mr-1" />
-                  Fix Schema
-                </Button>
-              )}
-            </div>
+            >
+              {getStatusIcon()}
+              <span className="hidden sm:inline">{getConnectionStatus()}</span>
+            </Badge>
           </TooltipTrigger>
-          <TooltipContent>
-            {isOnline
-              ? supabaseConfigured
-                ? schemaErrors
-                  ? "Database schema mismatch detected - sync is failing"
-                  : pendingChanges > 0
-                    ? `${pendingChanges} changes pending synchronization`
-                    : "Connected to server - all changes are synced"
-                : "Working in local mode - Supabase not configured"
-              : `Working offline - ${pendingChanges} changes will sync when connection is restored`}
-            {syncError && (
-              <div className="mt-1 text-red-400 text-xs">
-                Last sync error - click sync button to see details
+          <TooltipContent side="bottom" className="max-w-xs">
+            <div className="space-y-2">
+              <div className="font-medium">{getDetailedStatus()}</div>
+
+              {isSyncing && (
+                <div className="space-y-1">
+                  <div className="text-xs text-muted-foreground">
+                    Sync Progress: {Math.round(syncProgress)}%
+                  </div>
+                  <Progress value={syncProgress} className="h-1" />
+                </div>
+              )}
+
+              <div className="text-xs text-muted-foreground space-y-1">
+                <div className="flex items-center gap-1">
+                  <Wifi className="h-3 w-3" />
+                  Connection:{" "}
+                  {connectionQuality === "good"
+                    ? "Excellent"
+                    : connectionQuality === "poor"
+                    ? "Slow"
+                    : "Offline"}
+                </div>
+
+                {lastSyncTime && (
+                  <div className="flex items-center gap-1">
+                    <Clock className="h-3 w-3" />
+                    Last sync: {lastSyncTime.toLocaleString()}
+                  </div>
+                )}
+
+                {pendingChanges > 0 && (
+                  <div className="flex items-center gap-1">
+                    <AlertCircle className="h-3 w-3" />
+                    {pendingChanges} items pending sync
+                  </div>
+                )}
               </div>
-            )}
-            {disableAutoSync && (
-              <div className="mt-1 text-amber-400 text-xs">
-                Automatic synchronization is disabled
-              </div>
-            )}
+            </div>
           </TooltipContent>
         </Tooltip>
-      </TooltipProvider>
-      
-      {(showError && syncError) && (
-        <Alert variant="destructive" className="mt-2 py-2">
-          <AlertCircle className="h-4 w-4" />
-          <AlertDescription className="text-xs flex items-center justify-between">
-            <span>{syncError}</span>
-            <XCircle 
-              className="h-4 w-4 cursor-pointer" 
-              onClick={() => setShowError(false)}
-            />
-          </AlertDescription>
-        </Alert>
-      )}
-      
-      {schemaErrors && showError && (
-        <Alert variant="destructive" className="mt-2 py-2">
-          <Database className="h-4 w-4" />
-          <AlertDescription className="text-xs">
-            <span>Database schema mismatch detected. Go to </span>
-            <button 
-              className="underline font-medium"
-              onClick={() => router.push('/settings/database')}
-            >
-              Settings → Database
-            </button>
-            <span> to fix it.</span>
-          </AlertDescription>
-        </Alert>
-      )}
-    </div>
-  )
+
+        {/* Manual sync button - only show when online and not already syncing */}
+        {isOnline && !isSyncing && pendingChanges > 0 && (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={triggerSync}
+                className="h-8 w-8 p-0"
+              >
+                <RefreshCw className="h-4 w-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>Sync now ({pendingChanges} pending)</p>
+            </TooltipContent>
+          </Tooltip>
+        )}
+
+        {/* Offline indicator with retry button */}
+        {!isOnline && (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => window.location.reload()}
+                className="h-8 w-8 p-0 text-destructive"
+              >
+                <WifiOff className="h-4 w-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>Offline - Click to retry connection</p>
+            </TooltipContent>
+          </Tooltip>
+        )}
+      </div>
+    </TooltipProvider>
+  );
 }

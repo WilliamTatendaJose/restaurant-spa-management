@@ -66,6 +66,7 @@
     "next-auth": "^4.24.11",
     "next-themes": "latest",
     "nodemailer": "^6.10.1",
+    "puppeteer": "^24.10.1",
     "qrcode": "^1.5.4",
     "react": "^19",
     "react-day-picker": "8.10.1",

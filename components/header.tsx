@@ -19,24 +19,20 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 
 export function Header() {
-  const { userDetails, signOut } = useAuth();
+  const { user, signOut } = useAuth();
   const router = useRouter();
 
   const handleSignOut = async () => {
     await signOut();
+    router.push("/login");
   };
 
-  const getInitials = (name: string | null | undefined) => {
-    if (!name) return "U";
-    return name
-      .split(" ")
-      .map((n) => n[0])
-      .join("")
-      .toUpperCase();
+  const getInitials = (email: string | undefined) => {
+    if (!email) return "U";
+    return email.charAt(0).toUpperCase();
   };
 
-  const userName = userDetails?.name || "User";
-  const userRole = userDetails?.role || "guest";
+  const userEmail = user?.email || "Unknown User";
 
   return (
     <header className="sticky top-0 z-40 border-b bg-background">
@@ -56,9 +52,9 @@ export function Header() {
           </Sheet>
         </div>
 
-        {/* App title or logo could go here */}
+        {/* App title */}
         <div className="hidden md:block">
-          {/* You can add a logo or title here if needed */}
+          <h1 className="text-lg font-semibold">Restaurant SPA Management</h1>
         </div>
 
         {/* Push everything else to the right */}
@@ -76,25 +72,21 @@ export function Header() {
               <Button variant="ghost" size="icon" className="rounded-full">
                 <Avatar className="h-8 w-8">
                   <AvatarImage
-                    src="/placeholder.svg?height=32&width=32"
-                    alt="Avatar"
+                    src={user?.user_metadata?.avatar_url}
+                    alt="User Avatar"
                   />
-                  <AvatarFallback>{getInitials(userName)}</AvatarFallback>
+                  <AvatarFallback>{getInitials(userEmail)}</AvatarFallback>
                 </Avatar>
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
               <DropdownMenuLabel>
-                {userDetails ? (
-                  <div className="flex flex-col">
-                    <span>{userName}</span>
-                    <span className="text-xs text-muted-foreground">
-                      {userRole}
-                    </span>
-                  </div>
-                ) : (
-                  "My Account"
-                )}
+                <div className="flex flex-col">
+                  <span className="text-sm font-medium">{userEmail}</span>
+                  <span className="text-xs text-muted-foreground">
+                    Signed in via Supabase
+                  </span>
+                </div>
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={() => router.push("/profile")}>
@@ -108,7 +100,7 @@ export function Header() {
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={handleSignOut}>
                 <LogOut className="mr-2 h-4 w-4" />
-                Log out
+                Sign Out
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>

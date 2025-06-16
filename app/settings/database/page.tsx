@@ -2,62 +2,88 @@
 
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import { AlertCircle, CheckCircle2, Database, Info } from "lucide-react"
-import { isSupabaseConfigured } from "@/lib/supabase"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Badge } from "@/components/ui/badge"
+import { Alert, AlertDescription } from "@/components/ui/alert"
 import { useToast } from "@/components/ui/use-toast"
 import { useSyncStatus } from "@/components/sync-status-provider"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Separator } from "@/components/ui/separator"
+import { 
+  Database, 
+  RefreshCw, 
+  Trash2, 
+  Download, 
+  Upload, 
+  AlertCircle, 
+  CheckCircle,
+  Loader2
+} from "lucide-react"
+import { isSupabaseConfigured } from "@/lib/supabase"
+import { resetAndResync, manualSync, pushChanges, pullChanges } from "@/lib/sync-script"
 
 export default function DatabaseSettingsPage() {
   const [isLoading, setIsLoading] = useState(false)
-  const [result, setResult] = useState<{ success: boolean; message?: string; error?: string; errors?: string[]; createdTables?: string[]; updatedTables?: string[] } | null>(null)
+  const [result, setResult] = useState<{ 
+    success: boolean; 
+    message?: string; 
+    error?: string; 
+    count?: number;
+    details?: any;
+  } | null>(null)
+  
   const { toast } = useToast()
-  const { resetSchemaErrors } = useSyncStatus()
+  const { 
+    isOnline, 
+    isSyncing, 
+    pendingChanges, 
+    lastSyncTime,
+    resetSchemaErrors 
+  } = useSyncStatus()
+  
   const isConfigured = isSupabaseConfigured()
 
-  const runMigration = async (createTables: boolean = false) => {
+  const runOperation = async (operation: () => Promise<any>, operationName: string) => {
     setIsLoading(true)
     setResult(null)
 
     try {
-      // POST request is required for the actual migration
-      const response = await fetch(`/api/migrate${createTables ? "?createTables=true" : ""}`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        }
+      const operationResult = await operation()
+      setResult({
+        success: operationResult.success,
+        message: operationResult.success 
+          ? `${operationName} completed successfully` 
+          : `${operationName} failed`,
+        error: operationResult.error,
+        count: operationResult.count,
+        details: operationResult.details
       })
       
-      const data = await response.json()
-      setResult(data)
-      
-      if (data.success) {
-        // Reset schema errors in the sync status provider
-        resetSchemaErrors()
+      if (operationResult.success) {
+        resetSchemaErrors?.()
         
         toast({
-          title: "Migration successful",
-          description: data.message || "Database schema updated successfully",
+          title: `${operationName} completed`,
+          description: operationResult.count 
+            ? `${operationResult.count} items processed`
+            : "Operation completed successfully",
         })
       } else {
         toast({
-          title: "Migration failed",
-          description: data.error || "Failed to update database schema",
+          title: `${operationName} failed`,
+          description: operationResult.error || "Operation failed",
           variant: "destructive",
         })
       }
     } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : "Unknown error occurred"
       setResult({
         success: false,
-        error: error instanceof Error ? error.message : "Unknown error occurred",
+        error: errorMessage,
+        message: `${operationName} failed`
       })
       
       toast({
-        title: "Migration failed",
-        description: "An unexpected error occurred during migration",
+        title: `${operationName} failed`,
+        description: errorMessage,
         variant: "destructive",
       })
     } finally {
@@ -65,160 +91,207 @@ export default function DatabaseSettingsPage() {
     }
   }
 
+  const handleFullReset = () => runOperation(resetAndResync, "Database reset and resync")
+  const handleManualSync = () => runOperation(manualSync, "Manual sync")
+  const handlePushChanges = () => runOperation(pushChanges, "Push local changes")
+  const handlePullChanges = () => runOperation(pullChanges, "Pull server changes")
+
   return (
-    <div className="container mx-auto py-10">
-      <h1 className="text-2xl font-bold mb-6">Database Management</h1>
-      
-      <Tabs defaultValue="migration" className="w-full">
-        <TabsList className="grid w-full grid-cols-2 mb-4">
-          <TabsTrigger value="migration">Schema Migration</TabsTrigger>
-          <TabsTrigger value="troubleshooting">Troubleshooting</TabsTrigger>
-        </TabsList>
-        
-        <TabsContent value="migration">
-          <Card>
-            <CardHeader>
-              <CardTitle>Database Migration</CardTitle>
-              <CardDescription>
-                Run database migration to ensure all required tables and columns exist in your Supabase database.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {!isConfigured && (
-                <Alert variant="destructive" className="mb-4">
-                  <AlertCircle className="h-4 w-4" />
-                  <AlertTitle>Not Configured</AlertTitle>
-                  <AlertDescription>
-                    Supabase is not properly configured. Please check your environment variables.
-                  </AlertDescription>
-                </Alert>
-              )}
+    <div className="container mx-auto px-4 py-6 max-w-4xl">
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-3xl font-bold">Database Settings</h1>
+          <p className="text-muted-foreground">
+            Manage database synchronization and troubleshoot sync issues
+          </p>
+        </div>
 
-              {result && (
-                <Alert variant={result.success ? "default" : "destructive"} className="mb-4">
-                  {result.success ? <CheckCircle2 className="h-4 w-4" /> : <AlertCircle className="h-4 w-4" />}
-                  <AlertTitle>{result.success ? "Success" : "Error"}</AlertTitle>
-                  <AlertDescription>
-                    {result.message ||
-                      result.error ||
-                      (result.success ? "Migration completed successfully" : "Migration failed")}
-                      
-                    {result.createdTables && result.createdTables.length > 0 && (
-                      <div className="mt-2">
-                        <p className="font-semibold">Created tables:</p>
-                        <ul className="list-disc ml-5 mt-1">
-                          {result.createdTables.map(table => (
-                            <li key={table} className="text-xs">{table}</li>
-                          ))}
-                        </ul>
-                      </div>
-                    )}
-                    
-                    {result.updatedTables && result.updatedTables.length > 0 && (
-                      <div className="mt-2">
-                        <p className="font-semibold">Updated tables:</p>
-                        <ul className="list-disc ml-5 mt-1">
-                          {result.updatedTables.map(table => (
-                            <li key={table} className="text-xs">{table}</li>
-                          ))}
-                        </ul>
-                      </div>
-                    )}
-                    
-                    {result.errors && result.errors.length > 0 && (
-                      <div className="mt-2">
-                        <p className="font-semibold text-red-500">Errors:</p>
-                        <ul className="list-disc ml-5 mt-1">
-                          {result.errors.map((error, i) => (
-                            <li key={i} className="text-xs text-red-400">{error}</li>
-                          ))}
-                        </ul>
-                      </div>
-                    )}
-                  </AlertDescription>
-                </Alert>
-              )}
+        {/* Connection Status */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Database className="h-5 w-5" />
+              Connection Status
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <p className="text-sm font-medium">Internet Connection</p>
+                <Badge variant={isOnline ? "default" : "destructive"}>
+                  {isOnline ? "Online" : "Offline"}
+                </Badge>
+              </div>
+              <div className="space-y-2">
+                <p className="text-sm font-medium">Supabase Configuration</p>
+                <Badge variant={isConfigured ? "default" : "destructive"}>
+                  {isConfigured ? "Configured" : "Not Configured"}
+                </Badge>
+              </div>
+              <div className="space-y-2">
+                <p className="text-sm font-medium">Pending Changes</p>
+                <Badge variant={pendingChanges > 0 ? "secondary" : "outline"}>
+                  {pendingChanges} items
+                </Badge>
+              </div>
+              <div className="space-y-2">
+                <p className="text-sm font-medium">Last Sync</p>
+                <p className="text-sm text-muted-foreground">
+                  {lastSyncTime 
+                    ? lastSyncTime.toLocaleString() 
+                    : "Never synced"}
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
 
-              <p className="text-sm text-muted-foreground mb-4">
-                This will create any missing columns and add required fields for synchronization.
-                It's safe to run this multiple times as it only adds missing tables and columns.
-              </p>
-            </CardContent>
-            <CardFooter className="flex gap-2">
-              <Button onClick={() => runMigration(false)} disabled={isLoading || !isConfigured}>
-                {isLoading ? "Running Migration..." : "Update Schema"}
+        {/* Sync Operations */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Sync Operations</CardTitle>
+            <CardDescription>
+              Manual synchronization controls to resolve sync issues
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {!isConfigured && (
+              <Alert>
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>
+                  Supabase is not configured. Please set up your environment variables first.
+                </AlertDescription>
+              </Alert>
+            )}
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <Button
+                onClick={handleManualSync}
+                disabled={!isOnline || isSyncing || isLoading || !isConfigured}
+                className="h-auto p-4 flex-col gap-2"
+              >
+                {(isSyncing || isLoading) ? (
+                  <Loader2 className="h-5 w-5 animate-spin" />
+                ) : (
+                  <RefreshCw className="h-5 w-5" />
+                )}
+                <span className="font-medium">Bidirectional Sync</span>
+                <span className="text-xs opacity-75">
+                  Push local changes and pull server updates
+                </span>
               </Button>
 
               <Button
+                onClick={handlePushChanges}
+                disabled={!isOnline || isSyncing || isLoading || !isConfigured || pendingChanges === 0}
                 variant="outline"
-                onClick={() => runMigration(true)}
-                disabled={isLoading || !isConfigured}
+                className="h-auto p-4 flex-col gap-2"
               >
-                Create All Tables
+                <Upload className="h-5 w-5" />
+                <span className="font-medium">Push Changes</span>
+                <span className="text-xs opacity-75">
+                  Upload local changes to server
+                </span>
               </Button>
-            </CardFooter>
-          </Card>
-        </TabsContent>
-        
-        <TabsContent value="troubleshooting">
+
+              <Button
+                onClick={handlePullChanges}
+                disabled={!isOnline || isSyncing || isLoading || !isConfigured}
+                variant="outline"
+                className="h-auto p-4 flex-col gap-2"
+              >
+                <Download className="h-5 w-5" />
+                <span className="font-medium">Pull Changes</span>
+                <span className="text-xs opacity-75">
+                  Download server updates
+                </span>
+              </Button>
+
+              <Button
+                onClick={handleFullReset}
+                disabled={!isOnline || isSyncing || isLoading || !isConfigured}
+                variant="destructive"
+                className="h-auto p-4 flex-col gap-2"
+              >
+                <Trash2 className="h-5 w-5" />
+                <span className="font-medium">Reset Database</span>
+                <span className="text-xs opacity-75">
+                  Clear local data and resync from server
+                </span>
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Operation Result */}
+        {result && (
           <Card>
             <CardHeader>
-              <CardTitle>Database Troubleshooting</CardTitle>
-              <CardDescription>
-                Common issues and their solutions
-              </CardDescription>
+              <CardTitle className="flex items-center gap-2">
+                {result.success ? (
+                  <CheckCircle className="h-5 w-5 text-green-500" />
+                ) : (
+                  <AlertCircle className="h-5 w-5 text-destructive" />
+                )}
+                Operation Result
+              </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <Alert className="mb-4">
-                <Info className="h-4 w-4" />
-                <AlertTitle>Schema Mismatch Issues</AlertTitle>
-                <AlertDescription className="space-y-2">
-                  <p>If you're seeing errors like these, you need to run the database migration:</p>
-                  <ul className="list-disc ml-5">
-                    <li className="text-sm text-muted-foreground">
-                      "Could not find the 'is_available' column of 'inventory'"
-                    </li>
-                    <li className="text-sm text-muted-foreground">
-                      "null value in column 'id' violates not-null constraint"
-                    </li>
-                    <li className="text-sm text-muted-foreground">
-                      "Could not find the 'customer_id' column of 'bookings'"
-                    </li>
-                  </ul>
+            <CardContent>
+              <Alert variant={result.success ? "default" : "destructive"}>
+                <AlertDescription>
+                  <div className="space-y-2">
+                    <p className="font-medium">{result.message}</p>
+                    {result.count !== undefined && (
+                      <p>Items processed: {result.count}</p>
+                    )}
+                    {result.error && (
+                      <p className="text-sm opacity-75">Error: {result.error}</p>
+                    )}
+                    {result.details?.tables && (
+                      <div className="mt-2">
+                        <p className="text-sm font-medium">Table Details:</p>
+                        <ul className="text-sm opacity-75 ml-4">
+                          {Object.entries(result.details.tables).map(([table, info]: [string, any]) => (
+                            <li key={table}>
+                              {table}: {info.count || 0} items
+                              {info.error && ` (Error: ${info.error})`}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                  </div>
                 </AlertDescription>
               </Alert>
-              
-              <Separator />
-              
-              <div className="space-y-2">
-                <h3 className="text-lg font-medium">Common Solutions</h3>
-                <ul className="list-disc ml-5 space-y-2">
-                  <li className="text-sm">
-                    <span className="font-semibold">Schema errors:</span> Click the "Update Schema" button above to fix column mismatches.
-                  </li>
-                  <li className="text-sm">
-                    <span className="font-semibold">Missing tables:</span> Click "Create All Tables" if you're setting up a new database.
-                  </li>
-                  <li className="text-sm">
-                    <span className="font-semibold">Sync failing:</span> Try toggling auto-sync off and on from the status bar.
-                  </li>
-                  <li className="text-sm">
-                    <span className="font-semibold">Permissions issues:</span> Ensure your Supabase project has the correct security permissions.
-                  </li>
-                </ul>
-              </div>
             </CardContent>
-            <CardFooter>
-              <Button 
-                variant="outline" 
-                onClick={() => window.open("https://supabase.com/docs", "_blank")}
-              >
-                Supabase Documentation
-              </Button>
-            </CardFooter>
           </Card>
-        </TabsContent>
-      </Tabs>
+        )}
+
+        {/* Troubleshooting Tips */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Troubleshooting</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="text-sm space-y-2">
+              <p><strong>Sync Issues:</strong></p>
+              <ul className="list-disc list-inside space-y-1 text-muted-foreground">
+                <li>Try "Bidirectional Sync" first to resolve most sync conflicts</li>
+                <li>If data appears inconsistent, use "Reset Database" to get a fresh copy from server</li>
+                <li>Use "Push Changes" when you have local changes that need to be uploaded</li>
+                <li>Use "Pull Changes" to get the latest data from server without uploading local changes</li>
+              </ul>
+              
+              <p className="mt-4"><strong>Authentication Issues:</strong></p>
+              <ul className="list-disc list-inside space-y-1 text-muted-foreground">
+                <li>Make sure you're logged in to sync with the server</li>
+                <li>User authentication works across browsers, but data sync requires login</li>
+                <li>If sync fails with "Authentication required", try logging out and back in</li>
+              </ul>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   )
 }

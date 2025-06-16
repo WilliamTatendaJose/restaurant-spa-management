@@ -4,10 +4,21 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Search, Edit } from "lucide-react"
+import { Search, Edit, Trash2 } from "lucide-react"
 import Link from "next/link"
 import { menuItemsApi } from "@/lib/db"
 import { useToast } from "@/components/ui/use-toast"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
 
 interface MenuItem {
   id: string
@@ -28,6 +39,7 @@ export function MenuItemList({ category }: MenuItemListProps) {
   const [searchQuery, setSearchQuery] = useState("")
   const [menuItems, setMenuItems] = useState<MenuItem[]>([])
   const [isLoading, setIsLoading] = useState(true)
+  const [deletingItemId, setDeletingItemId] = useState<string | null>(null)
   const { toast } = useToast()
 
   useEffect(() => {
@@ -50,6 +62,30 @@ export function MenuItemList({ category }: MenuItemListProps) {
     }
     loadMenuItems()
   }, [category, toast])
+
+  const handleDelete = async (item: MenuItem) => {
+    try {
+      setDeletingItemId(item.id)
+      await menuItemsApi.delete(item.id)
+      
+      // Remove the item from the local state
+      setMenuItems(prevItems => prevItems.filter(i => i.id !== item.id))
+      
+      toast({
+        title: "Menu item deleted",
+        description: `${item.name} has been successfully deleted.`,
+      })
+    } catch (error) {
+      console.error("Error deleting menu item:", error)
+      toast({
+        title: "Error",
+        description: "Failed to delete menu item. Please try again.",
+        variant: "destructive",
+      })
+    } finally {
+      setDeletingItemId(null)
+    }
+  }
 
   const filteredItems = menuItems.filter(
     (item) =>
@@ -121,12 +157,45 @@ export function MenuItemList({ category }: MenuItemListProps) {
                       )}
                     </TableCell>
                     <TableCell className="text-right">
-                      <Button variant="ghost" size="sm" asChild>
-                        <Link href={`/services/restaurant/${item.id}`}>
-                          <Edit className="mr-1 h-4 w-4" />
-                          Edit
-                        </Link>
-                      </Button>
+                      <div className="flex items-center gap-2 justify-end">
+                        <Button variant="ghost" size="sm" asChild>
+                          <Link href={`/services/restaurant/${item.id}`}>
+                            <Edit className="mr-1 h-4 w-4" />
+                            Edit
+                          </Link>
+                        </Button>
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button 
+                              variant="ghost" 
+                              size="sm" 
+                              className="text-destructive hover:text-destructive"
+                              disabled={deletingItemId === item.id}
+                            >
+                              <Trash2 className="mr-1 h-4 w-4" />
+                              Delete
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                This action cannot be undone. This will permanently delete "{item.name}" from your restaurant menu.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancel</AlertDialogCancel>
+                              <AlertDialogAction
+                                onClick={() => handleDelete(item)}
+                                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                disabled={deletingItemId === item.id}
+                              >
+                                {deletingItemId === item.id ? "Deleting..." : "Delete Menu Item"}
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))

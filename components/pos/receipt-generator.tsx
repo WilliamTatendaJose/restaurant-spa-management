@@ -9,7 +9,7 @@ import html2canvas from "html2canvas";
 import { ComponentToPrint } from "@/components/pos/component-to-print";
 import { PrintPreviewModal } from "@/components/pos/print-preview-modal";
 import { ZIMRAApiClient } from "@/lib/zimra-api";
-import { useToast } from "@/hooks/use-toast";
+import { useToast } from "@/components/ui/use-toast";
 import { businessSettingsApi } from "@/lib/db";
 
 interface BusinessSettings {
@@ -535,7 +535,7 @@ export const ReceiptGenerator = forwardRef<
     // Improved PDF generation
     const generatePDF = async () => {
       // Try multiple approaches to get the receipt element
-      let receiptElement = null;
+      let receiptElement: HTMLElement | null = null;
 
       // First, try the passed ref
       if (ref && "current" in ref && ref.current) {
@@ -549,9 +549,8 @@ export const ReceiptGenerator = forwardRef<
 
       // If still no element, try querySelector
       if (!receiptElement) {
-        receiptElement = document.querySelector(
-          '[data-receipt="true"] #receipt-to-print'
-        );
+        const element = document.querySelector('[data-receipt="true"] #receipt-to-print');
+        receiptElement = element as HTMLElement;
       }
 
       if (!receiptElement) {

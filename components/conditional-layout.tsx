@@ -1,28 +1,36 @@
-"use client";
+"use client"
 
-import { usePathname } from "next/navigation";
-import { Sidebar } from "@/components/sidebar";
-import { Header } from "@/components/header";
+import { usePathname } from "next/navigation"
+import { Header } from "@/components/header"
+import { Sidebar } from "@/components/sidebar"
+import { ProtectedRoute } from "@/components/protected-route"
 
 export function ConditionalLayout({ children }: { children: React.ReactNode }) {
-  const pathname = usePathname();
-  const isLoginPage = pathname === "/login";
+  const pathname = usePathname()
+  
+  // Pages that don't need authentication or layout
+  const publicPages = ['/login']
+  const isPublicPage = publicPages.includes(pathname)
 
-  if (isLoginPage) {
-    // Login page: no sidebar or header
-    return <>{children}</>;
+  // If it's a public page, render without layout or protection
+  if (isPublicPage) {
+    return <>{children}</>
   }
 
-  // All other pages: show sidebar and header
+  // For all other pages, wrap with authentication and layout
   return (
-    <div className="flex min-h-screen flex-col">
-      <Header />
-      <div className="flex flex-1">
-        <Sidebar />
-        <main className="flex-1 overflow-y-auto bg-muted/20 pb-16">
-          {children}
-        </main>
+    <ProtectedRoute>
+      <div className="flex min-h-screen bg-background">
+        <div className="hidden md:flex">
+          <Sidebar />
+        </div>
+        <div className="flex-1 flex flex-col">
+          <Header />
+          <main className="flex-1 overflow-auto">
+            {children}
+          </main>
+        </div>
       </div>
-    </div>
-  );
+    </ProtectedRoute>
+  )
 }

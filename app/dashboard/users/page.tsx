@@ -383,14 +383,14 @@ function UsersManagement() {
                         Department
                       </Label>
                       <Select
-                        value={formData.department}
-                        onValueChange={(value) => setFormData({ ...formData, department: value })}
+                        value={formData.department || "none"}
+                        onValueChange={(value) => setFormData({ ...formData, department: value === "none" ? "" : value })}
                       >
                         <SelectTrigger className="col-span-3">
                           <SelectValue placeholder="Select a department" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="">None</SelectItem>
+                          <SelectItem value="none">None</SelectItem>
                           <SelectItem value="restaurant">Restaurant</SelectItem>
                           <SelectItem value="spa">Spa</SelectItem>
                           <SelectItem value="admin">Administration</SelectItem>

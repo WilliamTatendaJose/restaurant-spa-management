@@ -4,7 +4,7 @@ import { SpaServiceForm } from "@/components/services/spa-service-form"
 import { PageHeader } from "@/components/page-header"
 import { useEffect, useState } from "react"
 import { spaServicesApi } from "@/lib/db"
-import { useToast } from "@/hooks/use-toast"
+import { useToast } from "@/components/ui/use-toast"
 import { Skeleton } from "@/components/ui/skeleton"
 
 export default function EditSpaServicePage({ params }: { params: { id: string } }) {

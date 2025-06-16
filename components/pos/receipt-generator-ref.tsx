@@ -12,7 +12,7 @@ import { Printer, Mail, Share2, Loader2 } from "lucide-react";
 import { useReactToPrint } from "react-to-print";
 import { jsPDF } from "jspdf";
 import html2canvas from "html2canvas";
-import { useToast } from "@/hooks/use-toast";
+import { useToast } from "@/components/ui/use-toast";
 
 interface CartItem {
   id: string;

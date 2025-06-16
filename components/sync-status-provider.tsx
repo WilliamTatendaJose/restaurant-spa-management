@@ -1,366 +1,355 @@
-"use client"
+"use client";
 
-import type React from "react"
+import React, {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  useCallback,
+} from "react";
+import { useToast } from "@/components/ui/use-toast";
+import { useAuth } from "@/lib/auth-context";
+import {
+  databaseSync,
+  resetAndResync,
+  manualSync,
+  getSyncStatus,
+} from "@/lib/sync-script";
 
-import { createContext, useContext, useEffect, useState } from "react"
-import { getPendingChangesCount, syncWithSupabase, pullFromSupabase, initDatabase, addSampleData } from "@/lib/db"
-import { isSupabaseConfigured } from "@/lib/supabase"
+interface ConflictData {
+  id: string;
+  type: "transaction" | "customer" | "spa_service" | "menu_item";
+  localData: any;
+  serverData: any;
+  timestamp: Date;
+}
 
 interface SyncStatusContextType {
-  isOnline: boolean
-  pendingChanges: number
-  sync: () => Promise<{ success: boolean; count?: number; error?: string }>
-  lastSyncTime: Date | null
-  syncError: string | null
-  isSyncing: boolean
-  schemaErrors: string[] | null
-  disableAutoSync: boolean
-  toggleAutoSync: () => void
-  resetSchemaErrors: () => void
+  isOnline: boolean;
+  isSyncing: boolean;
+  lastSyncTime: Date | null;
+  pendingChanges: number;
+  syncProgress: number;
+  connectionQuality: "good" | "poor" | "offline";
+  conflicts: ConflictData[];
+  schemaErrors?: string[];
+  sync?: () => Promise<{ success: boolean; count?: number; error?: string }>;
+  triggerSync: () => Promise<void>;
+  resetDatabase?: () => Promise<void>;
+  resetSchemaErrors?: () => void;
+  getConnectionStatus: () => string;
+  resolveConflict: (
+    id: string,
+    resolution: "local" | "server" | "merge",
+    mergedData?: any
+  ) => Promise<void>;
+  resolveAllConflicts: (resolution: "local" | "server") => Promise<void>;
 }
 
-const SyncStatusContext = createContext<SyncStatusContextType>({
-  isOnline: true,
-  pendingChanges: 0,
-  sync: async () => ({ success: true, count: 0 }),
-  lastSyncTime: null,
-  syncError: null,
-  isSyncing: false,
-  schemaErrors: null,
-  disableAutoSync: false,
-  toggleAutoSync: () => {},
-  resetSchemaErrors: () => {}
-})
+const SyncStatusContext = createContext<SyncStatusContextType | undefined>(
+  undefined
+);
 
-export function SyncStatusProvider({ children }: { children: React.ReactNode }) {
-  const [isOnline, setIsOnline] = useState(true)
-  const [pendingChanges, setPendingChanges] = useState(0)
-  const [isDbInitialized, setIsDbInitialized] = useState(false)
-  const [lastSyncTime, setLastSyncTime] = useState<Date | null>(null)
-  const [isSyncing, setIsSyncing] = useState(false)
-  const [syncError, setSyncError] = useState<string | null>(null)
-  const [schemaErrors, setSchemaErrors] = useState<string[] | null>(null)
-  const [disableAutoSync, setDisableAutoSync] = useState(false)
+export function useSyncStatus() {
+  const context = useContext(SyncStatusContext);
+  if (context === undefined) {
+    throw new Error("useSyncStatus must be used within a SyncStatusProvider");
+  }
+  return context;
+}
 
-  // Initialize database once
-  useEffect(() => {
-    const initialize = async () => {
-      try {
-        const success = await initDatabase()
-        if (success) {
-          setIsDbInitialized(true)
-          // Add sample data for demo purposes
-          await addSampleData()
+interface SyncStatusProviderProps {
+  children: React.ReactNode;
+}
+
+export function SyncStatusProvider({ children }: SyncStatusProviderProps) {
+  const [isOnline, setIsOnline] = useState(true);
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [lastSyncTime, setLastSyncTime] = useState<Date | null>(null);
+  const [pendingChanges, setPendingChanges] = useState(0);
+  const [syncProgress, setSyncProgress] = useState(0);
+  const [connectionQuality, setConnectionQuality] = useState<
+    "good" | "poor" | "offline"
+  >("good");
+  const [conflicts, setConflicts] = useState<ConflictData[]>([]);
+  const [schemaErrors, setSchemaErrors] = useState<string[]>([]);
+
+  const { toast } = useToast();
+  const { user, isLoading: authLoading } = useAuth();
+
+  // Helper function to get unsynced records count
+  const getUnsyncedCount = async () => {
+    if (!user) return 0; // No user, no pending changes
+
+    try {
+      const { listRecords } = await import("@/lib/db");
+      const tables = [
+        "menu_items",
+        "spa_services",
+        "transactions",
+        "customers",
+        "bookings",
+        "inventory",
+        "staff",
+      ];
+
+      let total = 0;
+      for (const table of tables) {
+        try {
+          const unsynced = await listRecords(table, { is_synced: 0 });
+          total += unsynced.length;
+        } catch (error) {
+          console.error(`Error counting unsynced ${table}:`, error);
         }
-      } catch (error) {
-        console.error("Error initializing database:", error)
-        setSyncError(`Database initialization error: ${error instanceof Error ? error.message : String(error)}`)
       }
+      return total;
+    } catch (error) {
+      console.error("Error counting unsynced records:", error);
+      return 0;
+    }
+  };
+
+  // Enhanced sync function with better error handling
+  const sync = useCallback(async (): Promise<{
+    success: boolean;
+    count?: number;
+    error?: string;
+  }> => {
+    if (!user) {
+      return { success: false, error: "Please sign in to sync data" };
     }
 
-    initialize()
-  }, [])
-
-  // Check for pending changes periodically
-  useEffect(() => {
-    if (!isDbInitialized) return
-
-    const checkPendingChanges = () => {
-      try {
-        const count = getPendingChangesCount()
-        setPendingChanges(count)
-      } catch (error) {
-        console.error("Error checking pending changes:", error)
-        // Don't set a UI error for this routine check
-      }
+    if (isSyncing || !isOnline) {
+      return { success: false, error: "Sync not possible" };
     }
 
-    // Initial check
-    checkPendingChanges()
+    setIsSyncing(true);
+    setSyncProgress(0);
 
-    // Set up interval for checking
-    const interval = setInterval(checkPendingChanges, 5000)
+    try {
+      // Suppress toast notifications during sync to avoid spam
+      databaseSync.suppressToasts(10000);
 
-    return () => clearInterval(interval)
-  }, [isDbInitialized])
+      setSyncProgress(25);
+      const result = await manualSync();
+      setSyncProgress(75);
 
-  // Set up auto-sync when online
-  useEffect(() => {
-    if (!isDbInitialized || !isOnline || isSyncing || !isSupabaseConfigured() || disableAutoSync) return
+      if (result.success) {
+        setLastSyncTime(new Date());
+        setSyncProgress(100);
 
-    // Auto-sync if there are pending changes and we're online
-    const autoSync = async () => {
-      try {
-        // Clear previous errors on new sync attempt
-        setSyncError(null)
+        // Update pending changes count
+        setTimeout(async () => {
+          const count = await getUnsyncedCount();
+          setPendingChanges(count);
+        }, 1000);
 
-        if (pendingChanges > 0) {
-          await performSync()
-        } else {
-          // If no pending changes, just pull from server
-          await performPull()
-        }
-      } catch (error) {
-        console.error("Auto-sync error:", error)
-        // Capture the error message but don't display a toast for auto-sync
-        setSyncError(`Auto-sync error: ${error instanceof Error ? error.message : String(error)}`)
+        return { success: true, count: result.count };
+      } else {
+        console.error("Sync failed:", result.error);
+        return { success: false, error: result.error };
       }
+    } catch (error) {
+      console.error("Sync error:", error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : "Unknown sync error",
+      };
+    } finally {
+      setIsSyncing(false);
+      setSyncProgress(0);
+    }
+  }, [isSyncing, isOnline, user]);
+
+  // Enhanced reset and resync function
+  const fullReset = useCallback(async (): Promise<{
+    success: boolean;
+    count?: number;
+    error?: string;
+  }> => {
+    if (!user) {
+      return { success: false, error: "Please sign in to reset and sync data" };
     }
 
-    // Set up interval for auto-sync
-    const interval = setInterval(autoSync, 60000) // Every minute
+    if (isSyncing) {
+      return { success: false, error: "Sync already in progress" };
+    }
 
-    return () => clearInterval(interval)
-  }, [isDbInitialized, isOnline, pendingChanges, isSyncing, disableAutoSync])
+    setIsSyncing(true);
+    setSyncProgress(0);
 
+    try {
+      // Suppress toasts during reset
+      databaseSync.suppressToasts(15000);
+
+      setSyncProgress(10);
+      const result = await resetAndResync();
+      setSyncProgress(90);
+
+      if (result.success) {
+        setLastSyncTime(new Date());
+        setPendingChanges(0); // Reset should clear all pending changes
+        setSyncProgress(100);
+
+        return { success: true, count: result.count };
+      } else {
+        return { success: false, error: result.error };
+      }
+    } catch (error) {
+      console.error("Reset and resync error:", error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : "Reset failed",
+      };
+    } finally {
+      setIsSyncing(false);
+      setSyncProgress(0);
+    }
+  }, [isSyncing, user]);
+
+  // Monitor online status
   useEffect(() => {
-    // Check initial online status
-    setIsOnline(navigator.onLine)
-
-    // Set up event listeners for online/offline status
     const handleOnline = () => {
-      setIsOnline(true)
-      // Try to sync when we come back online
-      if (isDbInitialized && isSupabaseConfigured()) {
-        performSync()
-      }
-    }
+      setIsOnline(true);
+      setConnectionQuality("good");
+    };
 
-    const handleOffline = () => setIsOnline(false)
+    const handleOffline = () => {
+      setIsOnline(false);
+      setConnectionQuality("offline");
+    };
 
-    window.addEventListener("online", handleOnline)
-    window.addEventListener("offline", handleOffline)
+    // Set initial state
+    setIsOnline(navigator.onLine);
+    setConnectionQuality(navigator.onLine ? "good" : "offline");
+
+    window.addEventListener("online", handleOnline);
+    window.addEventListener("offline", handleOffline);
 
     return () => {
-      window.removeEventListener("online", handleOnline)
-      window.removeEventListener("offline", handleOffline)
-    }
-  }, [isDbInitialized])
+      window.removeEventListener("online", handleOnline);
+      window.removeEventListener("offline", handleOffline);
+    };
+  }, []);
 
-  // Detect schema errors from sync errors
-  const detectSchemaErrors = (error: string) => {
-    const schemaErrorPatterns = [
-      // Match column not found errors
-      /Could not find the '([^']+)' column of '([^']+)'/i,
-      // Match constraint violations
-      /null value in column "([^"]+)" .*?violates not-null constraint/i,
-      // Other schema-related error patterns can be added here
-    ]
-    
-    for (const pattern of schemaErrorPatterns) {
-      if (pattern.test(error)) {
-        return true
+  // Count pending changes when user changes or on startup
+  useEffect(() => {
+    if (!authLoading) {
+      const loadInitialData = async () => {
+        const count = await getUnsyncedCount();
+        setPendingChanges(count);
+      };
+
+      loadInitialData();
+    }
+  }, [user, authLoading]);
+
+  // Auto-sync when coming online (only if user is authenticated)
+  useEffect(() => {
+    if (user && isOnline && !isSyncing && pendingChanges > 0) {
+      const autoSyncTimer = setTimeout(() => {
+        console.log("Auto-syncing after coming online...");
+        sync().catch((error) => console.error("Auto-sync failed:", error));
+      }, 2000); // 2 second delay
+
+      return () => clearTimeout(autoSyncTimer);
+    }
+  }, [isOnline, isSyncing, pendingChanges, sync, user]);
+
+  const triggerSync = useCallback(async () => {
+    const result = await sync();
+
+    // Only show toast for manual triggers and if not suppressed
+    if (!getSyncStatus().suppressToasts) {
+      if (result.success) {
+        toast({
+          title: "Sync completed",
+          description: result.count
+            ? `${result.count} items synchronized`
+            : "All data is up to date",
+        });
+      } else {
+        toast({
+          title: "Sync failed",
+          description: result.error || "Unable to sync with server",
+          variant: "destructive",
+        });
       }
     }
-    
-    return false
-  }
+  }, [sync, toast]);
 
-  // Parse schema error details
-  const parseSchemaErrors = (error: string) => {
-    // Extract table and column information from error message
-    let match;
-    
-    // Check for "Could not find column" error
-    match = error.match(/Could not find the '([^']+)' column of '([^']+)'/i)
-    if (match) {
-      const [_, column, table] = match
-      return `Missing column: ${column} in table ${table}`
+  // Reset function for UI
+  const resetDatabase = useCallback(async () => {
+    const result = await fullReset();
+
+    if (result.success) {
+      toast({
+        title: "Database reset",
+        description: `Database reset and ${result.count} items synchronized`,
+      });
+    } else {
+      toast({
+        title: "Reset failed",
+        description: result.error || "Unable to reset database",
+        variant: "destructive",
+      });
     }
-    
-    // Check for not-null constraint error
-    match = error.match(/null value in column "([^"]+)" of relation "([^"]+)"/i)
-    if (match) {
-      const [_, column, table] = match
-      return `Not-null constraint violated: ${column} in table ${table}`
+  }, [fullReset, toast]);
+
+  const resetSchemaErrors = useCallback(() => {
+    setSchemaErrors([]);
+  }, []);
+
+  const getConnectionStatus = () => {
+    if (!user) return "Not signed in";
+    if (!isOnline) return "Offline";
+    switch (connectionQuality) {
+      case "good":
+        return "Online";
+      case "poor":
+        return "Online (Slow)";
+      default:
+        return "Offline";
     }
-    
-    return error
-  }
+  };
 
-  // Function to reset schema errors
-  const resetSchemaErrors = () => {
-    setSchemaErrors(null)
-  }
+  // Simplified conflict resolution (for future enhancement)
+  const resolveConflict = async (
+    id: string,
+    resolution: "local" | "server" | "merge",
+    mergedData?: any
+  ) => {
+    console.log(`Resolving conflict ${id} with ${resolution}`, mergedData);
+    // Remove resolved conflict
+    setConflicts((prev) => prev.filter((c) => c.id !== id));
+  };
 
-  // Function to toggle auto sync
-  const toggleAutoSync = () => {
-    setDisableAutoSync(prev => !prev)
-  }
+  const resolveAllConflicts = async (resolution: "local" | "server") => {
+    console.log(`Resolving all conflicts with ${resolution}`);
+    setConflicts([]);
+  };
 
-  // Function to perform sync
-  const performSync = async () => {
-    if (!isOnline || isSyncing || !isSupabaseConfigured()) {
-      return { success: false, error: "Cannot sync at this time" }
-    }
-
-    setIsSyncing(true)
-    // Clear previous errors
-    setSyncError(null)
-
-    try {
-      // First push local changes to server
-      const pushResult = await syncWithSupabase()
-
-      if (!pushResult.success) {
-        // Handle specific push error
-        const errorMsg = pushResult.error || "Unknown sync push error"
-        setSyncError(errorMsg)
-        
-        // Detect if it's a schema-related error
-        if (pushResult.error && detectSchemaErrors(pushResult.error)) {
-          // Either create or append to schema errors list
-          const newError = parseSchemaErrors(pushResult.error)
-          setSchemaErrors(prev => {
-            if (!prev) return [newError]
-            if (!prev.includes(newError)) return [...prev, newError]
-            return prev
-          })
-        }
-        
-        return { success: false, error: errorMsg }
-      }
-
-      // Then pull changes from server
-      const pullResult = await pullFromSupabase()
-
-      if (!pullResult.success) {
-        // Handle specific pull error
-        const errorMsg = pullResult.error || "Unknown sync pull error"
-        setSyncError(errorMsg)
-        
-        // Detect if it's a schema-related error
-        if (pullResult.error && detectSchemaErrors(pullResult.error)) {
-          // Either create or append to schema errors list
-          const newError = parseSchemaErrors(pullResult.error)
-          setSchemaErrors(prev => {
-            if (!prev) return [newError]
-            if (!prev.includes(newError)) return [...prev, newError]
-            return prev
-          })
-        }
-        
-        return { success: false, error: errorMsg }
-      }
-
-      // Update pending changes count
-      setPendingChanges(getPendingChangesCount())
-
-      // Update last sync time
-      setLastSyncTime(new Date())
-
-      return {
-        success: true,
-        count: (pushResult.count || 0) + (pullResult.count || 0),
-      }
-    } catch (error) {
-      console.error("Sync error:", error)
-      const errorMessage = error instanceof Error ? error.message : String(error)
-      setSyncError(errorMessage)
-      
-      // Check for schema errors in the thrown error too
-      if (typeof errorMessage === 'string' && detectSchemaErrors(errorMessage)) {
-        const newError = parseSchemaErrors(errorMessage)
-        setSchemaErrors(prev => {
-          if (!prev) return [newError]
-          if (!prev.includes(newError)) return [...prev, newError]
-          return prev
-        })
-      }
-      
-      return { success: false, error: errorMessage }
-    } finally {
-      setIsSyncing(false)
-    }
-  }
-
-  // Function to pull changes from server
-  const performPull = async () => {
-    if (!isOnline || isSyncing || !isSupabaseConfigured()) {
-      return { success: false, error: "Cannot pull at this time" }
-    }
-
-    setIsSyncing(true)
-    // Clear previous errors
-    setSyncError(null)
-
-    try {
-      // Pull changes from server
-      const result = await pullFromSupabase()
-
-      if (!result.success && result.error) {
-        setSyncError(result.error)
-        
-        // Check for schema errors
-        if (detectSchemaErrors(result.error)) {
-          const newError = parseSchemaErrors(result.error)
-          setSchemaErrors(prev => {
-            if (!prev) return [newError]
-            if (!prev.includes(newError)) return [...prev, newError]
-            return prev
-          })
-        }
-      }
-
-      // Update last sync time
-      setLastSyncTime(new Date())
-      return result
-    } catch (error) {
-      console.error("Pull error:", error)
-      const errorMessage = error instanceof Error ? error.message : String(error)
-      setSyncError(errorMessage)
-      
-      // Check for schema errors in the thrown error too
-      if (typeof errorMessage === 'string' && detectSchemaErrors(errorMessage)) {
-        const newError = parseSchemaErrors(errorMessage)
-        setSchemaErrors(prev => {
-          if (!prev) return [newError]
-          if (!prev.includes(newError)) return [...prev, newError]
-          return prev
-        })
-      }
-      
-      return { success: false, error: errorMessage }
-    } finally {
-      setIsSyncing(false)
-    }
-  }
-
-  // Function to manually trigger sync
-  const sync = async () => {
-    if (!isOnline) {
-      return { success: false, error: "Device is offline" }
-    }
-
-    if (!isDbInitialized) {
-      return { success: false, error: "Database not initialized" }
-    }
-
-    if (!isSupabaseConfigured()) {
-      return { success: false, error: "Supabase not configured" }
-    }
-
-    return performSync()
-  }
+  const value: SyncStatusContextType = {
+    isOnline,
+    isSyncing,
+    lastSyncTime,
+    pendingChanges,
+    syncProgress,
+    connectionQuality,
+    conflicts,
+    schemaErrors,
+    sync,
+    triggerSync,
+    resetDatabase,
+    resetSchemaErrors,
+    getConnectionStatus,
+    resolveConflict,
+    resolveAllConflicts,
+  };
 
   return (
-    <SyncStatusContext.Provider
-      value={{
-        isOnline,
-        pendingChanges,
-        sync,
-        lastSyncTime,
-        syncError,
-        isSyncing,
-        schemaErrors,
-        disableAutoSync,
-        toggleAutoSync,
-        resetSchemaErrors
-      }}
-    >
+    <SyncStatusContext.Provider value={value}>
       {children}
     </SyncStatusContext.Provider>
-  )
+  );
 }
-
-export const useSyncStatus = () => useContext(SyncStatusContext)
