@@ -11,7 +11,7 @@ export function middleware(request: NextRequest) {
   
   // Protected routes require authentication
   const protectedRoutes = [
-    '/',
+    '/dashboard',
     '/bookings',
     '/customers',
     '/inventory',

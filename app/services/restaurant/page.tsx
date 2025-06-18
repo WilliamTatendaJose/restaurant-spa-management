@@ -10,15 +10,15 @@ import { Plus } from "lucide-react"
 import Link from "next/link"
 
 const categories = [
-  { id: "food", label: "Food", description: "Main dishes and entrees" },
-  { id: "drinks", label: "Drinks", description: "Beverages and cocktails" },
-  { id: "desserts", label: "Desserts", description: "Sweet treats and desserts" },
-  { id: "appetizers", label: "Appetizers", description: "Starters and small plates" },
-  { id: "mains", label: "Mains", description: "Main course dishes" },
+  { id: "appetizer", label: "Appetizers", description: "Starters and small plates" },
+  { id: "main", label: "Main Courses", description: "Main dishes and entrees" },
+  { id: "beverage", label: "Beverages", description: "Drinks and cocktails" },
+  { id: "dessert", label: "Desserts", description: "Sweet treats and desserts" },
+  { id: "all", label: "All Items", description: "View all menu items" },
 ]
 
 export default function RestaurantServicesPage() {
-  const [activeCategory, setActiveCategory] = useState("food")
+  const [activeCategory, setActiveCategory] = useState("all")
 
   return (
     <div className="container mx-auto px-4 py-6">

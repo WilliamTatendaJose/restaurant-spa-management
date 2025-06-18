@@ -152,6 +152,15 @@ export function POSInterface() {
   const { toast } = useToast();
   const { isOnline } = useSyncStatus();
   const [activeTab, setActiveTab] = useState("spa");
+  const [activeRestaurantCategory, setActiveRestaurantCategory] = useState("all");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [customerSearchQuery, setCustomerSearchQuery] = useState("");
+  const [isCustomerModalOpen, setIsCustomerModalOpen] = useState(false);
+  const [newCustomerData, setNewCustomerData] = useState({
+    name: "",
+    email: "",
+    phone: "",
+  });
   const [cart, setCart] = useState<CartItem[]>([]);
   const [customerName, setCustomerName] = useState("");
   const [paymentMethod, setPaymentMethod] = useState("cash");
@@ -171,7 +180,6 @@ export function POSInterface() {
   const [filteredTransactions, setFilteredTransactions] = useState<
     Transaction[]
   >([]);
-  const [searchQuery, setSearchQuery] = useState("");
   const [typeFilter, setTypeFilter] = useState<string>("all");
   const [paymentFilter, setPaymentFilter] = useState<string>("all");
   const [selectedTransaction, setSelectedTransaction] =
@@ -312,8 +320,8 @@ export function POSInterface() {
         menuItemsPromise as Promise<MenuItem[]>,
       ]);
 
-      // Validate and transform data
-      const spaProducts = (spaServices || [])
+      // Validate and transform spa services data with deduplication
+      let spaProducts = (spaServices || [])
         .filter(
           (service) =>
             service &&
@@ -330,7 +338,28 @@ export function POSInterface() {
           duration: Math.max(0, service.duration || 0),
         }));
 
-      const restaurantProducts = (menuItems || [])
+      // Deduplicate spa services by name and category
+      spaProducts = spaProducts.reduce((acc: Product[], current: Product) => {
+        const existingIndex = acc.findIndex(service => 
+          service.name?.toLowerCase() === current.name?.toLowerCase() && 
+          service.category === current.category
+        );
+        
+        if (existingIndex === -1) {
+          acc.push(current);
+        } else {
+          // Keep the one with higher price or more recent data (assuming later in array is more recent)
+          const existing = acc[existingIndex];
+          if (current.price >= existing.price) {
+            acc[existingIndex] = current;
+          }
+        }
+        
+        return acc;
+      }, []);
+
+      // Validate and transform restaurant menu items data with deduplication
+      let restaurantProducts = (menuItems || [])
         .filter(
           (item) =>
             item &&
@@ -347,6 +376,28 @@ export function POSInterface() {
           image_url: item.image_url,
         }));
 
+      // Deduplicate restaurant items by name and category
+      restaurantProducts = restaurantProducts.reduce((acc: Product[], current: Product) => {
+        const existingIndex = acc.findIndex(item => 
+          item.name?.toLowerCase() === current.name?.toLowerCase() && 
+          item.category === current.category
+        );
+        
+        if (existingIndex === -1) {
+          acc.push(current);
+        } else {
+          // Keep the one with higher price or more recent data (assuming later in array is more recent)
+          const existing = acc[existingIndex];
+          if (current.price >= existing.price) {
+            acc[existingIndex] = current;
+          }
+        }
+        
+        return acc;
+      }, []);
+
+      console.log(`Loaded ${spaProducts.length} unique spa services and ${restaurantProducts.length} unique restaurant items`);
+
       setProducts({
         spa: spaProducts,
         restaurant: restaurantProducts,
@@ -361,8 +412,35 @@ export function POSInterface() {
     try {
       const transactions =
         (await transactionsApi.list()) as TransactionRecord[];
+      
+      // Deduplicate transactions by customer_name, transaction_date, total_amount, and payment_method
+      const deduplicatedTransactions = transactions.reduce((acc: TransactionRecord[], current: TransactionRecord) => {
+        const existingIndex = acc.findIndex(transaction => 
+          transaction.customer_name?.toLowerCase() === current.customer_name?.toLowerCase() &&
+          transaction.transaction_date === current.transaction_date &&
+          Math.abs(transaction.total_amount - current.total_amount) < 0.01 && // Allow for small floating point differences
+          transaction.payment_method === current.payment_method
+        )
+        
+        if (existingIndex === -1) {
+          // Transaction doesn't exist, add it
+          acc.push(current)
+        } else {
+          // Transaction exists, keep the one with more recent updated_at or created_at
+          const existing = acc[existingIndex]
+          const currentDate = new Date(current.updated_at || current.created_at || 0)
+          const existingDate = new Date(existing.updated_at || existing.created_at || 0)
+          
+          if (currentDate > existingDate) {
+            acc[existingIndex] = current // Replace with newer transaction
+          }
+        }
+        
+        return acc
+      }, [])
+      
       // Sort by date, newest first
-      const sorted = [...transactions].sort(
+      const sorted = [...deduplicatedTransactions].sort(
         (a, b) =>
           new Date(b.transaction_date).getTime() -
           new Date(a.transaction_date).getTime()
@@ -417,7 +495,36 @@ export function POSInterface() {
   const loadCustomers = async () => {
     try {
       const customersList = (await customersApi.list()) as CustomerRecord[];
-      setCustomers(customersList);
+      
+      // Deduplicate customers by email (keep the most recent one)
+      const deduplicatedCustomers = customersList.reduce((acc: CustomerRecord[], current: CustomerRecord) => {
+        const existingIndex = acc.findIndex(customer => 
+          customer.email?.toLowerCase() === current.email?.toLowerCase() ||
+          (customer.name?.toLowerCase() === current.name?.toLowerCase() && 
+           customer.phone === current.phone)
+        )
+        
+        if (existingIndex === -1) {
+          // Customer doesn't exist, add it
+          acc.push(current)
+        } else {
+          // Customer exists, keep the one with more recent updated_at or created_at
+          const existing = acc[existingIndex]
+          const currentDate = new Date(current.updated_at || current.created_at || 0)
+          const existingDate = new Date(existing.updated_at || existing.created_at || 0)
+          
+          if (currentDate > existingDate) {
+            acc[existingIndex] = current // Replace with newer customer
+          }
+        }
+        
+        return acc
+      }, [])
+      
+      // Sort customers by name for better UX
+      deduplicatedCustomers.sort((a, b) => a.name.localeCompare(b.name))
+      
+      setCustomers(deduplicatedCustomers);
     } catch (error) {
       console.error("Failed to load customers:", error);
       toast({
@@ -725,6 +832,67 @@ export function POSInterface() {
     }
   };
 
+  // Handle customer creation
+  const handleCreateCustomer = async () => {
+    try {
+      if (!newCustomerData.name.trim()) {
+        toast({
+          title: "Error",
+          description: "Customer name is required.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Check for duplicate customer
+      const existingCustomer = customers.find(
+        (c) =>
+          c.name.toLowerCase() === newCustomerData.name.toLowerCase() ||
+          (newCustomerData.email && c.email.toLowerCase() === newCustomerData.email.toLowerCase())
+      );
+
+      if (existingCustomer) {
+        toast({
+          title: "Customer exists",
+          description: "A customer with this name or email already exists.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      await customersApi.create({
+        name: newCustomerData.name.trim(),
+        email: newCustomerData.email.trim(),
+        phone: newCustomerData.phone.trim(),
+        visits: 0,
+        last_visit: new Date().toISOString(),
+        customer_type: activeTab,
+      });
+
+      // Set the customer name in the main form
+      setCustomerName(newCustomerData.name.trim());
+
+      // Reset form and close modal
+      setNewCustomerData({ name: "", email: "", phone: "" });
+      setIsCustomerModalOpen(false);
+
+      // Reload customers
+      await loadCustomers();
+
+      toast({
+        title: "Customer created",
+        description: "New customer has been added successfully.",
+      });
+    } catch (error) {
+      console.error("Error creating customer:", error);
+      toast({
+        title: "Error",
+        description: "Failed to create customer. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
   return (
     <div className="grid gap-6 md:grid-cols-[1fr_400px]">
       {/* Error Alert */}
@@ -802,6 +970,37 @@ export function POSInterface() {
             </Button>
           </CardHeader>
           <CardContent>
+            {/* Search Bar */}
+            <div className="mb-4">
+              <div className="relative">
+                <Input
+                  placeholder="Search products..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-8"
+                />
+                <div className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground">
+                  🔍
+                </div>
+              </div>
+            </div>
+
+            {/* Restaurant Category Tabs */}
+            {activeTab === "restaurant" && (
+              <div className="mb-4">
+                <Tabs value={activeRestaurantCategory} onValueChange={setActiveRestaurantCategory}>
+                  <TabsList className="grid w-full grid-cols-6">
+                    <TabsTrigger value="all">All</TabsTrigger>
+                    <TabsTrigger value="appetizer">Appetizers</TabsTrigger>
+                    <TabsTrigger value="main">Main</TabsTrigger>
+                    <TabsTrigger value="beverage">Beverages</TabsTrigger>
+                    <TabsTrigger value="dessert">Desserts</TabsTrigger>
+                    <TabsTrigger value="other">Other</TabsTrigger>
+                  </TabsList>
+                </Tabs>
+              </div>
+            )}
+
             {loadingStates.products ? (
               <div className="text-center py-8">
                 <Loader2 className="h-8 w-8 animate-spin mx-auto mb-2" />
@@ -809,9 +1008,26 @@ export function POSInterface() {
               </div>
             ) : (
               <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                {products[activeTab as keyof typeof products].length > 0 ? (
-                  products[activeTab as keyof typeof products].map(
-                    (product) => (
+                {(() => {
+                  let currentProducts = products[activeTab as keyof typeof products];
+                  
+                  // Apply search filter
+                  if (searchQuery) {
+                    currentProducts = currentProducts.filter(product =>
+                      product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                      product.description?.toLowerCase().includes(searchQuery.toLowerCase())
+                    );
+                  }
+                  
+                  // Apply restaurant category filter
+                  if (activeTab === "restaurant" && activeRestaurantCategory !== "all") {
+                    currentProducts = currentProducts.filter(product =>
+                      product.category === activeRestaurantCategory
+                    );
+                  }
+
+                  return currentProducts.length > 0 ? (
+                    currentProducts.map((product) => (
                       <Button
                         key={product.id}
                         variant="outline"
@@ -835,29 +1051,58 @@ export function POSInterface() {
                             {product.description}
                           </span>
                         )}
+                        {activeTab === "restaurant" && product.category && (
+                          <span className="text-xs bg-muted px-2 py-1 rounded-full capitalize">
+                            {product.category}
+                          </span>
+                        )}
                       </Button>
-                    )
-                  )
-                ) : (
-                  <div className="col-span-3 text-center py-8 text-muted-foreground">
-                    {errors.products ? (
-                      <div>
-                        <AlertCircle className="h-8 w-8 mx-auto mb-2 text-destructive" />
-                        <p>Failed to load {activeTab} products</p>
-                        <Button 
-                          variant="outline" 
-                          size="sm" 
-                          className="mt-2"
-                          onClick={loadProducts}
-                        >
-                          Retry
-                        </Button>
-                      </div>
-                    ) : (
-                      <p>No {activeTab} products found</p>
-                    )}
-                  </div>
-                )}
+                    ))
+                  ) : (
+                    <div className="col-span-3 text-center py-8 text-muted-foreground">
+                      {errors.products ? (
+                        <div>
+                          <AlertCircle className="h-8 w-8 mx-auto mb-2 text-destructive" />
+                          <p>Failed to load {activeTab} products</p>
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            className="mt-2"
+                            onClick={loadProducts}
+                          >
+                            Retry
+                          </Button>
+                        </div>
+                      ) : searchQuery ? (
+                        <div>
+                          <p>No products found matching "{searchQuery}"</p>
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            className="mt-2"
+                            onClick={() => setSearchQuery("")}
+                          >
+                            Clear Search
+                          </Button>
+                        </div>
+                      ) : activeTab === "restaurant" && activeRestaurantCategory !== "all" ? (
+                        <div>
+                          <p>No {activeRestaurantCategory} items found</p>
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            className="mt-2"
+                            onClick={() => setActiveRestaurantCategory("all")}
+                          >
+                            Show All Items
+                          </Button>
+                        </div>
+                      ) : (
+                        <p>No {activeTab} products found</p>
+                      )}
+                    </div>
+                  );
+                })()}
               </div>
             )}
           </CardContent>
@@ -874,7 +1119,7 @@ export function POSInterface() {
               <div className="grid gap-4">
                 <div className="grid gap-2">
                   <Label htmlFor="customerName">Customer</Label>
-                  <div className="flex gap-2">
+                  <div className="flex gap-2 mb-2">
                     <Input
                       id="customerName"
                       value={customerName}
@@ -889,21 +1134,71 @@ export function POSInterface() {
                       className={`flex-1 ${errors.customerName ? 'border-destructive' : ''}`}
                       disabled={loadingStates.checkout}
                     />
-                    {customers.length > 0 && (
-                      <Select onValueChange={handleCustomerSelect} disabled={loadingStates.checkout}>
-                        <SelectTrigger className="w-[140px]">
-                          <SelectValue placeholder="Select..." />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {customers.map((customer) => (
-                            <SelectItem key={customer.id} value={customer.id}>
-                              {customer.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    )}
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => setIsCustomerModalOpen(true)}
+                      disabled={loadingStates.checkout}
+                      className="px-3"
+                    >
+                      + Customer
+                    </Button>
                   </div>
+                  
+                  {/* Customer Search and Selection */}
+                  {customers.length > 0 && (
+                    <div className="space-y-2">
+                      <div className="relative">
+                        <Input
+                          placeholder="Search existing customers..."
+                          value={customerSearchQuery}
+                          onChange={(e) => setCustomerSearchQuery(e.target.value)}
+                          className="pl-8"
+                          disabled={loadingStates.checkout}
+                        />
+                        <div className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground">
+                          🔍
+                        </div>
+                      </div>
+                      
+                      {customerSearchQuery && (
+                        <div className="max-h-32 overflow-y-auto border rounded-md">
+                          {customers
+                            .filter(customer =>
+                              customer.name.toLowerCase().includes(customerSearchQuery.toLowerCase()) ||
+                              customer.email.toLowerCase().includes(customerSearchQuery.toLowerCase()) ||
+                              customer.phone?.includes(customerSearchQuery)
+                            )
+                            .slice(0, 5) // Limit to 5 results
+                            .map((customer) => (
+                              <div
+                                key={customer.id}
+                                className="p-2 hover:bg-muted cursor-pointer border-b last:border-b-0"
+                                onClick={() => {
+                                  setCustomerName(customer.name);
+                                  setCustomerSearchQuery("");
+                                }}
+                              >
+                                <div className="font-medium">{customer.name}</div>
+                                <div className="text-sm text-muted-foreground">
+                                  {customer.email} • {customer.phone} • {customer.visits || 0} visits
+                                </div>
+                              </div>
+                            ))}
+                          {customers.filter(customer =>
+                            customer.name.toLowerCase().includes(customerSearchQuery.toLowerCase()) ||
+                            customer.email.toLowerCase().includes(customerSearchQuery.toLowerCase()) ||
+                            customer.phone?.includes(customerSearchQuery)
+                          ).length === 0 && (
+                            <div className="p-2 text-center text-muted-foreground">
+                              No customers found matching "{customerSearchQuery}"
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  
                   {errors.customerName && (
                     <p className="text-sm text-destructive">{errors.customerName}</p>
                   )}
@@ -1317,6 +1612,75 @@ export function POSInterface() {
             </Button>
             <Button onClick={loadTransactionIntoReceipt}>
               Generate Receipt
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Add Customer Modal */}
+      <Dialog open={isCustomerModalOpen} onOpenChange={setIsCustomerModalOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Add New Customer</DialogTitle>
+            <DialogDescription>
+              Create a new customer record for faster checkout
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div className="grid gap-2">
+              <Label htmlFor="newCustomerName">Customer Name *</Label>
+              <Input
+                id="newCustomerName"
+                value={newCustomerData.name}
+                onChange={(e) => setNewCustomerData(prev => ({ ...prev, name: e.target.value }))}
+                placeholder="Enter customer name"
+                required
+              />
+            </div>
+
+            <div className="grid gap-2">
+              <Label htmlFor="newCustomerEmail">Email</Label>
+              <Input
+                id="newCustomerEmail"
+                type="email"
+                value={newCustomerData.email}
+                onChange={(e) => setNewCustomerData(prev => ({ ...prev, email: e.target.value }))}
+                placeholder="Enter email address"
+              />
+            </div>
+
+            <div className="grid gap-2">
+              <Label htmlFor="newCustomerPhone">Phone</Label>
+              <Input
+                id="newCustomerPhone"
+                type="tel"
+                value={newCustomerData.phone}
+                onChange={(e) => setNewCustomerData(prev => ({ ...prev, phone: e.target.value }))}
+                placeholder="Enter phone number"
+              />
+            </div>
+
+            <div className="text-sm text-muted-foreground">
+              Customer type will be set to <strong>{activeTab === "spa" ? "Spa" : "Restaurant"}</strong> based on current tab.
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setIsCustomerModalOpen(false);
+                setNewCustomerData({ name: "", email: "", phone: "" });
+              }}
+            >
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleCreateCustomer}
+              disabled={!newCustomerData.name.trim()}
+            >
+              Add Customer
             </Button>
           </DialogFooter>
         </DialogContent>

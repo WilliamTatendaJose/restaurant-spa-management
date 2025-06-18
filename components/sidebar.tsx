@@ -32,7 +32,7 @@ const allRoutes: Route[] = [
   {
     label: "Dashboard",
     icon: LayoutDashboard,
-    href: "/",
+    href: "/dashboard",
     color: "text-sky-500",
     requiredRole: "staff", // All roles can access dashboard
   },

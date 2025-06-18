@@ -10,6 +10,29 @@ body {
   .text-balance {
     text-wrap: balance;
   }
+  
+  /* Custom cream colors */
+  .bg-cream-50 {
+    background-color: #fefdf8;
+  }
+  .bg-cream-100 {
+    background-color: #fdf9ed;
+  }
+  .from-cream-50 {
+    --tw-gradient-from: #fefdf8;
+  }
+  .to-cream-50 {
+    --tw-gradient-to: #fefdf8;
+  }
+  .from-cream-100 {
+    --tw-gradient-from: #fdf9ed;
+  }
+  .to-cream-100 {
+    --tw-gradient-to: #fdf9ed;
+  }
+  .via-cream-50 {
+    --tw-gradient-via: #fefdf8;
+  }
 }
 
 @layer base {
@@ -90,6 +113,27 @@ body {
   }
   body {
     @apply bg-background text-foreground;
+  }
+}
+
+/* Custom animations */
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+.animate-float {
+  animation: float 3s ease-in-out infinite;
+}
+
+/* Spa-themed shadow utilities */
+@layer utilities {
+  .shadow-3xl {
+    box-shadow: 0 35px 60px -12px rgba(0, 0, 0, 0.25);
   }
 }
 

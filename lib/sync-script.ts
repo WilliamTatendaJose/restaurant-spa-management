@@ -46,7 +46,6 @@ const TABLE_VALIDATION_RULES: Record<string, {
       subtotal: 0,
       total_amount: 0,
       tax_amount: 0,
-      discount_amount: 0,
       tip_amount: 0
     }
   },
@@ -148,6 +147,15 @@ function validateAndCleanRecord(record: any, tableName: string): any {
     // Ensure is_available field is consistent with status
     cleaned.is_available = cleaned.status === 'active';
     
+    // Validate category - if invalid, set to "other"
+    const validCategories = ['appetizer', 'main', 'beverage', 'dessert', 'other'];
+    if (!cleaned.category || !validCategories.includes(cleaned.category.toLowerCase())) {
+      console.warn(`Invalid category '${cleaned.category}' for menu item '${cleaned.name}', setting to 'other'`);
+      cleaned.category = 'other';
+    } else {
+      cleaned.category = cleaned.category.toLowerCase();
+    }
+    
     // Remove any unknown fields that might cause database constraint violations
     const allowedFields = [
       'id', 'name', 'description', 'price', 'category', 'dietary', 'is_available', 
@@ -171,11 +179,26 @@ function validateAndCleanRecord(record: any, tableName: string): any {
 
   if (tableName === 'transactions') {
     // Ensure all numeric fields are valid
-    ['subtotal', 'total_amount', 'tax_amount', 'discount_amount', 'tip_amount'].forEach(field => {
+    ['subtotal', 'total_amount', 'tax_amount', 'tip_amount'].forEach(field => {
       if (isNaN(parseFloat(cleaned[field]))) {
         cleaned[field] = 0;
       } else {
         cleaned[field] = parseFloat(cleaned[field]);
+      }
+    });
+    
+    // Remove fields that don't exist in the database schema
+    const allowedTransactionFields = [
+      'id', 'customer_id', 'staff_id', 'booking_id', 'transaction_type', 
+      'transaction_date', 'subtotal', 'tax_amount', 'tip_amount', 'total_amount', 
+      'status', 'payment_method', 'receipt_number', 'notes',
+      'created_at', 'updated_at', 'is_synced'
+    ];
+    
+    Object.keys(cleaned).forEach(key => {
+      if (!allowedTransactionFields.includes(key)) {
+        console.warn(`Removing unknown field '${key}' from transaction record`);
+        delete cleaned[key];
       }
     });
   }
@@ -421,7 +444,176 @@ export class DatabaseSync {
           console.log(`Syncing ${localRecords.length} ${table} records to server...`);
           
           // Clean and validate records before syncing
-          const cleanedRecords = localRecords.map((record: any) => validateAndCleanRecord(record, table));
+          let cleanedRecords = localRecords.map((record: any) => validateAndCleanRecord(record, table));
+          
+          // Deduplicate records for menu_items based on name and category
+          if (table === 'menu_items') {
+            cleanedRecords = cleanedRecords.reduce((acc: any[], current: any) => {
+              const existingIndex = acc.findIndex(item => 
+                item.name?.toLowerCase() === current.name?.toLowerCase() && 
+                item.category === current.category
+              );
+              
+              if (existingIndex === -1) {
+                acc.push(current);
+              } else {
+                // Keep the one with more recent updated_at
+                const existing = acc[existingIndex];
+                const currentDate = new Date(current.updated_at || current.created_at || 0);
+                const existingDate = new Date(existing.updated_at || existing.created_at || 0);
+                
+                if (currentDate > existingDate) {
+                  acc[existingIndex] = current;
+                }
+              }
+              
+              return acc;
+            }, []);
+            
+            console.log(`Deduplicated ${localRecords.length} records to ${cleanedRecords.length} for ${table}`);
+          }
+          
+          // Deduplicate records for spa_services based on name and category
+          if (table === 'spa_services') {
+            cleanedRecords = cleanedRecords.reduce((acc: any[], current: any) => {
+              const existingIndex = acc.findIndex(service => 
+                service.name?.toLowerCase() === current.name?.toLowerCase() && 
+                service.category === current.category
+              );
+              
+              if (existingIndex === -1) {
+                acc.push(current);
+              } else {
+                // Keep the one with more recent updated_at
+                const existing = acc[existingIndex];
+                const currentDate = new Date(current.updated_at || current.created_at || 0);
+                const existingDate = new Date(existing.updated_at || existing.created_at || 0);
+                
+                if (currentDate > existingDate) {
+                  acc[existingIndex] = current;
+                }
+              }
+              
+              return acc;
+            }, []);
+            
+            console.log(`Deduplicated ${localRecords.length} records to ${cleanedRecords.length} for ${table}`);
+          }
+          
+          // Deduplicate records for customers based on email or name+phone
+          if (table === 'customers') {
+            cleanedRecords = cleanedRecords.reduce((acc: any[], current: any) => {
+              const existingIndex = acc.findIndex(customer => 
+                customer.email?.toLowerCase() === current.email?.toLowerCase() ||
+                (customer.name?.toLowerCase() === current.name?.toLowerCase() && 
+                 customer.phone === current.phone)
+              );
+              
+              if (existingIndex === -1) {
+                acc.push(current);
+              } else {
+                // Keep the one with more recent updated_at
+                const existing = acc[existingIndex];
+                const currentDate = new Date(current.updated_at || current.created_at || 0);
+                const existingDate = new Date(existing.updated_at || existing.created_at || 0);
+                
+                if (currentDate > existingDate) {
+                  acc[existingIndex] = current;
+                }
+              }
+              
+              return acc;
+            }, []);
+            
+            console.log(`Deduplicated ${localRecords.length} records to ${cleanedRecords.length} for ${table}`);
+          }
+          
+          // Deduplicate records for bookings based on customer_name, booking_date, booking_time, and booking_type
+          if (table === 'bookings') {
+            cleanedRecords = cleanedRecords.reduce((acc: any[], current: any) => {
+              const existingIndex = acc.findIndex(booking => 
+                booking.customer_name?.toLowerCase() === current.customer_name?.toLowerCase() &&
+                booking.booking_date === current.booking_date &&
+                booking.booking_time === current.booking_time &&
+                booking.booking_type === current.booking_type
+              );
+              
+              if (existingIndex === -1) {
+                acc.push(current);
+              } else {
+                // Keep the one with more recent updated_at
+                const existing = acc[existingIndex];
+                const currentDate = new Date(current.updated_at || current.created_at || 0);
+                const existingDate = new Date(existing.updated_at || existing.created_at || 0);
+                
+                if (currentDate > existingDate) {
+                  acc[existingIndex] = current;
+                }
+              }
+              
+              return acc;
+            }, []);
+            
+            console.log(`Deduplicated ${localRecords.length} records to ${cleanedRecords.length} for ${table}`);
+          }
+          
+          // Deduplicate records for transactions based on customer_name, transaction_date, total_amount, and payment_method
+          if (table === 'transactions') {
+            cleanedRecords = cleanedRecords.reduce((acc: any[], current: any) => {
+              const existingIndex = acc.findIndex(transaction => 
+                transaction.customer_name?.toLowerCase() === current.customer_name?.toLowerCase() &&
+                transaction.transaction_date === current.transaction_date &&
+                Math.abs(transaction.total_amount - current.total_amount) < 0.01 && // Allow for small floating point differences
+                transaction.payment_method === current.payment_method
+              );
+              
+              if (existingIndex === -1) {
+                acc.push(current);
+              } else {
+                // Keep the one with more recent updated_at
+                const existing = acc[existingIndex];
+                const currentDate = new Date(current.updated_at || current.created_at || 0);
+                const existingDate = new Date(existing.updated_at || existing.created_at || 0);
+                
+                if (currentDate > existingDate) {
+                  acc[existingIndex] = current;
+                }
+              }
+              
+              return acc;
+            }, []);
+            
+            console.log(`Deduplicated ${localRecords.length} records to ${cleanedRecords.length} for ${table}`);
+          }
+          
+          // Deduplicate records for transaction_items based on transaction_id, item_name, and price
+          if (table === 'transaction_items') {
+            cleanedRecords = cleanedRecords.reduce((acc: any[], current: any) => {
+              const existingIndex = acc.findIndex(item => 
+                item.transaction_id === current.transaction_id &&
+                item.item_name?.toLowerCase() === current.item_name?.toLowerCase() &&
+                Math.abs(item.price - current.price) < 0.01 // Allow for small floating point differences
+              );
+              
+              if (existingIndex === -1) {
+                acc.push(current);
+              } else {
+                // Keep the one with more recent updated_at or higher quantity if same timestamp
+                const existing = acc[existingIndex];
+                const currentDate = new Date(current.updated_at || current.created_at || 0);
+                const existingDate = new Date(existing.updated_at || existing.created_at || 0);
+                
+                if (currentDate > existingDate || 
+                    (currentDate.getTime() === existingDate.getTime() && current.quantity > existing.quantity)) {
+                  acc[existingIndex] = current;
+                }
+              }
+              
+              return acc;
+            }, []);
+            
+            console.log(`Deduplicated ${localRecords.length} records to ${cleanedRecords.length} for ${table}`);
+          }
           
           try {
             const { data, error } = await this.supabase

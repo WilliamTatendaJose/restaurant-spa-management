@@ -29,6 +29,8 @@ interface MenuItem {
   dietary?: string[]
   isAvailable?: boolean
   status?: string
+  updated_at?: string
+  created_at?: string
 }
 
 interface MenuItemListProps {
@@ -47,8 +49,41 @@ export function MenuItemList({ category }: MenuItemListProps) {
     async function loadMenuItems() {
       try {
         setIsLoading(true)
-        const items = await menuItemsApi.listByCategory(category) as MenuItem[]
-        setMenuItems(items)
+        let items: MenuItem[]
+        
+        if (category === "all") {
+          // Load all menu items
+          items = await menuItemsApi.list() as MenuItem[]
+        } else {
+          // Load items by specific category
+          items = await menuItemsApi.listByCategory(category) as MenuItem[]
+        }
+        
+        // Deduplicate items by name and category (keep the most recent one)
+        const deduplicatedItems = items.reduce((acc: MenuItem[], current: MenuItem) => {
+          const existingIndex = acc.findIndex(item => 
+            item.name?.toLowerCase() === current.name?.toLowerCase() && 
+            item.category === current.category
+          )
+          
+          if (existingIndex === -1) {
+            // Item doesn't exist, add it
+            acc.push(current)
+          } else {
+            // Item exists, keep the one with more recent updated_at or created_at
+            const existing = acc[existingIndex]
+            const currentDate = new Date(current.updated_at || current.created_at || 0)
+            const existingDate = new Date(existing.updated_at || existing.created_at || 0)
+            
+            if (currentDate > existingDate) {
+              acc[existingIndex] = current // Replace with newer item
+            }
+          }
+          
+          return acc
+        }, [])
+        
+        setMenuItems(deduplicatedItems)
       } catch (error) {
         console.error("Failed to load menu items:", error)
         toast({
@@ -131,16 +166,16 @@ export function MenuItemList({ category }: MenuItemListProps) {
                   </TableCell>
                 </TableRow>
               ) : (
-                filteredItems.map((item) => (
-                  <TableRow key={item.id}>
+                filteredItems.map((item, index) => (
+                  <TableRow key={`${item.id}-${index}`}>
                     <TableCell className="font-medium">{item.name}</TableCell>
                     <TableCell>{item.description}</TableCell>
                     <TableCell>${Number(item.price).toFixed(2)}</TableCell>
                     <TableCell>
                       <div className="flex flex-wrap gap-1">
-                        {item.dietary && item.dietary.length > 0 ? (
-                          item.dietary.map((diet) => (
-                            <Badge key={diet} variant="outline" className="capitalize">
+                        {item.dietary && Array.isArray(item.dietary) && item.dietary.length > 0 ? (
+                          item.dietary.map((diet, dietIndex) => (
+                            <Badge key={`${diet}-${dietIndex}`} variant="outline" className="capitalize">
                               {diet}
                             </Badge>
                           ))

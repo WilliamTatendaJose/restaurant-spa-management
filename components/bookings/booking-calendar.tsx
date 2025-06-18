@@ -27,6 +27,8 @@ interface Booking {
   status: string;
   party_size?: string;
   customer_id?: string;
+  updated_at?: string;
+  created_at?: string;
 }
 
 interface SpaService {
@@ -67,12 +69,58 @@ export function BookingCalendar() {
 
         // Load bookings
         const data = (await bookingsApi.list()) as Booking[];
-        setBookings(data);
 
-        // Create a map of dates to booking status counts
+        // Get today's date in YYYY-MM-DD format for filtering
+        const today = new Date();
+        const todayString = today.toISOString().split("T")[0];
+
+        // Filter out past bookings (only show today and future bookings)
+        const currentAndFutureBookings = data.filter((booking) => {
+          const bookingDate = new Date(booking.booking_date + "T00:00:00");
+          const bookingDateString = bookingDate.toISOString().split("T")[0];
+          return bookingDateString >= todayString;
+        });
+
+        // Deduplicate bookings by customer_name, booking_date, booking_time, and booking_type
+        const deduplicatedBookings = currentAndFutureBookings.reduce(
+          (acc: Booking[], current: Booking) => {
+            const existingIndex = acc.findIndex(
+              (booking) =>
+                booking.customer_name?.toLowerCase() ===
+                  current.customer_name?.toLowerCase() &&
+                booking.booking_date === current.booking_date &&
+                booking.booking_time === current.booking_time &&
+                booking.booking_type === current.booking_type
+            );
+
+            if (existingIndex === -1) {
+              // Booking doesn't exist, add it
+              acc.push(current);
+            } else {
+              // Booking exists, keep the one with more recent updated_at or created_at
+              const existing = acc[existingIndex];
+              const currentDate = new Date(
+                current.updated_at || current.created_at || 0
+              );
+              const existingDate = new Date(
+                existing.updated_at || existing.created_at || 0
+              );
+
+              if (currentDate > existingDate) {
+                acc[existingIndex] = current; // Replace with newer booking
+              }
+            }
+
+            return acc;
+          },
+          []
+        );
+
+        setBookings(deduplicatedBookings);
+
+        // Create a map of dates to booking status counts using deduplicated data
         const dateMap = new Map<string, string[]>();
-
-        data.forEach((booking) => {
+        deduplicatedBookings.forEach((booking) => {
           // Ensure consistent date format (YYYY-MM-DD) without timezone issues
           const bookingDate = new Date(booking.booking_date + "T00:00:00");
           const dateKey = bookingDate.toISOString().split("T")[0];
@@ -80,6 +128,7 @@ export function BookingCalendar() {
           if (!dateMap.has(dateKey)) {
             dateMap.set(dateKey, []);
           }
+
           const statuses = dateMap.get(dateKey) || [];
           if (!statuses.includes(booking.status)) {
             statuses.push(booking.status);
@@ -89,8 +138,8 @@ export function BookingCalendar() {
 
         setBookingDates(dateMap);
 
-        // Initialize selected date bookings
-        updateSelectedDateBookings(new Date(), data);
+        // Initialize selected date bookings with deduplicated data
+        updateSelectedDateBookings(new Date(), deduplicatedBookings);
       } catch (error) {
         console.error("Error fetching data:", error);
       } finally {
@@ -381,13 +430,17 @@ export function BookingCalendar() {
                       date && dayDate.toDateString() === date.toDateString();
 
                     // Extract className if it exists, otherwise use empty string
-                    const { className = "", ...domProps } = otherProps as { className?: string; [key: string]: any };
+                    const { className = "", ...domProps } = otherProps as {
+                      className?: string;
+                      [key: string]: any;
+                    };
 
                     // Filter out any React-specific props
                     const cleanDomProps = Object.fromEntries(
-                      Object.entries(domProps).filter(([key]) =>
-                        !key.startsWith("aria-") ||
-                        ["aria-selected", "aria-label"].includes(key)
+                      Object.entries(domProps).filter(
+                        ([key]) =>
+                          !key.startsWith("aria-") ||
+                          ["aria-selected", "aria-label"].includes(key)
                       )
                     );
 

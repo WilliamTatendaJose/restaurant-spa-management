@@ -40,7 +40,7 @@ export function MenuItemForm({ menuItem }: MenuItemFormProps) {
     name: menuItem?.name || "",
     description: menuItem?.description || "",
     price: menuItem?.price?.toString() || "",
-    category: menuItem?.category || "food",
+    category: menuItem?.category || "main",
     status: menuItem?.status || (menuItem?.isAvailable ? "active" : "inactive") || "active",
   })
 
@@ -148,9 +148,10 @@ export function MenuItemForm({ menuItem }: MenuItemFormProps) {
                     <SelectValue placeholder="Select category" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="food">Food</SelectItem>
-                    <SelectItem value="drinks">Drinks</SelectItem>
-                    <SelectItem value="desserts">Desserts</SelectItem>
+                    <SelectItem value="appetizer">Appetizer</SelectItem>
+                    <SelectItem value="main">Main Course</SelectItem>
+                    <SelectItem value="beverage">Beverage</SelectItem>
+                    <SelectItem value="dessert">Dessert</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

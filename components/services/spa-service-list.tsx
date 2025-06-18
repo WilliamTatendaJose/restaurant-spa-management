@@ -35,6 +35,8 @@ interface SpaService {
   category?: string
   status?: string
   isActive?: boolean
+  updated_at?: string
+  created_at?: string
 }
 
 export function SpaServiceList() {
@@ -52,7 +54,32 @@ export function SpaServiceList() {
       try {
         setIsLoading(true)
         const servicesData = await spaServicesApi.list() as SpaService[]
-        setServices(servicesData)
+        
+        // Deduplicate services by name and category (keep the most recent one)
+        const deduplicatedServices = servicesData.reduce((acc: SpaService[], current: SpaService) => {
+          const existingIndex = acc.findIndex(service => 
+            service.name?.toLowerCase() === current.name?.toLowerCase() && 
+            service.category === current.category
+          )
+          
+          if (existingIndex === -1) {
+            // Service doesn't exist, add it
+            acc.push(current)
+          } else {
+            // Service exists, keep the one with more recent updated_at or created_at
+            const existing = acc[existingIndex]
+            const currentDate = new Date(current.updated_at || current.created_at || 0)
+            const existingDate = new Date(existing.updated_at || existing.created_at || 0)
+            
+            if (currentDate > existingDate) {
+              acc[existingIndex] = current // Replace with newer service
+            }
+          }
+          
+          return acc
+        }, [])
+        
+        setServices(deduplicatedServices)
       } catch (error) {
         console.error("Failed to load spa services:", error)
         toast({
