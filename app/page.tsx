@@ -37,6 +37,8 @@ import {
 import { bookingsApi, spaServicesApi, customersApi } from "@/lib/db";
 import { FeedbackForm } from "@/components/feedback-form";
 import { FeedbackDisplay } from "@/components/feedback-display";
+import { OperatingHoursDisplay } from "@/components/operating-hours-display";
+import { DeveloperContact } from "@/components/developer-contact";
 
 interface SpaService {
   id: string;
@@ -58,6 +60,7 @@ export default function HomePage() {
   const [showFeedbackModal, setShowFeedbackModal] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [scrollY, setScrollY] = useState(0);
+  const [showDeveloperContact, setShowDeveloperContact] = useState(false);
   const { toast } = useToast();
 
   // Scroll effect for parallax
@@ -952,21 +955,8 @@ export default function HomePage() {
               </CardContent>
             </Card>
 
-            <Card className="group text-center border-0 shadow-xl hover:shadow-2xl transition-all duration-500 bg-gradient-to-br from-white to-emerald-50/30 overflow-hidden">
-              <CardContent className="p-10">
-                <div className="w-20 h-20 mx-auto mb-8 bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-full flex items-center justify-center shadow-xl group-hover:scale-110 transition-transform duration-300">
-                  <Clock className="h-10 w-10 text-white" />
-                </div>
-                <h3 className="text-2xl font-light text-gray-800 mb-6 group-hover:text-emerald-600 transition-colors">
-                  Opening Hours
-                </h3>
-                <div className="space-y-2 text-gray-600 leading-relaxed text-lg">
-                  <p>Sun- Fri: 9am - 8pm</p>
-                  <p>Saturday: Closed</p>
-                  <p>By Appointment</p>
-                </div>
-              </CardContent>
-            </Card>
+            {/* Replace static opening hours with dynamic display */}
+            <OperatingHoursDisplay />
           </div>
 
           {/* Enhanced CTA Section */}
@@ -1054,6 +1044,28 @@ export default function HomePage() {
                 &copy; {new Date().getFullYear()} LEWA HEALTH Spa. All rights
                 reserved.
               </p>
+            </div>
+            {/* Show button to reveal developer contact form */}
+            <div className="mt-12">
+              {!showDeveloperContact ? (
+                <button
+                  className="text-emerald-300 hover:text-emerald-100 underline text-lg transition-colors"
+                  onClick={() => setShowDeveloperContact(true)}
+                >
+                  Developer Contact
+                </button>
+              ) : (
+                <div className="relative z-50">
+                  <button
+                    className="absolute top-0 right-0 text-emerald-700 hover:text-emerald-900 text-2xl font-bold p-2"
+                    onClick={() => setShowDeveloperContact(false)}
+                    title="Close"
+                  >
+                    ×
+                  </button>
+                  <DeveloperContact />
+                </div>
+              )}
             </div>
           </div>
         </div>

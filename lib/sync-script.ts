@@ -254,54 +254,28 @@ export class DatabaseSync {
   constructor() {
     if (isSupabaseConfigured()) {
       this.supabase = getSupabaseBrowserClient();
+      this.checkAuth(); // Initial auth check
     }
   }
 
   async checkAuth(): Promise<boolean> {
-    if (!this.supabase || !isSupabaseConfigured()) {
-      console.log('❌ Supabase not configured');
-      return false;
-    }
-
     try {
-      // Check Supabase authentication
-      const { data: { session }, error: sessionError } = await this.supabase.auth.getSession();
+      const { data: { user }, error } = await this.supabase.auth.getUser();
       
-      if (sessionError) {
-        console.error('❌ Supabase session error:', sessionError.message);
+      if (error) {
+        console.error('Auth check failed:', error);
         this.isAuthenticated = false;
+        this.currentUser = null;
         return false;
       }
 
-      if (!session) {
-        console.log('❌ No Supabase session found');
-        this.isAuthenticated = false;
-        return false;
-      }
-
-      // Verify current user
-      const { data: { user }, error: userError } = await this.supabase.auth.getUser();
-      
-      if (userError) {
-        console.error('❌ Supabase user verification error:', userError.message);
-        this.isAuthenticated = false;
-        return false;
-      }
-
-      if (user) {
-        console.log('✅ Supabase authentication verified for:', user.email);
-        this.currentUser = user;
-        this.isAuthenticated = true;
-        return true;
-      }
-
-      console.log('❌ No authenticated user found');
-      this.isAuthenticated = false;
-      return false;
-
+      this.isAuthenticated = !!user;
+      this.currentUser = user;
+      return this.isAuthenticated;
     } catch (error) {
-      console.error('❌ Auth check failed:', error);
+      console.error('Error checking auth:', error);
       this.isAuthenticated = false;
+      this.currentUser = null;
       return false;
     }
   }
@@ -788,14 +762,18 @@ export class DatabaseSync {
 
   // Bidirectional sync (push then pull)
   async bidirectionalSync(): Promise<SyncResult> {
-    if (syncInProgress) {
-      return { success: false, error: "Sync already in progress" };
-    }
-
+    // Verify auth first
     if (!await this.checkAuth()) {
       return { 
         success: false, 
-        error: "Please sign in with your Supabase account to sync data." 
+        error: "Authentication required. Please sign in to sync data." 
+      };
+    }
+
+    if (syncInProgress) {
+      return { 
+        success: false, 
+        error: "Another sync operation is already in progress" 
       };
     }
 
@@ -807,29 +785,30 @@ export class DatabaseSync {
       console.log('📤 Step 1: Pushing local changes...');
       const pushResult = await this.pushLocalChanges();
       
+      if (!pushResult.success) {
+        throw new Error(`Push failed: ${pushResult.error}`);
+      }
+      
       // Then pull server changes
       console.log('📥 Step 2: Pulling server changes...');
       const pullResult = await this.pullServerChanges();
 
-      const totalSynced = (pushResult.count || 0) + (pullResult.count || 0);
-
-      if (pushResult.success && pullResult.success) {
-        console.log(`🎉 Bidirectional sync completed: ${totalSynced} items synced`);
-        return {
-          success: true,
-          count: totalSynced,
-          details: {
-            pushed: pushResult.count || 0,
-            pulled: pullResult.count || 0,
-            user: this.currentUser?.email
-          }
-        };
-      } else {
-        return {
-          success: false,
-          error: pushResult.error || pullResult.error || 'Sync partially failed'
-        };
+      if (!pullResult.success) {
+        throw new Error(`Pull failed: ${pullResult.error}`);
       }
+
+      const totalSynced = (pushResult.count || 0) + (pullResult.count || 0);
+      console.log(`🎉 Bidirectional sync completed: ${totalSynced} items synced`);
+      
+      return {
+        success: true,
+        count: totalSynced,
+        details: {
+          pushed: pushResult.count || 0,
+          pulled: pullResult.count || 0,
+          user: this.currentUser?.email
+        }
+      };
 
     } catch (error) {
       console.error('💥 Bidirectional sync failed:', error);

@@ -119,8 +119,12 @@ export function SyncStatusProvider({ children }: SyncStatusProviderProps) {
       return { success: false, error: "Please sign in to sync data" };
     }
 
-    if (isSyncing || !isOnline) {
-      return { success: false, error: "Sync not possible" };
+    if (!isOnline) {
+      return { success: false, error: "You are currently offline" };
+    }
+
+    if (isSyncing) {
+      return { success: false, error: "A sync operation is already in progress" };
     }
 
     setIsSyncing(true);

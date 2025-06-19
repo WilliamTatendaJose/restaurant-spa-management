@@ -870,6 +870,35 @@ export const feedbackApi = {
   }
 };
 
+// Settings API
+export const settingsApi = {
+  getOperatingHours: async () => {
+    const settings = await getRecord("settings", "operating_hours");
+    if (!settings) {
+      // Return default hours if not set
+      return {
+        id: "operating_hours",
+        data: [
+          { day: "Monday", opens_at: "09:00", closes_at: "18:00", is_closed: false, day_order: 1 },
+          { day: "Tuesday", opens_at: "09:00", closes_at: "18:00", is_closed: false, day_order: 2 },
+          { day: "Wednesday", opens_at: "09:00", closes_at: "18:00", is_closed: false, day_order: 3 },
+          { day: "Thursday", opens_at: "09:00", closes_at: "18:00", is_closed: false, day_order: 4 },
+          { day: "Friday", opens_at: "09:00", closes_at: "19:00", is_closed: false, day_order: 5 },
+          { day: "Saturday", opens_at: "10:00", closes_at: "16:00", is_closed: false, day_order: 6 },
+          { day: "Sunday", opens_at: "10:00", closes_at: "14:00", is_closed: true, day_order: 7 },
+        ]
+      };
+    }
+    return settings;
+  },
+  
+  updateOperatingHours: (hours: any[]) => {
+    return updateRecord("settings", "operating_hours", { data: hours });
+  },
+
+  // Add other settings methods as needed...
+};
+
 // Export utility functions
 export { initDatabase };
 

@@ -15,8 +15,8 @@ import { isSupabaseConfigured } from "@/lib/supabase"
 
 export function SyncSettings() {
   const { toast } = useToast()
-  const { isOnline, pendingChanges, sync, lastSyncTime } = useSyncStatus()
-  const [isSyncing, setIsSyncing] = useState(false)
+  const { isOnline, pendingChanges, sync, lastSyncTime, isSyncing: isGlobalSyncing } = useSyncStatus()
+  const [localSyncing, setLocalSyncing] = useState(false)
   const [settings, setSettings] = useState({
     autoSync: true,
     syncInterval: "15",
@@ -56,33 +56,48 @@ export function SyncSettings() {
   }
 
   const handleManualSync = async () => {
-    if (isSyncing || !isOnline || !supabaseConfigured) return
+    if (localSyncing || isGlobalSyncing || !isOnline || !supabaseConfigured) {
+      toast({
+        title: "Sync not possible",
+        description: isGlobalSyncing 
+          ? "A sync operation is already in progress" 
+          : !isOnline 
+          ? "You are currently offline"
+          : !supabaseConfigured
+          ? "Database is not configured"
+          : "Cannot sync at this time",
+        variant: "destructive",
+      });
+      return;
+    }
 
-    setIsSyncing(true)
+    setLocalSyncing(true);
     try {
-      const result = await sync()
+      const result = await sync();
       if (result.success) {
         toast({
           title: "Sync complete",
-          description: `Successfully synchronized ${result.count} changes with the server.`,
-        })
+          description: result.count 
+            ? `Successfully synchronized ${result.count} changes with the server.`
+            : "All data is up to date.",
+        });
       } else {
         toast({
           title: "Sync failed",
           description: result.error || "Failed to synchronize with the server.",
           variant: "destructive",
-        })
+        });
       }
     } catch (error) {
       toast({
         title: "Sync error",
-        description: "An unexpected error occurred during synchronization.",
+        description: error instanceof Error ? error.message : "An unexpected error occurred during synchronization.",
         variant: "destructive",
-      })
+      });
     } finally {
-      setIsSyncing(false)
+      setLocalSyncing(false);
     }
-  }
+  };
 
   return (
     <Card>
@@ -112,11 +127,11 @@ export function SyncSettings() {
             <Label>Manual Sync</Label>
             <Button
               onClick={handleManualSync}
-              disabled={!isOnline || isSyncing || !supabaseConfigured || pendingChanges === 0}
+              disabled={!isOnline || localSyncing || isGlobalSyncing || !supabaseConfigured || pendingChanges === 0}
               className="w-full"
             >
-              <RefreshCw className={`mr-2 h-4 w-4 ${isSyncing ? "animate-spin" : ""}`} />
-              {isSyncing ? "Syncing..." : pendingChanges > 0 ? `Sync Now (${pendingChanges} changes)` : "Sync Now"}
+              <RefreshCw className={`mr-2 h-4 w-4 ${localSyncing ? "animate-spin" : ""}`} />
+              {localSyncing ? "Syncing..." : pendingChanges > 0 ? `Sync Now (${pendingChanges} changes)` : "Sync Now"}
             </Button>
           </div>
         </div>

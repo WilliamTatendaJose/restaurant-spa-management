@@ -2,156 +2,94 @@
 
 import { useState, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
-import { Clock, CalendarDays } from "lucide-react";
+import { Clock } from "lucide-react";
 
 interface OperatingHour {
-  id: string;
   day: string;
-  open_time: string;
-  close_time: string;
+  opens_at: string;
+  closes_at: string;
   is_closed: boolean;
+  day_order: number;
 }
 
 export function OperatingHoursDisplay() {
-  const [hours, setHours] = useState<OperatingHour[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    async function fetchOperatingHours() {
-      try {
-        const response = await fetch('/api/settings/operating-hours');
-        
-        if (!response.ok) {
-          throw new Error('Failed to fetch operating hours');
-        }
-        
-        const data = await response.json();
-        
-        if (data.success) {
-          setHours(data.data);
-        } else {
-          setError(data.error || 'Failed to fetch operating hours');
-        }
-      } catch (error) {
-        console.error('Error fetching operating hours:', error);
-        setError('Unable to load operating hours');
-      } finally {
-        setLoading(false);
-      }
-    }
-
-    fetchOperatingHours();
+    setLoading(false);
   }, []);
 
-  // Format time to 12-hour format
   const formatTime = (time: string) => {
-    if (!time) return 'N/A';
-    
+    if (!time) return '';
     try {
-      // Handle different time formats
-      let timeValue = time;
-      if (!time.includes(':')) {
-        // If time is just a number, assume it's hours
-        timeValue = `${time}:00`;
-      }
-      
-      const [hours, minutes] = timeValue.split(':');
-      const hourNum = parseInt(hours, 10);
-      const period = hourNum >= 12 ? 'PM' : 'AM';
-      const hour12 = hourNum % 12 || 12;
-      
-      return `${hour12}:${minutes} ${period}`;
+      const [hours, minutes] = time.split(':');
+      const timeValue = new Date();
+      timeValue.setHours(parseInt(hours), parseInt(minutes));
+      return timeValue.toLocaleTimeString('en-US', {
+        hour: 'numeric',
+        hour12: true
+      }).toUpperCase();
     } catch (error) {
       console.error('Error formatting time:', error);
-      return time; // Return original if parsing fails
+      return time;
     }
   };
-
-  // Get the day number for sorting (0 = Sunday, 1 = Monday, etc.)
-  const getDayNumber = (day: string): number => {
-    const days = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
-    return days.indexOf(day.toLowerCase());
-  };
-
-  // Sort days of the week
-  const sortedHours = [...hours].sort((a, b) => {
-    return getDayNumber(a.day) - getDayNumber(b.day);
-  });
 
   if (loading) {
     return (
-      <div className="min-h-[200px] flex items-center justify-center">
-        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-emerald-700"></div>
-      </div>
-    );
-  }
-
-  if (error) {
-    // Fallback to default hours if there's an error
-    return (
-      <Card className="border-emerald-100 shadow-lg">
-        <CardContent className="p-6">
-          <div className="flex items-center mb-4">
-            <Clock className="h-5 w-5 text-emerald-700 mr-2" />
-            <h3 className="text-xl font-medium text-gray-800">Hours of Operation</h3>
-          </div>
-          <div className="space-y-2">
-            <p className="text-gray-700">Monday - Friday: 9:00 AM - 9:00 PM</p>
-            <p className="text-gray-700">Saturday: 10:00 AM - 10:00 PM</p>
-            <p className="text-gray-700">Sunday: 10:00 AM - 8:00 PM</p>
+      <Card className="group text-center border-0 shadow-xl hover:shadow-2xl transition-all duration-500 bg-gradient-to-br from-white to-amber-50/30 overflow-hidden">
+        <CardContent className="p-10">
+          <div className="animate-pulse">
+            <div className="w-20 h-20 mx-auto mb-8 bg-amber-200 rounded-full"></div>
+            <div className="h-6 bg-amber-100 rounded mb-6 w-1/2 mx-auto"></div>
+            <div className="space-y-3">
+              {[1, 2].map(i => (
+                <div key={i} className="h-4 bg-amber-50 rounded w-2/3 mx-auto"></div>
+              ))}
+            </div>
           </div>
         </CardContent>
       </Card>
     );
   }
 
-  if (sortedHours.length === 0) {
-    // Fallback to default hours if no data
+  if (error) {
     return (
-      <Card className="border-emerald-100 shadow-lg">
-        <CardContent className="p-6">
-          <div className="flex items-center mb-4">
-            <Clock className="h-5 w-5 text-emerald-700 mr-2" />
-            <h3 className="text-xl font-medium text-gray-800">Hours of Operation</h3>
+      <Card className="group text-center border-0 shadow-xl hover:shadow-2xl transition-all duration-500 bg-gradient-to-br from-white to-amber-50/30 overflow-hidden">
+        <CardContent className="p-10">
+          <div className="w-20 h-20 mx-auto mb-8 bg-gradient-to-br from-amber-500 to-amber-600 rounded-full flex items-center justify-center shadow-xl">
+            <Clock className="h-10 w-10 text-white" />
           </div>
-          <div className="space-y-2">
-            <p className="text-gray-700">Monday - Friday: 9:00 AM - 9:00 PM</p>
-            <p className="text-gray-700">Saturday: 10:00 AM - 10:00 PM</p>
-            <p className="text-gray-700">Sunday: 10:00 AM - 8:00 PM</p>
-          </div>
+          <h3 className="text-2xl font-light text-gray-800 mb-6">
+            Opening Hours
+          </h3>
+          <p className="text-gray-600 leading-relaxed">
+            Temporarily unavailable. Please contact us for current operating hours.
+          </p>
         </CardContent>
       </Card>
     );
   }
 
   return (
-    <Card className="border-emerald-100 shadow-lg overflow-hidden">
-      <div className="bg-gradient-to-r from-emerald-700 to-emerald-800 p-4">
-        <div className="flex items-center">
-          <div className="bg-white/20 p-2 rounded-full mr-3">
-            <Clock className="h-6 w-6 text-white" />
-          </div>
-          <h3 className="text-xl font-medium text-white">Hours of Operation</h3>
+    <Card className="group text-center border-0 shadow-xl hover:shadow-2xl transition-all duration-500 bg-gradient-to-br from-white to-amber-50/30 overflow-hidden">
+      <CardContent className="p-10">
+        <div className="w-20 h-20 mx-auto mb-8 bg-gradient-to-br from-amber-500 to-amber-600 rounded-full flex items-center justify-center shadow-xl group-hover:scale-110 transition-transform duration-300">
+          <Clock className="h-10 w-10 text-white" />
         </div>
-      </div>
-      <CardContent className="p-6">
-        <div className="space-y-3">
-          {sortedHours.map((hour) => (
-            <div key={hour.id} className="flex items-center justify-between py-2 border-b border-gray-100 last:border-0">
-              <div className="flex items-center">
-                <CalendarDays className="h-4 w-4 text-emerald-600 mr-2" />
-                <span className="text-gray-800 font-medium capitalize">{hour.day}</span>
-              </div>
-              <div>
-                {hour.is_closed ? (
-                  <span className="text-red-600 font-medium">Closed</span>
-                ) : (
-                  <span className="text-gray-700">{formatTime(hour.open_time)} - {formatTime(hour.close_time)}</span>
-                )}
-              </div>
-            </div>
-          ))}
+        <h3 className="text-2xl font-light text-gray-800 mb-6 group-hover:text-amber-600 transition-colors">
+          Opening Hours
+        </h3>
+        <div className="space-y-4 text-gray-600 leading-relaxed text-lg">
+          <div className="flex justify-between items-center py-1">
+            <span className="font-medium">Sunday-Friday</span>
+            <span>9AM - 9PM</span>
+          </div>
+          <div className="flex justify-between items-center py-1">
+            <span className="font-medium">Saturday</span>
+            <span className="text-red-500">Closed</span>
+          </div>
         </div>
       </CardContent>
     </Card>

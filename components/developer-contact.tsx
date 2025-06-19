@@ -30,22 +30,34 @@ export function DeveloperContact() {
     setIsSubmitting(true);
 
     try {
-      // In a real implementation, you would send this data to your backend
-      // For now, we'll just simulate a successful submission
-      await new Promise((resolve) => setTimeout(resolve, 1500));
-      
-      toast({
-        title: "Message Sent!",
-        description: "Thanks for your interest. I'll get back to you soon!",
+      const res = await fetch("/api/send-email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          to: "wjose@techrehub.co.zw", // Change to your dev email
+          subject: `Contact from ${formData.name}`,
+          html: `<p><b>Name:</b> ${formData.name}</p><p><b>Email:</b> ${formData.email}</p><p>${formData.message}</p>`,
+        }),
       });
-      
-      // Reset form
-      setFormData({
-        name: "",
-        email: "",
-        company: "",
-        message: "",
-      });
+      const data = await res.json();
+      if (data.success) {
+        toast({
+          title: "Message Sent!",
+          description: "Thanks for your interest. I'll get back to you soon!",
+        });
+        setFormData({
+          name: "",
+          email: "",
+          company: "",
+          message: "",
+        });
+      } else {
+        toast({
+          title: "Error",
+          description: "Failed to send your message. Please try again.",
+          variant: "destructive",
+        });
+      }
     } catch (error) {
       toast({
         title: "Error",
@@ -68,8 +80,8 @@ export function DeveloperContact() {
           <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-emerald-600 to-emerald-800 rounded-xl shadow-lg mb-4">
             <Code className="h-8 w-8 text-white" />
           </div>
-          <h2 className="text-4xl font-light text-gray-800 mb-4">Need a Custom Web App?</h2>
-          <p className="text-xl text-gray-600 max-w-3xl mx-auto">
+          <h2 className="text-4xl font-light text-gray-200 mb-4">Need a Custom Web App?</h2>
+          <p className="text-xl text-gray-400 max-w-3xl mx-auto">
             I'm the developer behind this restaurant & spa management system. Let's discuss how I can help your business succeed with custom software solutions.
           </p>
         </div>
@@ -87,9 +99,9 @@ export function DeveloperContact() {
                       <Globe className="h-6 w-6 text-emerald-700" />
                     </div>
                     <div>
-                      <h4 className="text-lg font-medium text-gray-800 mb-2">Web Applications</h4>
-                      <p className="text-gray-600">
-                        Custom web applications built with modern frameworks like Next.js, React, and Node.js for businesses of all sizes.
+                      <h4 className="text-lg font-medium text-green-100 mb-2">Web Applications</h4>
+                      <p className="text-green-200">
+                        Custom web applications built with modern frameworks like Blazor, Next.js, React, Node.js ,and ASP.NET for businesses of all sizes.
                       </p>
                     </div>
                   </div>
@@ -103,9 +115,9 @@ export function DeveloperContact() {
                       <Smartphone className="h-6 w-6 text-emerald-700" />
                     </div>
                     <div>
-                      <h4 className="text-lg font-medium text-gray-800 mb-2">Mobile Solutions</h4>
-                      <p className="text-gray-600">
-                        Cross-platform mobile applications that work seamlessly on iOS and Android devices using React Native.
+                      <h4 className="text-lg font-medium text-green-100 mb-2">Mobile Solutions</h4>
+                      <p className="text-green-200">
+                        Cross-platform mobile applications that work seamlessly on iOS and Android devices using React Native,Flutter and .NET MAUI.
                       </p>
                     </div>
                   </div>
@@ -119,8 +131,8 @@ export function DeveloperContact() {
                       <Cpu className="h-6 w-6 text-emerald-700" />
                     </div>
                     <div>
-                      <h4 className="text-lg font-medium text-gray-800 mb-2">Business Process Automation</h4>
-                      <p className="text-gray-600">
+                      <h4 className="text-lg font-medium text-green-100 mb-2">Business Process Automation</h4>
+                      <p className="text-green-200">
                         Streamline your business operations with custom software that automates repetitive tasks and improves efficiency.
                       </p>
                     </div>
@@ -131,7 +143,7 @@ export function DeveloperContact() {
             
             <div className="pt-4">
               <a 
-                href="https://github.com/yourusername" 
+                href="https://github.com/WilliamTatendaJose" 
                 target="_blank" 
                 rel="noopener noreferrer"
                 className="inline-flex items-center text-emerald-700 hover:text-emerald-800 font-medium"
