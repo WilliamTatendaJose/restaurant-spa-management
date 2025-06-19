@@ -124,7 +124,10 @@ export function SyncStatusProvider({ children }: SyncStatusProviderProps) {
     }
 
     if (isSyncing) {
-      return { success: false, error: "A sync operation is already in progress" };
+      return {
+        success: false,
+        error: "A sync operation is already in progress",
+      };
     }
 
     setIsSyncing(true);

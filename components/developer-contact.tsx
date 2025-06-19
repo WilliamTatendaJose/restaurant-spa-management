@@ -6,7 +6,15 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/components/ui/use-toast";
-import { Code, Sparkles, ExternalLink, Send, Cpu, Smartphone, Globe } from "lucide-react";
+import {
+  Code,
+  Sparkles,
+  ExternalLink,
+  Send,
+  Cpu,
+  Smartphone,
+  Globe,
+} from "lucide-react";
 
 export function DeveloperContact() {
   const [formData, setFormData] = useState({
@@ -74,23 +82,29 @@ export function DeveloperContact() {
       {/* Background decorative elements */}
       <div className="absolute -top-20 -left-20 w-64 h-64 bg-emerald-400/10 rounded-full blur-3xl"></div>
       <div className="absolute -bottom-20 -right-20 w-64 h-64 bg-amber-400/10 rounded-full blur-3xl"></div>
-      
+
       <div className="relative">
         <div className="text-center mb-12">
           <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-emerald-600 to-emerald-800 rounded-xl shadow-lg mb-4">
             <Code className="h-8 w-8 text-white" />
           </div>
-          <h2 className="text-4xl font-light text-gray-200 mb-4">Need a Custom Web App?</h2>
+          <h2 className="text-4xl font-light text-gray-200 mb-4">
+            Need a Custom Web App?
+          </h2>
           <p className="text-xl text-gray-400 max-w-3xl mx-auto">
-            I'm the developer behind this restaurant & spa management system. Let's discuss how I can help your business succeed with custom software solutions.
+            I'm the developer behind this complex project.
+            Let's discuss how I can help your business succeed with custom
+            software solutions.
           </p>
         </div>
 
         <div className="grid md:grid-cols-2 gap-8 max-w-6xl mx-auto">
           {/* Services */}
           <div className="space-y-6">
-            <h3 className="text-2xl font-medium text-emerald-800 mb-6">My Services</h3>
-            
+            <h3 className="text-2xl font-medium text-emerald-800 mb-6">
+              My Services
+            </h3>
+
             <div className="grid gap-4">
               <Card className="border-emerald-100 shadow-md hover:shadow-lg transition-shadow duration-300">
                 <CardContent className="p-6">
@@ -99,15 +113,19 @@ export function DeveloperContact() {
                       <Globe className="h-6 w-6 text-emerald-700" />
                     </div>
                     <div>
-                      <h4 className="text-lg font-medium text-green-100 mb-2">Web Applications</h4>
-                      <p className="text-green-200">
-                        Custom web applications built with modern frameworks like Blazor, Next.js, React, Node.js ,and ASP.NET for businesses of all sizes.
+                      <h4 className="text-lg font-medium text-emerald-700 mb-2">
+                        Web Applications
+                      </h4>
+                      <p className="text-emerald-800">
+                        Custom web applications built with modern frameworks
+                        like Blazor, Next.js, React, Node.js ,and ASP.NET for
+                        businesses of all sizes.
                       </p>
                     </div>
                   </div>
                 </CardContent>
               </Card>
-              
+
               <Card className="border-emerald-100 shadow-md hover:shadow-lg transition-shadow duration-300">
                 <CardContent className="p-6">
                   <div className="flex items-start">
@@ -115,15 +133,19 @@ export function DeveloperContact() {
                       <Smartphone className="h-6 w-6 text-emerald-700" />
                     </div>
                     <div>
-                      <h4 className="text-lg font-medium text-green-100 mb-2">Mobile Solutions</h4>
-                      <p className="text-green-200">
-                        Cross-platform mobile applications that work seamlessly on iOS and Android devices using React Native,Flutter and .NET MAUI.
+                      <h4 className="text-lg font-medium text-emerald-700 mb-2">
+                        Mobile Solutions
+                      </h4>
+                      <p className="text-emerald-800">
+                        Cross-platform mobile applications that work seamlessly
+                        on iOS and Android devices using React Native,Flutter
+                        and .NET MAUI.
                       </p>
                     </div>
                   </div>
                 </CardContent>
               </Card>
-              
+
               <Card className="border-emerald-100 shadow-md hover:shadow-lg transition-shadow duration-300">
                 <CardContent className="p-6">
                   <div className="flex items-start">
@@ -131,20 +153,23 @@ export function DeveloperContact() {
                       <Cpu className="h-6 w-6 text-emerald-700" />
                     </div>
                     <div>
-                      <h4 className="text-lg font-medium text-green-100 mb-2">Business Process Automation</h4>
-                      <p className="text-green-200">
-                        Streamline your business operations with custom software that automates repetitive tasks and improves efficiency.
+                      <h4 className="text-lg font-medium text-emerald-700 mb-2">
+                        Business Process Automation
+                      </h4>
+                      <p className="text-emerald-800">
+                        Streamline your business operations with custom software
+                        that automates repetitive tasks and improves efficiency.
                       </p>
                     </div>
                   </div>
                 </CardContent>
               </Card>
             </div>
-            
+
             <div className="pt-4">
-              <a 
-                href="https://github.com/WilliamTatendaJose" 
-                target="_blank" 
+              <a
+                href="https://github.com/WilliamTatendaJose"
+                target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex items-center text-emerald-700 hover:text-emerald-800 font-medium"
               >
@@ -153,15 +178,22 @@ export function DeveloperContact() {
               </a>
             </div>
           </div>
-          
+
           {/* Contact Form */}
           <Card className="border-emerald-100 shadow-xl bg-white">
             <CardContent className="p-8">
-              <h3 className="text-2xl font-medium text-gray-800 mb-6">Get in Touch</h3>
-              
+              <h3 className="text-2xl font-medium text-gray-800 mb-6">
+                Get in Touch
+              </h3>
+
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div className="space-y-2">
-                  <label htmlFor="name" className="text-sm font-medium text-gray-700">Your Name</label>
+                  <label
+                    htmlFor="name"
+                    className="text-sm font-medium text-gray-700"
+                  >
+                    Your Name
+                  </label>
                   <Input
                     id="name"
                     name="name"
@@ -172,9 +204,14 @@ export function DeveloperContact() {
                     className="border-gray-300 focus:border-emerald-500 focus:ring-emerald-500/20"
                   />
                 </div>
-                
+
                 <div className="space-y-2">
-                  <label htmlFor="email" className="text-sm font-medium text-gray-700">Email Address</label>
+                  <label
+                    htmlFor="email"
+                    className="text-sm font-medium text-gray-700"
+                  >
+                    Email Address
+                  </label>
                   <Input
                     id="email"
                     name="email"
@@ -186,9 +223,14 @@ export function DeveloperContact() {
                     className="border-gray-300 focus:border-emerald-500 focus:ring-emerald-500/20"
                   />
                 </div>
-                
+
                 <div className="space-y-2">
-                  <label htmlFor="company" className="text-sm font-medium text-gray-700">Company (Optional)</label>
+                  <label
+                    htmlFor="company"
+                    className="text-sm font-medium text-gray-700"
+                  >
+                    Company (Optional)
+                  </label>
                   <Input
                     id="company"
                     name="company"
@@ -198,9 +240,14 @@ export function DeveloperContact() {
                     className="border-gray-300 focus:border-emerald-500 focus:ring-emerald-500/20"
                   />
                 </div>
-                
+
                 <div className="space-y-2">
-                  <label htmlFor="message" className="text-sm font-medium text-gray-700">Project Details</label>
+                  <label
+                    htmlFor="message"
+                    className="text-sm font-medium text-gray-700"
+                  >
+                    Project Details
+                  </label>
                   <Textarea
                     id="message"
                     name="message"
@@ -212,9 +259,9 @@ export function DeveloperContact() {
                     className="border-gray-300 focus:border-emerald-500 focus:ring-emerald-500/20 resize-none"
                   />
                 </div>
-                
-                <Button 
-                  type="submit" 
+
+                <Button
+                  type="submit"
                   disabled={isSubmitting}
                   className="w-full bg-gradient-to-r from-emerald-600 to-emerald-800 hover:from-emerald-700 hover:to-emerald-900 text-white py-3"
                 >
@@ -230,7 +277,7 @@ export function DeveloperContact() {
                     </>
                   )}
                 </Button>
-                
+
                 <p className="text-xs text-gray-500 text-center pt-2">
                   I'll get back to you within 24-48 hours
                 </p>

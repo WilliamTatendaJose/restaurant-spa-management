@@ -1038,34 +1038,34 @@ export default function HomePage() {
               >
                 Contact
               </a>
+              {/* Show button to reveal developer contact form */}
+              <div className="mt-0">
+                {!showDeveloperContact ? (
+                  <button
+                    className="text-emerald-300 hover:text-emerald-100 underline text-lg transition-colors"
+                    onClick={() => setShowDeveloperContact(true)}
+                  >
+                    Developer Contact
+                  </button>
+                ) : (
+                  <div className="relative z-50">
+                    <button
+                      className="absolute top-0 right-0 text-emerald-700 hover:text-emerald-900 text-2xl font-bold p-2"
+                      onClick={() => setShowDeveloperContact(false)}
+                      title="Close"
+                    >
+                      ×
+                    </button>
+                    <DeveloperContact />
+                  </div>
+                )}
+              </div>
             </div>
             <div className="pt-8 border-t border-emerald-800/50">
               <p className="text-emerald-400 text-lg">
                 &copy; {new Date().getFullYear()} LEWA HEALTH Spa. All rights
                 reserved.
               </p>
-            </div>
-            {/* Show button to reveal developer contact form */}
-            <div className="mt-12">
-              {!showDeveloperContact ? (
-                <button
-                  className="text-emerald-300 hover:text-emerald-100 underline text-lg transition-colors"
-                  onClick={() => setShowDeveloperContact(true)}
-                >
-                  Developer Contact
-                </button>
-              ) : (
-                <div className="relative z-50">
-                  <button
-                    className="absolute top-0 right-0 text-emerald-700 hover:text-emerald-900 text-2xl font-bold p-2"
-                    onClick={() => setShowDeveloperContact(false)}
-                    title="Close"
-                  >
-                    ×
-                  </button>
-                  <DeveloperContact />
-                </div>
-              )}
             </div>
           </div>
         </div>

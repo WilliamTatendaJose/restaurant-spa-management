@@ -21,17 +21,19 @@ export function OperatingHoursDisplay() {
   }, []);
 
   const formatTime = (time: string) => {
-    if (!time) return '';
+    if (!time) return "";
     try {
-      const [hours, minutes] = time.split(':');
+      const [hours, minutes] = time.split(":");
       const timeValue = new Date();
       timeValue.setHours(parseInt(hours), parseInt(minutes));
-      return timeValue.toLocaleTimeString('en-US', {
-        hour: 'numeric',
-        hour12: true
-      }).toUpperCase();
+      return timeValue
+        .toLocaleTimeString("en-US", {
+          hour: "numeric",
+          hour12: true,
+        })
+        .toUpperCase();
     } catch (error) {
-      console.error('Error formatting time:', error);
+      console.error("Error formatting time:", error);
       return time;
     }
   };
@@ -44,8 +46,11 @@ export function OperatingHoursDisplay() {
             <div className="w-20 h-20 mx-auto mb-8 bg-amber-200 rounded-full"></div>
             <div className="h-6 bg-amber-100 rounded mb-6 w-1/2 mx-auto"></div>
             <div className="space-y-3">
-              {[1, 2].map(i => (
-                <div key={i} className="h-4 bg-amber-50 rounded w-2/3 mx-auto"></div>
+              {[1, 2].map((i) => (
+                <div
+                  key={i}
+                  className="h-4 bg-amber-50 rounded w-2/3 mx-auto"
+                ></div>
               ))}
             </div>
           </div>
@@ -65,7 +70,8 @@ export function OperatingHoursDisplay() {
             Opening Hours
           </h3>
           <p className="text-gray-600 leading-relaxed">
-            Temporarily unavailable. Please contact us for current operating hours.
+            Temporarily unavailable. Please contact us for current operating
+            hours.
           </p>
         </CardContent>
       </Card>
