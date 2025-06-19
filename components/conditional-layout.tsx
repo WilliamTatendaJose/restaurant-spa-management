@@ -9,7 +9,7 @@ export function ConditionalLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
 
   // Pages that don't need authentication or layout
-  const publicPages = ["/login", "/"];
+  const publicPages = ["/login", "/", "/treatments"];
   const isPublicPage = publicPages.includes(pathname);
 
   // If it's a public page, render without layout or protection

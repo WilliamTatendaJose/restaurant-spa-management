@@ -16,6 +16,7 @@ import {
   ShoppingCart,
   Users,
   Utensils,
+  MessageSquare,
 } from "lucide-react";
 
 type UserRole = "admin" | "manager" | "staff";
@@ -84,6 +85,13 @@ const allRoutes: Route[] = [
     href: "/staff",
     color: "text-yellow-500",
     requiredRole: "admin", // Admin only
+  },
+  {
+    label: "Feedback",
+    icon: MessageSquare,
+    href: "/feedback",
+    color: "text-amber-500",
+    requiredRole: "manager", // Manager and admin only
   },
   {
     label: "Settings",

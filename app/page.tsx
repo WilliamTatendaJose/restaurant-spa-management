@@ -18,6 +18,7 @@ import {
   Shield,
   Menu,
   X,
+  MessageSquare,
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
@@ -34,6 +35,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { bookingsApi, spaServicesApi, customersApi } from "@/lib/db";
+import { FeedbackForm } from "@/components/feedback-form";
+import { FeedbackDisplay } from "@/components/feedback-display";
 
 interface SpaService {
   id: string;
@@ -52,6 +55,7 @@ interface Customer {
 
 export default function HomePage() {
   const [showBookingModal, setShowBookingModal] = useState(false);
+  const [showFeedbackModal, setShowFeedbackModal] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [scrollY, setScrollY] = useState(0);
   const { toast } = useToast();
@@ -111,6 +115,13 @@ export default function HomePage() {
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
+  const handleFeedbackSuccess = () => {
+    toast({
+      title: "Thank You! 🎉",
+      description: "Your feedback helps us improve our services.",
+    });
+  };
+
   const handleSubmitBooking = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
@@ -148,6 +159,33 @@ export default function HomePage() {
           variant: "destructive",
         });
         return;
+      }
+
+      // Check for duplicate bookings
+      try {
+        const existingBookings = await bookingsApi.list();
+        const duplicateBooking = existingBookings.find(
+          (booking: any) =>
+            booking.customer_email?.toLowerCase() ===
+              formData.customer_email.toLowerCase() &&
+            booking.booking_date === formData.booking_date &&
+            booking.booking_time === formData.booking_time &&
+            booking.service === formData.service &&
+            booking.status !== "cancelled"
+        );
+
+        if (duplicateBooking) {
+          toast({
+            title: "Booking Already Exists",
+            description:
+              "You already have a booking for this service at this time. Please choose a different time or contact us to modify your existing booking.",
+            variant: "destructive",
+          });
+          return;
+        }
+      } catch (error) {
+        console.error("Error checking for duplicate bookings:", error);
+        // Continue with booking creation if check fails
       }
 
       // First, create or find customer
@@ -189,6 +227,7 @@ export default function HomePage() {
       const bookingData = {
         customer_name: formData.customer_name,
         customer_id: customerId,
+        customer_email: formData.customer_email, // Add email to booking data
         booking_date: formData.booking_date,
         booking_time: formData.booking_time,
         booking_type: formData.booking_type,
@@ -204,9 +243,8 @@ export default function HomePage() {
       try {
         const serviceName =
           formData.booking_type === "spa"
-            ? spaServices.find(
-                (s: SpaService) => s.id === formData.service
-              )?.name || "Spa Service"
+            ? spaServices.find((s: SpaService) => s.id === formData.service)
+                ?.name || "Spa Service"
             : `Table for ${formData.party_size} - Restaurant Reservation`;
 
         const response = await fetch("/api/bookings/confirm", {
@@ -289,7 +327,7 @@ export default function HomePage() {
                   LEWA
                 </span>
                 <span className="block text-sm text-emerald-600 font-medium -mt-1">
-                  LUXURY SPA
+                  HEALTH SPA
                 </span>
               </div>
             </div>
@@ -410,14 +448,15 @@ export default function HomePage() {
                 <Flower2 className="relative h-20 w-20 text-white drop-shadow-2xl" />
               </div>
               <div className="text-left">
-                <h1 className="text-7xl md:text-8xl font-extralight text-white tracking-wider drop-shadow-2xl leading-none">
+                <h1 className="text-7xl text-center md:text-8xl font-extralight text-white tracking-wider drop-shadow-2xl leading-none">
                   LEWA
                 </h1>
                 <div className="flex items-center mt-2">
                   <div className="h-px bg-gradient-to-r from-transparent via-amber-300 to-transparent w-20 mr-4"></div>
                   <span className="text-3xl md:text-4xl text-amber-200 font-light tracking-wide">
-                    LUXURY SPA & WELLNESS
+                    HEALTH SPA
                   </span>
+                  <div className="h-px bg-gradient-to-r from-transparent via-amber-300 to-transparent w-20 mr-4"></div>
                 </div>
               </div>
             </div>
@@ -428,8 +467,9 @@ export default function HomePage() {
               Discover Your Sanctuary of Serenity
             </p>
             <p className="text-xl md:text-2xl text-white/85 max-w-4xl mx-auto leading-relaxed mb-4">
-              Indulge in transformative wellness experiences that harmonize ancient healing traditions 
-              with contemporary luxury in Zimbabwe's most prestigious spa destination
+              Indulge in transformative wellness experiences that harmonize
+              ancient healing traditions with contemporary luxury in Zimbabwe's
+              most prestigious spa destination
             </p>
             <p className="text-lg md:text-xl text-white/75 max-w-3xl mx-auto leading-relaxed">
               Located in the heart of Harare's exclusive Highlands district
@@ -731,7 +771,7 @@ export default function HomePage() {
               <div className="w-16 h-16 bg-gradient-to-br from-emerald-100 to-emerald-200 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform duration-300">
                 <Users className="h-8 w-8 text-emerald-600" />
               </div>
-              <div className="text-2xl font-light text-gray-800">500+</div>
+              <div className="text-2xl font-light text-gray-800">100+</div>
               <div className="text-sm text-gray-600 uppercase tracking-wide">
                 Happy Clients
               </div>
@@ -749,7 +789,7 @@ export default function HomePage() {
               <div className="w-16 h-16 bg-gradient-to-br from-emerald-100 to-emerald-200 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform duration-300">
                 <Award className="h-8 w-8 text-emerald-600" />
               </div>
-              <div className="text-2xl font-light text-gray-800">5 Years</div>
+              <div className="text-2xl font-light text-gray-800">Service</div>
               <div className="text-sm text-gray-600 uppercase tracking-wide">
                 Excellence
               </div>
@@ -762,6 +802,94 @@ export default function HomePage() {
               <div className="text-sm text-gray-600 uppercase tracking-wide">
                 Natural
               </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* NEW: Feedback Section */}
+      <section className="py-32 px-6 bg-gradient-to-br from-white via-emerald-50/20 to-amber-50/20">
+        <div className="max-w-7xl mx-auto">
+          <div className="text-center mb-20">
+            <Badge
+              variant="outline"
+              className="mb-6 text-emerald-700 border-emerald-300 bg-emerald-50 px-6 py-2 text-sm font-medium"
+            >
+              <Heart className="mr-2 h-4 w-4" />
+              Guest Testimonials
+            </Badge>
+            <h2 className="text-6xl md:text-7xl font-extralight text-gray-800 mb-8 tracking-wide">
+              Our Guests <span className="text-emerald-600">Love Us</span>
+            </h2>
+            <div className="w-24 h-px bg-gradient-to-r from-emerald-400 to-amber-400 mx-auto mb-8"></div>
+            <p className="text-xl text-gray-600 max-w-4xl mx-auto leading-relaxed">
+              Discover what our guests have to say about their experiences at
+              LEWA Luxury Spa
+            </p>
+          </div>
+
+          <div className="grid lg:grid-cols-2 gap-16 items-center">
+            {/* Feedback Display */}
+            <div className="lg:order-2">
+              <FeedbackDisplay />
+            </div>
+
+            {/* Feedback Benefits */}
+            <div className="space-y-8 lg:order-1">
+              <div className="flex items-start space-x-6 group">
+                <div className="w-16 h-16 bg-gradient-to-br from-emerald-100 to-emerald-200 rounded-full flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
+                  <Star className="h-8 w-8 text-emerald-600" />
+                </div>
+                <div>
+                  <h3 className="text-xl font-medium text-gray-800 mb-2 group-hover:text-emerald-600 transition-colors">
+                    Authentic Experiences
+                  </h3>
+                  <p className="text-gray-600 leading-relaxed">
+                    Real testimonials from our valued guests who have
+                    experienced our premium services firsthand
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-start space-x-6 group">
+                <div className="w-16 h-16 bg-gradient-to-br from-amber-100 to-amber-200 rounded-full flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
+                  <MessageSquare className="h-8 w-8 text-amber-600" />
+                </div>
+                <div>
+                  <h3 className="text-xl font-medium text-gray-800 mb-2 group-hover:text-amber-600 transition-colors">
+                    Your Voice Matters
+                  </h3>
+                  <p className="text-gray-600 leading-relaxed">
+                    We value your feedback and continuously improve our services
+                    based on guest suggestions
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-start space-x-6 group">
+                <div className="w-16 h-16 bg-gradient-to-br from-emerald-100 to-amber-100 rounded-full flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
+                  <Award className="h-8 w-8 text-emerald-600" />
+                </div>
+                <div>
+                  <h3 className="text-xl font-medium text-gray-800 mb-2 group-hover:text-emerald-600 transition-colors">
+                    Recognized Excellence
+                  </h3>
+                  <p className="text-gray-600 leading-relaxed">
+                    Join the hundreds of satisfied guests who have experienced
+                    our award-winning services
+                  </p>
+                </div>
+              </div>
+
+              <Button
+                size="lg"
+                onClick={() => setShowFeedbackModal(true)}
+                className="bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-700 hover:to-emerald-800 text-white px-12 py-4 text-xl shadow-xl hover:shadow-emerald-500/25 transform hover:scale-105 transition-all duration-300"
+              >
+                <Heart className="mr-3 h-6 w-6" />
+                Share Your Feedback
+                <Sparkles className="ml-3 h-5 w-5" />
+              </Button>
             </div>
           </div>
         </div>
@@ -817,7 +945,7 @@ export default function HomePage() {
                   Contact Us
                 </h3>
                 <div className="space-y-2 text-gray-600 leading-relaxed text-lg">
-                  <p>+263 4 123 456</p>
+                  <p>+263 78 004 5833</p>
                   <p>info@lewa.co.zw</p>
                   <p>www.lewa.co.zw</p>
                 </div>
@@ -833,8 +961,8 @@ export default function HomePage() {
                   Opening Hours
                 </h3>
                 <div className="space-y-2 text-gray-600 leading-relaxed text-lg">
-                  <p>Mon - Sat: 9am - 8pm</p>
-                  <p>Sunday: 10am - 6pm</p>
+                  <p>Sun- Fri: 9am - 8pm</p>
+                  <p>Saturday: Closed</p>
                   <p>By Appointment</p>
                 </div>
               </CardContent>
@@ -892,7 +1020,7 @@ export default function HomePage() {
                   LEWA
                 </span>
                 <span className="block text-lg text-emerald-400 font-light -mt-1">
-                  LUXURY SPA
+                  HEALTH SPA
                 </span>
               </div>
             </div>
@@ -915,7 +1043,7 @@ export default function HomePage() {
                 Terms of Service
               </a>
               <a
-                href="#"
+                href="#contact"
                 className="text-emerald-300 hover:text-emerald-200 transition-colors text-lg"
               >
                 Contact
@@ -923,12 +1051,24 @@ export default function HomePage() {
             </div>
             <div className="pt-8 border-t border-emerald-800/50">
               <p className="text-emerald-400 text-lg">
-                &copy; 2024 LEWA Luxury Spa. All rights reserved.
+                &copy; {new Date().getFullYear()} LEWA HEALTH Spa. All rights
+                reserved.
               </p>
             </div>
           </div>
         </div>
       </footer>
+
+      {/* Floating Feedback Button */}
+      <div className="fixed bottom-6 right-6 z-40">
+        <Button
+          onClick={() => setShowFeedbackModal(true)}
+          className="bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-700 hover:to-emerald-800 text-white rounded-full w-16 h-16 shadow-2xl hover:shadow-emerald-500/25 transform hover:scale-110 transition-all duration-300 group"
+          title="Share Your Feedback"
+        >
+          <Heart className="h-6 w-6 group-hover:scale-110 transition-transform duration-300" />
+        </Button>
+      </div>
 
       {/* Enhanced Booking Modal */}
       {showBookingModal && (
@@ -1126,7 +1266,7 @@ export default function HomePage() {
                   variant="outline"
                   onClick={() => setShowBookingModal(false)}
                   disabled={isSubmitting}
-                  className="flex-1 py-4 text-lg border-2 border-gray-200 hover:border-gray-300"
+                  className="flex-1 py-4 text-lg border-2 border-emerald-200 hover:border-emerald-300 text-emerald-700 hover:bg-emerald-50"
                 >
                   Cancel
                 </Button>
@@ -1149,6 +1289,18 @@ export default function HomePage() {
                 </Button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* NEW: Feedback Modal */}
+      {showFeedbackModal && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto">
+          <div className="w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+            <FeedbackForm
+              onClose={() => setShowFeedbackModal(false)}
+              onSuccess={handleFeedbackSuccess}
+            />
           </div>
         </div>
       )}

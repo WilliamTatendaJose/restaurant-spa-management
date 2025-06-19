@@ -60,6 +60,7 @@ let memoryDb: DatabaseStore = {
   menu_items: [],
   business_settings: [],
   general_settings: [],
+  feedback: [], // Add feedback table
 }
 
 // Device ID for sync tracking
@@ -797,6 +798,75 @@ export const generalSettingsApi = {
     // Create default settings if none exist
     const newSettings = await createRecord("general_settings", defaultSettings);
     return newSettings;
+  }
+};
+
+// Feedback API
+export const feedbackApi = {
+  create: (feedback: any) => createRecord("feedback", feedback),
+  get: (id: string) => getRecord("feedback", id),
+  update: (id: string, data: any) => updateRecord("feedback", id, data),
+  delete: (id: string) => deleteRecord("feedback", id),
+  list: (filters: any = {}) => listRecords("feedback", filters),
+  getRecent: async (limit: number = 10) => {
+    const cache = DatabaseCache.getInstance();
+    const cacheKey = `recent_feedback:${limit}`;
+    
+    const cached = cache.get(cacheKey);
+    if (cached) return cached;
+    
+    await initDatabase();
+    if (!memoryDb.feedback) return [];
+    
+    const sortedFeedback = [...memoryDb.feedback].sort((a, b) => {
+      return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+    });
+    
+    const result = sortedFeedback.slice(0, limit);
+    cache.set(cacheKey, result, 2 * 60 * 1000);
+    return result;
+  },
+  getAverageRating: async () => {
+    const cache = DatabaseCache.getInstance();
+    const cacheKey = `average_rating`;
+    
+    const cached = cache.get(cacheKey);
+    if (cached) return cached;
+    
+    await initDatabase();
+    if (!memoryDb.feedback || memoryDb.feedback.length === 0) return 0;
+    
+    const totalRating = memoryDb.feedback.reduce((sum: number, feedback: any) => {
+      return sum + (feedback.rating || 0);
+    }, 0);
+    
+    const average = totalRating / memoryDb.feedback.length;
+    const result = Math.round(average * 10) / 10; // Round to 1 decimal place
+    
+    cache.set(cacheKey, result, 5 * 60 * 1000);
+    return result;
+  },
+  getRatingDistribution: async () => {
+    const cache = DatabaseCache.getInstance();
+    const cacheKey = `rating_distribution`;
+    
+    const cached = cache.get(cacheKey);
+    if (cached) return cached;
+    
+    await initDatabase();
+    if (!memoryDb.feedback) return { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
+    
+    const distribution = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
+    
+    memoryDb.feedback.forEach((feedback: any) => {
+      const rating = feedback.rating;
+      if (rating >= 1 && rating <= 5) {
+        distribution[rating as keyof typeof distribution]++;
+      }
+    });
+    
+    cache.set(cacheKey, distribution, 5 * 60 * 1000);
+    return distribution;
   }
 };
 
