@@ -5,7 +5,7 @@ import { getSupabaseBrowserClient, isSupabaseConfigured } from "@/lib/supabase"
 // Track pending changes for sync
 let pendingChanges: SyncData[] = []
 let isInitialized = false
-let syncInProgress = false
+let syncLock: Promise<SyncResult> | null = null;
 
 // Database structure
 interface Record {

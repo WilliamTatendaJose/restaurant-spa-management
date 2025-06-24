@@ -11,6 +11,21 @@ import {
 } from "@/lib/db";
 import { useAuth } from "@/lib/auth-context";
 
+interface Transaction {
+  status: string;
+  total_amount: number;
+  transaction_type: string;
+  transaction_date: string;
+}
+
+interface Booking {
+  booking_date: string;
+}
+
+interface Customer {
+  last_visit: string | null;
+}
+
 export function DashboardStats() {
   const { hasPermission } = useAuth();
 
@@ -35,31 +50,31 @@ export function DashboardStats() {
     async function fetchStats() {
       try {
         // Get all transactions
-        const allTransactions = await transactionsApi.list();
+        const allTransactions = (await transactionsApi.list()) as Transaction[];
         const completedTransactions = allTransactions.filter(
-          (tx) => tx.status === "completed" || tx.status === "paid"
+          (tx: Transaction) => tx.status === "completed" || tx.status === "paid"
         );
 
         // Calculate total revenue
         const totalRevenue = completedTransactions.reduce(
-          (sum, tx) => sum + (tx.total_amount || 0),
+          (sum: number, tx: Transaction) => sum + (tx.total_amount || 0),
           0
         );
 
         // Get restaurant orders count
         const restaurantOrders = completedTransactions.filter(
-          (tx) => tx.transaction_type === "restaurant"
+          (tx: Transaction) => tx.transaction_type === "restaurant"
         );
 
         const spaOrders = completedTransactions.filter(
-          (tx) => tx.transaction_type === "spa"
+          (tx: Transaction) => tx.transaction_type === "spa"
         );
 
         // Get all bookings
-        const allBookings = await bookingsApi.list();
+        const allBookings = (await bookingsApi.list()) as Booking[];
 
         // Get active customers (with at least one booking or transaction)
-        const customers = await customersApi.list();
+        const customers = (await customersApi.list()) as Customer[];
 
         // Get dates for comparison
         const today = new Date();
@@ -73,12 +88,12 @@ export function DashboardStats() {
         yesterdayDate.setDate(yesterdayDate.getDate() - 1);
 
         // Filter transactions for current and previous periods
-        const thisMonthTransactions = completedTransactions.filter((tx) => {
+        const thisMonthTransactions = completedTransactions.filter((tx: Transaction) => {
           const txDate = new Date(tx.transaction_date);
           return txDate >= lastMonthDate;
         });
 
-        const prevMonthTransactions = completedTransactions.filter((tx) => {
+        const prevMonthTransactions = completedTransactions.filter((tx: Transaction) => {
           const txDate = new Date(tx.transaction_date);
           return (
             txDate < lastMonthDate &&
@@ -89,12 +104,12 @@ export function DashboardStats() {
 
         // Calculate revenue for current and previous month
         const thisMonthRevenue = thisMonthTransactions.reduce(
-          (sum, tx) => sum + (tx.total_amount || 0),
+          (sum: number, tx: Transaction) => sum + (tx.total_amount || 0),
           0
         );
 
         const prevMonthRevenue = prevMonthTransactions.reduce(
-          (sum, tx) => sum + (tx.total_amount || 0),
+          (sum: number, tx: Transaction) => sum + (tx.total_amount || 0),
           0
         );
 
@@ -105,12 +120,12 @@ export function DashboardStats() {
             : ((thisMonthRevenue - prevMonthRevenue) / prevMonthRevenue) * 100;
 
         // Filter bookings for current and previous week
-        const thisWeekBookings = allBookings.filter((booking) => {
+        const thisWeekBookings = allBookings.filter((booking: Booking) => {
           const bookingDate = new Date(booking.booking_date);
           return bookingDate >= lastWeekDate;
         });
 
-        const prevWeekBookings = allBookings.filter((booking) => {
+        const prevWeekBookings = allBookings.filter((booking: Booking) => {
           const bookingDate = new Date(booking.booking_date);
           return (
             bookingDate < lastWeekDate &&
@@ -128,12 +143,12 @@ export function DashboardStats() {
               100;
 
         // Filter orders for today and yesterday
-        const todayOrders = restaurantOrders.filter((tx) => {
+        const todayOrders = restaurantOrders.filter((tx: Transaction) => {
           const txDate = new Date(tx.transaction_date);
           return txDate.toDateString() === today.toDateString();
         });
 
-        const yesterdayOrders = restaurantOrders.filter((tx) => {
+        const yesterdayOrders = restaurantOrders.filter((tx: Transaction) => {
           const txDate = new Date(tx.transaction_date);
           return txDate.toDateString() === yesterdayDate.toDateString();
         });
@@ -146,12 +161,12 @@ export function DashboardStats() {
                 yesterdayOrders.length) *
               100;
 
-        const todaySpaOrders = spaOrders.filter((tx) => {
+        const todaySpaOrders = spaOrders.filter((tx: Transaction) => {
           const txDate = new Date(tx.transaction_date);
           return txDate.toDateString() === today.toDateString();
         });
 
-        const yesterdaySpaOrders = spaOrders.filter((tx) => {
+        const yesterdaySpaOrders = spaOrders.filter((tx: Transaction) => {
           const txDate = new Date(tx.transaction_date);
           return txDate.toDateString() === yesterdayDate.toDateString();
         });
@@ -164,7 +179,7 @@ export function DashboardStats() {
               100;
 
         // Calculate new customers this month
-        const newCustomersThisMonth = customers.filter((customer) => {
+        const newCustomersThisMonth = customers.filter((customer: Customer) => {
           const lastVisitDate = customer.last_visit
             ? new Date(customer.last_visit)
             : null;
