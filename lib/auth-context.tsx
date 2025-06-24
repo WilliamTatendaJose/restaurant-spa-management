@@ -169,6 +169,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => subscription.unsubscribe();
   }, [supabase.auth]);
 
+  useEffect(() => {
+    console.log("AuthProvider state:", { user, session, userDetails, isLoading });
+  }, [user, session, userDetails, isLoading]);
+
   const signIn = async (email: string, password: string) => {
     setIsLoading(true);
     try {
