@@ -123,6 +123,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       } else {
         setUserDetails(null);
       }
+      setIsLoading(false); // Stop loading after initial session check
     });
 
     // Listen for auth changes
@@ -142,6 +143,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       } else {
         setUserDetails(null);
       }
+
+      setIsLoading(false); // Stop loading after auth state change
 
       // Trigger sync when user signs in
       if (event === "SIGNED_IN" && session?.user) {
@@ -175,18 +178,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => subscription.unsubscribe();
   }, [supabase.auth]);
 
-  // Set isLoading to false only after userDetails is set (or null if no user)
-  useEffect(() => {
-    console.log("[AuthContext] useEffect (user/userDetails change):", { user, userDetails });
-    // If session has been checked (user is null or userDetails is set), loading is done
-    if ((user === null && userDetails === null) || (user && userDetails)) {
-      setIsLoading(false);
-      console.log("[AuthContext] isLoading set to false");
-    } else {
-      setIsLoading(true); // Explicitly set loading to true while fetching details
-      console.log("[AuthContext] isLoading set to true (waiting for userDetails)");
-    }
-  }, [user, userDetails]);
+
 
   useEffect(() => {
     console.log("AuthProvider state:", { user, session, userDetails, isLoading });
