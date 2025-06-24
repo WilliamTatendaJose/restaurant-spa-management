@@ -65,9 +65,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // Fetch user profile from database
       const { data: profile, error } = await supabase
         .from("user_profiles")
-        .select("name, role, department")
+        .select("name, role, department, id")
         .eq("id", user.id)
         .single();
+      console.log("Supabase user_profiles query result:", { profile, error, userId: user.id });
 
       if (error) {
         console.error("Error fetching user profile:", error);
