@@ -72,15 +72,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (error) {
         console.error("Error fetching user profile:", error);
         // Fallback to basic user info with staff role if profile not found
-        return {
+        const fallback = {
           id: user.id,
           email: user.email || "",
           name: user.user_metadata?.full_name || user.email?.split("@")[0],
           role: "staff" as UserRole,
         };
+        console.log("Using fallback userDetails:", fallback);
+        return fallback;
       }
 
-      return {
+      const details = {
         id: user.id,
         email: user.email || "",
         name:
@@ -89,15 +91,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           user.email?.split("@")[0],
         role: profile.role as UserRole,
       };
+      console.log("Fetched userDetails from profile:", details);
+      return details;
     } catch (error) {
       console.error("Error creating user details:", error);
       // Fallback to basic user info with staff role
-      return {
+      const fallback = {
         id: user.id,
         email: user.email || "",
         name: user.user_metadata?.full_name || user.email?.split("@")[0],
         role: "staff" as UserRole,
       };
+      console.log("Using fallback userDetails (catch):", fallback);
+      return fallback;
     }
   };
 
@@ -111,6 +117,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (user) {
         const details = await createUserDetails(user);
         setUserDetails(details);
+        console.log("setUserDetails (initial):", details);
       } else {
         setUserDetails(null);
       }
@@ -129,6 +136,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (user) {
         const details = await createUserDetails(user);
         setUserDetails(details);
+        console.log("setUserDetails (auth change):", details);
       } else {
         setUserDetails(null);
       }
