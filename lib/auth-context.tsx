@@ -182,7 +182,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setIsLoading(false);
       console.log("[AuthContext] isLoading set to false");
     } else {
-      console.log("[AuthContext] isLoading remains true");
+      setIsLoading(true); // Explicitly set loading to true while fetching details
+      console.log("[AuthContext] isLoading set to true (waiting for userDetails)");
     }
   }, [user, userDetails]);
 
