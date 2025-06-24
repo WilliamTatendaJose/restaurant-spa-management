@@ -1,7 +1,6 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import ProtectedRoute from "@/components/protected-route"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
@@ -30,11 +29,7 @@ interface DialogState {
 }
 
 export default function UsersPage() {
-  return (
-    <ProtectedRoute requiredRole="admin">
-      <UsersManagement />
-    </ProtectedRoute>
-  )
+  return <UsersManagement />
 }
 
 function UsersManagement() {
@@ -185,7 +180,7 @@ function UsersManagement() {
             <CardTitle>User Management</CardTitle>
             <CardDescription>Manage system users and their permissions</CardDescription>
           </div>
-          <Button 
+          <Button
             onClick={() => openDialog("create")}
             disabled={!isOnline}
           >
@@ -200,7 +195,7 @@ function UsersManagement() {
               <p className="text-sm">User management is only available when online. The system will sync changes when you're back online.</p>
             </div>
           )}
-          
+
           {isLoading ? (
             <div className="flex h-60 items-center justify-center">
               <div className="animate-spin text-primary">Loading...</div>
@@ -229,13 +224,12 @@ function UsersManagement() {
                       <TableCell>{user.name}</TableCell>
                       <TableCell>{user.email}</TableCell>
                       <TableCell>
-                        <span className={`inline-block rounded-full px-2 py-1 text-xs font-medium ${
-                          user.role === "admin" 
-                            ? "bg-purple-100 text-purple-800" 
-                            : user.role === "manager" 
-                              ? "bg-blue-100 text-blue-800" 
+                        <span className={`inline-block rounded-full px-2 py-1 text-xs font-medium ${user.role === "admin"
+                            ? "bg-purple-100 text-purple-800"
+                            : user.role === "manager"
+                              ? "bg-blue-100 text-blue-800"
                               : "bg-green-100 text-green-800"
-                        }`}>
+                          }`}>
                           {user.role}
                         </span>
                       </TableCell>
