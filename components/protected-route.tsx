@@ -18,6 +18,9 @@ export default function ProtectedRoute({
   const router = useRouter();
   const [isChecking, setIsChecking] = useState(true);
 
+  // Debug log
+  console.log("ProtectedRoute:", { user, isLoading });
+
   useEffect(() => {
     if (!isLoading) {
       if (!user) {
