@@ -19,7 +19,7 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 
 export function Header() {
-  const { user, signOut } = useAuth();
+  const { userDetails, signOut } = useAuth();
   const router = useRouter();
 
   const handleSignOut = async () => {
@@ -27,38 +27,40 @@ export function Header() {
     router.push("/login");
   };
 
-  const getInitials = (email: string | undefined) => {
-    if (!email) return "U";
-    return email.charAt(0).toUpperCase();
+  const getInitials = (name?: string, email?: string) => {
+    if (name) return name.charAt(0).toUpperCase();
+    if (email) return email.charAt(0).toUpperCase();
+    return "U";
   };
 
-  const userEmail = user?.email || "Unknown User";
+  const userName = userDetails?.name || userDetails?.email || "Unknown User";
+  const userEmail = userDetails?.email || "No email";
 
   return (
     <header className="sticky top-0 z-40 border-b bg-background">
-      <div className="container flex h-16 items-center px-4">
-        {/* Mobile menu button */}
-        <div className="md:hidden">
-          <Sheet>
-            <SheetTrigger asChild>
-              <Button variant="ghost" size="icon">
-                <Menu className="h-5 w-5" />
-                <span className="sr-only">Toggle menu</span>
-              </Button>
-            </SheetTrigger>
-            <SheetContent side="left" className="p-0">
-              <Sidebar />
-            </SheetContent>
-          </Sheet>
+      <div className="container flex h-16 items-center justify-between px-4">
+        {/* Left side: Mobile menu and App title */}
+        <div className="flex items-center gap-4">
+          <div className="md:hidden">
+            <Sheet>
+              <SheetTrigger asChild>
+                <Button variant="ghost" size="icon">
+                  <Menu className="h-5 w-5" />
+                  <span className="sr-only">Toggle menu</span>
+                </Button>
+              </SheetTrigger>
+              <SheetContent side="left" className="p-0">
+                <Sidebar />
+              </SheetContent>
+            </Sheet>
+          </div>
+          <div className="hidden md:block">
+            <h1 className="text-lg font-semibold">Restaurant SPA Management</h1>
+          </div>
         </div>
 
-        {/* App title */}
-        <div className="hidden md:block">
-          <h1 className="text-lg font-semibold">Restaurant SPA Management</h1>
-        </div>
-
-        {/* Push everything else to the right */}
-        <div className="flex flex-1 items-center justify-end space-x-4">
+        {/* Right side: Sync, Theme, Notifications, User Menu */}
+        <div className="flex items-center space-x-4">
           <SyncStatus />
           <ThemeToggle />
 
@@ -71,20 +73,16 @@ export function Header() {
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" size="icon" className="rounded-full">
                 <Avatar className="h-8 w-8">
-                  <AvatarImage
-                    src={user?.user_metadata?.avatar_url}
-                    alt="User Avatar"
-                  />
-                  <AvatarFallback>{getInitials(userEmail)}</AvatarFallback>
+                  <AvatarFallback>{getInitials(userDetails?.name, userDetails?.email)}</AvatarFallback>
                 </Avatar>
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
               <DropdownMenuLabel>
                 <div className="flex flex-col">
-                  <span className="text-sm font-medium">{userEmail}</span>
+                  <span className="text-sm font-medium">{userName}</span>
                   <span className="text-xs text-muted-foreground">
-                    Signed in via Supabase
+                    {userEmail}
                   </span>
                 </div>
               </DropdownMenuLabel>
