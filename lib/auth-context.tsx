@@ -176,9 +176,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   // Set isLoading to false only after userDetails is set (or null if no user)
   useEffect(() => {
+    console.log("[AuthContext] useEffect (user/userDetails change):", { user, userDetails });
     // If session has been checked (user is null or userDetails is set), loading is done
     if ((user === null && userDetails === null) || (user && userDetails)) {
       setIsLoading(false);
+      console.log("[AuthContext] isLoading set to false");
+    } else {
+      console.log("[AuthContext] isLoading remains true");
     }
   }, [user, userDetails]);
 
@@ -188,6 +192,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signIn = async (email: string, password: string) => {
     setIsLoading(true);
+    console.log("[AuthContext] signIn called, isLoading set to true");
     try {
       const { error } = await supabase.auth.signInWithPassword({
         email,
@@ -201,6 +206,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signUp = async (email: string, password: string) => {
     setIsLoading(true);
+    console.log("[AuthContext] signUp called, isLoading set to true");
     try {
       const { error } = await supabase.auth.signUp({
         email,
@@ -214,6 +220,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signOut = async () => {
     setIsLoading(true);
+    console.log("[AuthContext] signOut called, isLoading set to true");
     try {
       await supabase.auth.signOut();
     } finally {

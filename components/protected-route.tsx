@@ -19,21 +19,26 @@ export default function ProtectedRoute({
   const [isChecking, setIsChecking] = useState(true);
 
   // Debug log
-  console.log("ProtectedRoute:", { user, isLoading });
+  console.log("[ProtectedRoute] Render:", { user, isLoading, isChecking });
 
   useEffect(() => {
+    console.log("[ProtectedRoute] useEffect triggered", { user, isLoading });
     if (!isLoading) {
       if (!user) {
-        console.log("No authenticated user, redirecting to login...");
+        console.log(
+          "[ProtectedRoute] No authenticated user, redirecting to login...",
+          { redirectTo }
+        );
         router.push(redirectTo);
       } else {
-        console.log("User authenticated:", user.email);
+        console.log("[ProtectedRoute] User authenticated:", user.email);
         setIsChecking(false);
       }
     }
   }, [user, isLoading, router, redirectTo]);
 
   if (isLoading || isChecking) {
+    console.log("[ProtectedRoute] Showing loader", { isLoading, isChecking });
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center space-y-4">
@@ -45,8 +50,10 @@ export default function ProtectedRoute({
   }
 
   if (!user) {
+    console.log("[ProtectedRoute] No user after loading, returning null");
     return null; // Will redirect in useEffect
   }
 
+  console.log("[ProtectedRoute] Rendering children");
   return <>{children}</>;
 }
