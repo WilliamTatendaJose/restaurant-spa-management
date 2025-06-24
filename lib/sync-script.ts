@@ -254,7 +254,7 @@ export class DatabaseSync {
   constructor() {
     if (isSupabaseConfigured()) {
       this.supabase = getSupabaseBrowserClient();
-      this.checkAuth(); // Initial auth check
+      // this.checkAuth(); // Defer auth check to method calls to prevent SSR errors
     }
   }
 
