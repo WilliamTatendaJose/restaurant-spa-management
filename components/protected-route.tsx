@@ -10,7 +10,7 @@ interface ProtectedRouteProps {
   redirectTo?: string;
 }
 
-export function ProtectedRoute({
+export default function ProtectedRoute({
   children,
   redirectTo = "/login",
 }: ProtectedRouteProps) {
