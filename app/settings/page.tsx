@@ -1,6 +1,6 @@
 import { PageHeader } from "@/components/page-header"
 import { SettingsTabs } from "@/components/settings/settings-tabs"
-import { ProtectedRoute } from "@/components/protected-route"
+import ProtectedRoute from "@/components/protected-route"
 
 export default function SettingsPage() {
   return (
