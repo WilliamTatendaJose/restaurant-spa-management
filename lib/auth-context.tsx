@@ -114,8 +114,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       } else {
         setUserDetails(null);
       }
-
-      setIsLoading(false);
     });
 
     // Listen for auth changes
@@ -134,8 +132,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       } else {
         setUserDetails(null);
       }
-
-      setIsLoading(false);
 
       // Trigger sync when user signs in
       if (event === "SIGNED_IN" && session?.user) {
@@ -169,6 +165,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => subscription.unsubscribe();
   }, [supabase.auth]);
 
+  // Set isLoading to false only after userDetails is set (or null if no user)
+  useEffect(() => {
+    // If session has been checked (user is null or userDetails is set), loading is done
+    if ((user === null && userDetails === null) || (user && userDetails)) {
+      setIsLoading(false);
+    }
+  }, [user, userDetails]);
+
   useEffect(() => {
     console.log("AuthProvider state:", { user, session, userDetails, isLoading });
   }, [user, session, userDetails, isLoading]);
@@ -182,7 +186,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       });
       return { error };
     } finally {
-      setIsLoading(false);
+      // Removed setIsLoading(false) from here
     }
   };
 
@@ -195,7 +199,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       });
       return { error };
     } finally {
-      setIsLoading(false);
+      // Removed setIsLoading(false) from here
     }
   };
 
@@ -204,7 +208,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       await supabase.auth.signOut();
     } finally {
-      setIsLoading(false);
+      // Removed setIsLoading(false) from here
     }
   };
 
