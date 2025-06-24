@@ -66,6 +66,8 @@ export default function LoginPage() {
             : "You have been successfully signed in.",
         });
 
+        router.push("/dashboard");
+
         if (!isSignUp) {
           router.push("/dashboard");
         }
