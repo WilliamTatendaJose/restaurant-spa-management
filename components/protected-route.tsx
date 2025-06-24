@@ -23,19 +23,15 @@ export default function ProtectedRoute({
     }
   }, [user, isLoading, router, redirectTo]);
 
-  if (isLoading) {
+  if (isLoading || !user) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center space-y-4">
           <Loader2 className="h-8 w-8 animate-spin mx-auto" />
-          <p className="text-muted-foreground">Checking authentication...</p>
+          <p className="text-muted-foreground">Verifying access...</p>
         </div>
       </div>
     );
-  }
-
-  if (!user) {
-    return null; // Redirecting...
   }
 
   return <>{children}</>;
