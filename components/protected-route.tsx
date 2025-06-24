@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import { Loader2 } from "lucide-react";
@@ -16,29 +16,14 @@ export default function ProtectedRoute({
 }: ProtectedRouteProps) {
   const { user, isLoading } = useAuth();
   const router = useRouter();
-  const [isChecking, setIsChecking] = useState(true);
-
-  // Debug log
-  console.log("[ProtectedRoute] Render:", { user, isLoading, isChecking });
 
   useEffect(() => {
-    console.log("[ProtectedRoute] useEffect triggered", { user, isLoading });
-    if (!isLoading) {
-      if (!user) {
-        console.log(
-          "[ProtectedRoute] No authenticated user, redirecting to login...",
-          { redirectTo }
-        );
-        router.push(redirectTo);
-      } else {
-        console.log("[ProtectedRoute] User authenticated:", user.email);
-        setIsChecking(false);
-      }
+    if (!isLoading && !user) {
+      router.push(redirectTo);
     }
   }, [user, isLoading, router, redirectTo]);
 
-  if (isLoading || isChecking) {
-    console.log("[ProtectedRoute] Showing loader", { isLoading, isChecking });
+  if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center space-y-4">
@@ -50,10 +35,8 @@ export default function ProtectedRoute({
   }
 
   if (!user) {
-    console.log("[ProtectedRoute] No user after loading, returning null");
-    return null; // Will redirect in useEffect
+    return null; // Redirecting...
   }
 
-  console.log("[ProtectedRoute] Rendering children");
   return <>{children}</>;
 }
