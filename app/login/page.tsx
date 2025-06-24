@@ -67,7 +67,7 @@ export default function LoginPage() {
         });
 
         if (!isSignUp) {
-          router.push("/");
+          router.push("/dashboard");
         }
       }
     } catch (error) {
