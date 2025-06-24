@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -37,9 +37,15 @@ export default function LoginPage() {
   const [error, setError] = useState("");
   const [isSignUp, setIsSignUp] = useState(false);
 
-  const { signIn, signUp } = useAuth();
+  const { signIn, signUp, user, isLoading: isAuthLoading } = useAuth();
   const { toast } = useToast();
   const router = useRouter();
+
+  useEffect(() => {
+    if (user) {
+      router.push("/dashboard");
+    }
+  }, [user, router]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -65,8 +71,7 @@ export default function LoginPage() {
             ? "Please check your email to verify your account."
             : "You have been successfully signed in.",
         });
-
-        router.push("/dashboard");
+        // The redirect will now be handled by the useEffect hook
       }
     } catch (error) {
       const errorMessage =
@@ -81,6 +86,14 @@ export default function LoginPage() {
       setIsLoading(false);
     }
   };
+
+  if (isAuthLoading || user) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <Loader2 className="h-10 w-10 animate-spin text-blue-600" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex relative overflow-hidden">
