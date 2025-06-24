@@ -70,8 +70,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         .single();
       console.log("Supabase user_profiles query result:", { profile, error, userId: user.id });
 
-      if (error) {
-        console.error("Error fetching user profile:", error);
+      // If there was an error or the profile doesn't exist, use fallback
+      if (error || !profile) {
+        console.error("Error or no profile fetching user profile:", error);
         // Fallback to basic user info with staff role if profile not found
         const fallback = {
           id: user.id,
