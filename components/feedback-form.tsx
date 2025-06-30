@@ -155,7 +155,7 @@ export function FeedbackForm({ onClose, onSuccess }: FeedbackFormProps) {
     onLeave?: () => void
   ) => {
     return (
-      <div className="flex">
+      <div className="flex gap-1 md:gap-2">
         {[1, 2, 3, 4, 5].map((star) => (
           <button
             key={star}
@@ -163,15 +163,14 @@ export function FeedbackForm({ onClose, onSuccess }: FeedbackFormProps) {
             onClick={() => onRatingChange(star)}
             onMouseEnter={onHover ? () => onHover(star) : undefined}
             onMouseLeave={onLeave ? onLeave : undefined}
-            className="focus:outline-none focus:ring-2 focus:ring-emerald-700 rounded-sm p-1"
+            className="focus:outline-none focus:ring-2 focus:ring-emerald-700 rounded-sm p-0.5 md:p-1"
             aria-label={`Rate ${star} out of 5 stars`}
           >
             <Star
-              className={`h-8 w-8 ${
-                star <= (hoverRating || rating)
+              className={`h-6 w-6 md:h-8 md:w-8 ${star <= (hoverRating || rating)
                   ? "text-amber-600 fill-amber-600"
                   : "text-gray-400"
-              } transition-colors`}
+                } transition-colors`}
             />
           </button>
         ))}
@@ -206,14 +205,14 @@ export function FeedbackForm({ onClose, onSuccess }: FeedbackFormProps) {
         </div>
       </div>
 
-      <CardContent className="p-8 bg-gray-50">
-        <form onSubmit={handleSubmit} className="space-y-8">
+      <CardContent className="p-4 md:p-8 bg-gray-50">
+        <form onSubmit={handleSubmit} className="space-y-6 md:space-y-8">
           {/* Contact Information */}
-          <div className="space-y-6 bg-white p-6 rounded-lg shadow-sm border border-gray-200">
-            <h3 className="text-xl font-medium text-gray-800 border-b border-emerald-200 pb-2">
+          <div className="space-y-4 md:space-y-6 bg-white px-3 py-2 md:px-6 md:py-4 rounded-lg shadow-sm border border-gray-200">
+            <h3 className="text-lg md:text-xl font-medium text-gray-800 border-b border-emerald-200 pb-2">
               Your Information
             </h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
               <div className="space-y-2">
                 <Label
                   htmlFor="customer_name"
@@ -291,16 +290,16 @@ export function FeedbackForm({ onClose, onSuccess }: FeedbackFormProps) {
           </div>
 
           {/* Ratings */}
-          <div className="space-y-6 bg-white p-6 rounded-lg shadow-sm border border-gray-200">
-            <h3 className="text-xl font-medium text-gray-800 border-b border-emerald-200 pb-2">
+          <div className="space-y-4 md:space-y-6 bg-white px-3 py-2 md:px-6 md:py-4 rounded-lg shadow-sm border border-gray-200">
+            <h3 className="text-lg md:text-xl font-medium text-gray-800 border-b border-emerald-200 pb-2">
               Your Ratings
             </h3>
-            <div className="space-y-8">
+            <div className="space-y-6 md:space-y-8">
               <div className="space-y-2">
                 <Label className="text-base font-medium text-gray-800">
                   Overall Experience *
                 </Label>
-                <div className="flex items-center gap-4 bg-gray-50 p-3 rounded-md">
+                <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 bg-gray-50 p-2 md:p-3 rounded-md">
                   {renderStars(
                     overallRating,
                     hoveredRating,
@@ -308,18 +307,18 @@ export function FeedbackForm({ onClose, onSuccess }: FeedbackFormProps) {
                     (rating) => setHoveredRating(rating),
                     () => setHoveredRating(0)
                   )}
-                  <span className="text-gray-700 text-sm font-medium px-3 py-1 bg-gray-100 rounded-full">
+                  <span className="text-gray-700 text-xs md:text-sm font-medium px-2 md:px-3 py-0.5 md:py-1 bg-gray-100 rounded-full">
                     {hoveredRating || overallRating
                       ? ["Poor", "Fair", "Good", "Very Good", "Excellent"][
-                          (hoveredRating || overallRating) - 1
-                        ]
+                      (hoveredRating || overallRating) - 1
+                      ]
                       : ""}
                   </span>
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-2 bg-gray-50 p-3 rounded-md">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
+                <div className="space-y-2 bg-gray-50 p-2 md:p-3 rounded-md">
                   <Label className="text-base font-medium text-gray-800">
                     Service Quality
                   </Label>
@@ -327,7 +326,7 @@ export function FeedbackForm({ onClose, onSuccess }: FeedbackFormProps) {
                     handleStarClick(rating, "service")
                   )}
                 </div>
-                <div className="space-y-2 bg-gray-50 p-3 rounded-md">
+                <div className="space-y-2 bg-gray-50 p-2 md:p-3 rounded-md">
                   <Label className="text-base font-medium text-gray-800">
                     Staff Friendliness
                   </Label>
@@ -335,7 +334,7 @@ export function FeedbackForm({ onClose, onSuccess }: FeedbackFormProps) {
                     handleStarClick(rating, "staff")
                   )}
                 </div>
-                <div className="space-y-2 bg-gray-50 p-3 rounded-md">
+                <div className="space-y-2 bg-gray-50 p-2 md:p-3 rounded-md">
                   <Label className="text-base font-medium text-gray-800">
                     Cleanliness
                   </Label>
@@ -343,7 +342,7 @@ export function FeedbackForm({ onClose, onSuccess }: FeedbackFormProps) {
                     handleStarClick(rating, "cleanliness")
                   )}
                 </div>
-                <div className="space-y-2 bg-gray-50 p-3 rounded-md">
+                <div className="space-y-2 bg-gray-50 p-2 md:p-3 rounded-md">
                   <Label className="text-base font-medium text-gray-800">
                     Value for Money
                   </Label>
@@ -475,20 +474,20 @@ export function FeedbackForm({ onClose, onSuccess }: FeedbackFormProps) {
             </RadioGroup>
           </div>
 
-          <div className="flex flex-col md:flex-row gap-4 pt-4">
+          <div className="flex flex-col md:flex-row gap-3 md:gap-4 pt-4">
             <Button
               type="button"
               variant="outline"
               onClick={onClose}
               disabled={isSubmitting}
-              className="flex-1 py-6 text-lg border-2 border-gray-300 hover:border-gray-400 text-gray-700 hover:bg-gray-50 hover:text-gray-900 font-medium"
+              className="w-full md:flex-1 py-4 md:py-6 text-base md:text-lg border-2 border-gray-300 hover:border-gray-400 text-gray-700 hover:bg-gray-50 hover:text-gray-900 font-medium"
             >
               Cancel
             </Button>
             <Button
               type="submit"
               disabled={isSubmitting}
-              className="flex-1 py-6 text-lg bg-gradient-to-r from-emerald-700 to-emerald-800 hover:from-emerald-800 hover:to-emerald-900 text-white shadow-xl hover:shadow-emerald-600/25 font-medium"
+              className="w-full md:flex-1 py-4 md:py-6 text-base md:text-lg bg-gradient-to-r from-emerald-700 to-emerald-800 hover:from-emerald-800 hover:to-emerald-900 text-white shadow-xl hover:shadow-emerald-600/25 font-medium"
             >
               {isSubmitting ? (
                 <>

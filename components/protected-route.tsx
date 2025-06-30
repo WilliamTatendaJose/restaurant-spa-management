@@ -18,6 +18,7 @@ export default function ProtectedRoute({
   const router = useRouter();
 
   useEffect(() => {
+    console.log("[ProtectedRoute] user:", user, "isLoading:", isLoading);
     if (!isLoading && !user) {
       router.push(redirectTo);
     }

@@ -62,6 +62,14 @@ export default function HomePage() {
   const [scrollY, setScrollY] = useState(0);
   const [showDeveloperContact, setShowDeveloperContact] = useState(false);
   const { toast } = useToast();
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const checkIsMobile = () => setIsMobile(window.innerWidth < 768);
+    checkIsMobile();
+    window.addEventListener("resize", checkIsMobile);
+    return () => window.removeEventListener("resize", checkIsMobile);
+  }, []);
 
   // Scroll effect for parallax
   useEffect(() => {
@@ -170,7 +178,7 @@ export default function HomePage() {
         const duplicateBooking = existingBookings.find(
           (booking: any) =>
             booking.customer_email?.toLowerCase() ===
-              formData.customer_email.toLowerCase() &&
+            formData.customer_email.toLowerCase() &&
             booking.booking_date === formData.booking_date &&
             booking.booking_time === formData.booking_time &&
             booking.service === formData.service &&
@@ -247,7 +255,7 @@ export default function HomePage() {
         const serviceName =
           formData.booking_type === "spa"
             ? spaServices.find((s: SpaService) => s.id === formData.service)
-                ?.name || "Spa Service"
+              ?.name || "Spa Service"
             : `Table for ${formData.party_size} - Restaurant Reservation`;
 
         const response = await fetch("/api/bookings/confirm", {
@@ -419,7 +427,7 @@ export default function HomePage() {
         {/* Parallax Background */}
         <div
           className="absolute inset-0 transform"
-          style={{ transform: `translateY(${scrollY * 0.5}px)` }}
+          style={{ transform: isMobile ? "none" : `translateY(${scrollY * 0.5}px)` }}
         >
           <Image
             src="https://scontent.fhre2-2.fna.fbcdn.net/v/t39.30808-6/471263064_1106034651516041_5518068055766050068_n.jpg?_nc_cat=106&ccb=1-7&_nc_sid=833d8c&_nc_eui2=AeGx9YgYJXJBPiPRvN5yI6HPvjGzf6yINs--MbN_rIg2z6KXWoQZ1YJ8QAyh_CXj6A1UDMwG-8FfSDAOx5wpP7kp&_nc_ohc=xYUVGW6TKE8Q7kNvgGDhz_h&_nc_zt=23&_nc_ht=scontent.fhre2-2.fna&_nc_gid=A8HCtlnU8qy-wJ9yJhpNY4J&oh=00_AYCyqZGKSa2uZY4Yy5YoZZqQ7Jg1oBzFw8VyPRdcUqZZ5Q&oe=678BAE51"
@@ -446,35 +454,35 @@ export default function HomePage() {
         <div className="relative z-10 text-center max-w-6xl mx-auto px-6">
           <div className="mb-8 animate-fade-in-up">
             <div className="flex items-center justify-center mb-6">
-              <div className="relative p-6 rounded-full bg-white/10 backdrop-blur-lg border border-white/20 mr-8">
+              <div className="relative p-4 md:p-6 rounded-full bg-white/10 backdrop-blur-lg border border-white/20 mr-4 md:mr-8">
                 <div className="absolute inset-0 bg-gradient-to-br from-emerald-400/20 to-amber-400/20 rounded-full blur-lg"></div>
-                <Flower2 className="relative h-20 w-20 text-white drop-shadow-2xl" />
+                <Flower2 className="relative h-16 w-16 md:h-20 md:w-20 text-white drop-shadow-2xl" />
               </div>
               <div className="text-left">
-                <h1 className="text-7xl text-center md:text-8xl font-extralight text-white tracking-wider drop-shadow-2xl leading-none">
+                <h1 className="text-5xl sm:text-6xl md:text-7xl lg:text-8xl font-extralight text-white tracking-wider drop-shadow-2xl leading-none">
                   LEWA
                 </h1>
                 <div className="flex items-center mt-2">
-                  <div className="h-px bg-gradient-to-r from-transparent via-amber-300 to-transparent w-20 mr-4"></div>
-                  <span className="text-3xl md:text-4xl text-amber-200 font-light tracking-wide">
+                  <div className="h-px bg-gradient-to-r from-transparent via-amber-300 to-transparent w-10 md:w-20 mr-4"></div>
+                  <span className="text-2xl sm:text-3xl md:text-4xl text-amber-200 font-light tracking-wide">
                     HEALTH SPA
                   </span>
-                  <div className="h-px bg-gradient-to-r from-transparent via-amber-300 to-transparent w-20 mr-4"></div>
+                  <div className="h-px bg-gradient-to-r from-transparent via-amber-300 to-transparent w-10 md:w-20 ml-4"></div>
                 </div>
               </div>
             </div>
           </div>
 
           <div className="mb-12 animate-fade-in-up delay-300">
-            <p className="text-3xl md:text-4xl text-white/95 mb-6 font-light leading-relaxed">
+            <p className="text-2xl md:text-3xl lg:text-4xl text-white/95 mb-6 font-light leading-relaxed">
               Discover Your Sanctuary of Serenity
             </p>
-            <p className="text-xl md:text-2xl text-white/85 max-w-4xl mx-auto leading-relaxed mb-4">
+            <p className="text-lg md:text-xl lg:text-2xl text-white/85 max-w-4xl mx-auto leading-relaxed mb-4">
               Indulge in transformative wellness experiences that harmonize
               ancient healing traditions with contemporary luxury in Zimbabwe's
               most prestigious spa destination
             </p>
-            <p className="text-lg md:text-xl text-white/75 max-w-3xl mx-auto leading-relaxed">
+            <p className="text-base md:text-lg lg:text-xl text-white/75 max-w-3xl mx-auto leading-relaxed">
               Located in the heart of Harare's exclusive Highlands district
             </p>
           </div>
@@ -483,9 +491,9 @@ export default function HomePage() {
             <Button
               size="lg"
               onClick={handleBookNow}
-              className="group bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-700 hover:to-emerald-800 text-white px-16 py-7 text-xl shadow-2xl hover:shadow-emerald-500/30 transform hover:scale-105 transition-all duration-500 border-2 border-emerald-500/50 backdrop-blur-sm"
+              className="group w-full sm:w-auto bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-700 hover:to-emerald-800 text-white px-8 py-5 text-lg md:px-16 md:py-7 md:text-xl shadow-2xl hover:shadow-emerald-500/30 transform hover:scale-105 transition-all duration-500 border-2 border-emerald-500/50 backdrop-blur-sm"
             >
-              <Calendar className="mr-3 h-6 w-6 group-hover:rotate-12 transition-transform duration-300" />
+              <Calendar className="mr-3 h-5 w-5 md:h-6 md:w-6 group-hover:rotate-12 transition-transform duration-300" />
               Begin Your Journey
               <Sparkles className="ml-3 h-5 w-5 group-hover:scale-110 transition-transform duration-300" />
             </Button>
@@ -494,9 +502,9 @@ export default function HomePage() {
               size="lg"
               variant="outline"
               onClick={handleWatchStory}
-              className="group border-white/30 bg-white/5 text-white hover:bg-white/10 backdrop-blur-lg px-14 py-7 text-xl shadow-xl border-2 hover:border-white/50 transition-all duration-500"
+              className="group w-full sm:w-auto border-white/30 bg-white/5 text-white hover:bg-white/10 backdrop-blur-lg px-8 py-5 text-lg md:px-14 md:py-7 md:text-xl shadow-xl border-2 hover:border-white/50 transition-all duration-500"
             >
-              <Play className="mr-3 h-6 w-6 group-hover:scale-110 transition-transform duration-300" />
+              <Play className="mr-3 h-5 w-5 md:h-6 md:w-6 group-hover:scale-110 transition-transform duration-300" />
               Explore Our Story
             </Button>
           </div>
@@ -506,10 +514,10 @@ export default function HomePage() {
       {/* Enhanced Services Section */}
       <section
         id="services"
-        className="py-32 px-6 bg-gradient-to-b from-stone-50 via-white to-emerald-50/30"
+        className="py-20 md:py-24 lg:py-32 px-6 bg-gradient-to-b from-stone-50 via-white to-emerald-50/30"
       >
         <div className="max-w-7xl mx-auto">
-          <div className="text-center mb-24">
+          <div className="text-center mb-16 md:mb-24">
             <Badge
               variant="outline"
               className="mb-6 text-emerald-700 border-emerald-300 bg-emerald-50 px-6 py-2 text-sm font-medium"
@@ -517,18 +525,18 @@ export default function HomePage() {
               <Sparkles className="mr-2 h-4 w-4" />
               Our Signature Services
             </Badge>
-            <h2 className="text-6xl md:text-7xl font-extralight text-gray-800 mb-8 tracking-wide">
+            <h2 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-extralight text-gray-800 mb-6 md:mb-8 tracking-wide">
               Wellness & <span className="text-emerald-600">Beauty</span>
             </h2>
-            <div className="w-24 h-px bg-gradient-to-r from-emerald-400 to-amber-400 mx-auto mb-8"></div>
-            <p className="text-xl text-gray-600 max-w-4xl mx-auto leading-relaxed">
+            <div className="w-24 h-px bg-gradient-to-r from-emerald-400 to-amber-400 mx-auto mb-6 md:mb-8"></div>
+            <p className="text-lg md:text-xl text-gray-600 max-w-4xl mx-auto leading-relaxed">
               Experience our signature treatments designed to restore your mind,
               body, and spirit in our luxurious spa environment crafted for
               ultimate relaxation
             </p>
           </div>
 
-          <div className="grid lg:grid-cols-2 gap-20 items-center mb-24">
+          <div className="grid lg:grid-cols-2 gap-12 lg:gap-20 items-center mb-16 md:mb-24">
             {/* Enhanced Massage Therapy Card */}
             <div className="order-2 lg:order-1 group">
               <Card className="overflow-hidden border-0 shadow-2xl hover:shadow-3xl transition-all duration-700 bg-gradient-to-br from-emerald-50 via-white to-emerald-50/50">
@@ -545,14 +553,14 @@ export default function HomePage() {
                     }}
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-emerald-900/80 via-emerald-800/40 to-transparent"></div>
-                  <div className="absolute bottom-6 left-6 text-white">
+                  <div className="absolute bottom-4 left-4 md:bottom-6 md:left-6 text-white">
                     <div className="flex items-center mb-3">
                       <Heart className="h-8 w-8 mr-3 text-rose-300" />
                       <Badge className="bg-white/20 text-white border-white/30">
                         Signature Treatment
                       </Badge>
                     </div>
-                    <h3 className="text-4xl font-light leading-tight">
+                    <h3 className="text-3xl md:text-4xl font-light leading-tight">
                       Therapeutic
                       <br />
                       Massage
@@ -560,31 +568,31 @@ export default function HomePage() {
                   </div>
                 </div>
 
-                <CardContent className="p-10">
-                  <p className="text-gray-600 mb-10 leading-relaxed text-lg">
+                <CardContent className="p-6 md:p-10">
+                  <p className="text-gray-600 mb-8 md:mb-10 leading-relaxed text-base md:text-lg">
                     Indulge in our signature massage treatments that combine
                     traditional techniques with modern wellness practices to
                     melt away stress and restore inner harmony.
                   </p>
 
-                  <div className="space-y-6 mb-10">
+                  <div className="space-y-4 md:space-y-6 mb-8 md:mb-10">
                     <div className="flex items-center text-gray-700 group/item hover:text-emerald-600 transition-colors">
                       <div className="w-2 h-2 bg-amber-400 rounded-full mr-4 group-hover/item:bg-emerald-500 transition-colors"></div>
-                      <span className="text-lg">Deep Tissue Massage</span>
+                      <span className="text-base md:text-lg">Deep Tissue Massage</span>
                     </div>
                     <div className="flex items-center text-gray-700 group/item hover:text-emerald-600 transition-colors">
                       <div className="w-2 h-2 bg-amber-400 rounded-full mr-4 group-hover/item:bg-emerald-500 transition-colors"></div>
-                      <span className="text-lg">Hot Stone Therapy</span>
+                      <span className="text-base md:text-lg">Hot Stone Therapy</span>
                     </div>
                     <div className="flex items-center text-gray-700 group/item hover:text-emerald-600 transition-colors">
                       <div className="w-2 h-2 bg-amber-400 rounded-full mr-4 group-hover/item:bg-emerald-500 transition-colors"></div>
-                      <span className="text-lg">Aromatherapy Sessions</span>
+                      <span className="text-base md:text-lg">Aromatherapy Sessions</span>
                     </div>
                   </div>
 
                   <Button
                     onClick={handleExploreServices}
-                    className="w-full bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-700 hover:to-emerald-800 py-6 text-lg group/btn shadow-xl hover:shadow-emerald-500/25 transition-all duration-300"
+                    className="w-full bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-700 hover:to-emerald-800 py-4 md:py-6 text-base md:text-lg group/btn shadow-xl hover:shadow-emerald-500/25 transition-all duration-300"
                   >
                     Explore Massage Services
                     <ArrowRight className="ml-2 h-5 w-5 group-hover/btn:translate-x-2 transition-transform duration-300" />
@@ -609,14 +617,14 @@ export default function HomePage() {
                     }}
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-amber-900/80 via-amber-800/40 to-transparent"></div>
-                  <div className="absolute bottom-6 left-6 text-white">
+                  <div className="absolute bottom-4 left-4 md:bottom-6 md:left-6 text-white">
                     <div className="flex items-center mb-3">
                       <Award className="h-8 w-8 mr-3 text-amber-300" />
                       <Badge className="bg-white/20 text-white border-white/30">
                         Premium Care
                       </Badge>
                     </div>
-                    <h3 className="text-4xl font-light leading-tight">
+                    <h3 className="text-3xl md:text-4xl font-light leading-tight">
                       Facial
                       <br />
                       Rejuvenation
@@ -624,31 +632,31 @@ export default function HomePage() {
                   </div>
                 </div>
 
-                <CardContent className="p-10">
-                  <p className="text-gray-600 mb-10 leading-relaxed text-lg">
+                <CardContent className="p-6 md:p-10">
+                  <p className="text-gray-600 mb-8 md:mb-10 leading-relaxed text-base md:text-lg">
                     Revitalize your skin with our premium facial treatments
                     using organic products and advanced techniques for a
                     radiant, youthful glow that lasts.
                   </p>
 
-                  <div className="space-y-6 mb-10">
+                  <div className="space-y-4 md:space-y-6 mb-8 md:mb-10">
                     <div className="flex items-center text-gray-700 group/item hover:text-amber-600 transition-colors">
                       <div className="w-2 h-2 bg-emerald-400 rounded-full mr-4 group-hover/item:bg-amber-500 transition-colors"></div>
-                      <span className="text-lg">Anti-Aging Treatments</span>
+                      <span className="text-base md:text-lg">Anti-Aging Treatments</span>
                     </div>
                     <div className="flex items-center text-gray-700 group/item hover:text-amber-600 transition-colors">
                       <div className="w-2 h-2 bg-emerald-400 rounded-full mr-4 group-hover/item:bg-amber-500 transition-colors"></div>
-                      <span className="text-lg">Hydrating Facials</span>
+                      <span className="text-base md:text-lg">Hydrating Facials</span>
                     </div>
                     <div className="flex items-center text-gray-700 group/item hover:text-amber-600 transition-colors">
                       <div className="w-2 h-2 bg-emerald-400 rounded-full mr-4 group-hover/item:bg-amber-500 transition-colors"></div>
-                      <span className="text-lg">Organic Skincare</span>
+                      <span className="text-base md:text-lg">Organic Skincare</span>
                     </div>
                   </div>
 
                   <Button
                     onClick={handleExploreServices}
-                    className="w-full bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-700 hover:to-amber-800 py-6 text-lg group/btn shadow-xl hover:shadow-amber-500/25 transition-all duration-300"
+                    className="w-full bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-700 hover:to-amber-800 py-4 md:py-6 text-base md:text-lg group/btn shadow-xl hover:shadow-amber-500/25 transition-all duration-300"
                   >
                     View Facial Services
                     <ArrowRight className="ml-2 h-5 w-5 group-hover/btn:translate-x-2 transition-transform duration-300" />
@@ -659,18 +667,18 @@ export default function HomePage() {
           </div>
 
           {/* Enhanced Video/Experience Section */}
-          <div className="relative rounded-3xl overflow-hidden shadow-3xl bg-gradient-to-br from-emerald-100 via-white to-amber-100 p-16">
+          <div className="relative rounded-3xl overflow-hidden shadow-3xl bg-gradient-to-br from-emerald-100 via-white to-amber-100 p-8 md:p-12 lg:p-16">
             <div className="absolute inset-0 bg-gradient-to-br from-emerald-50/80 to-amber-50/80"></div>
             <div className="relative text-center">
               <div className="mb-8">
-                <div className="w-20 h-20 bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-full flex items-center justify-center mx-auto mb-6 shadow-xl">
-                  <Flower2 className="h-10 w-10 text-white" />
+                <div className="w-16 h-16 md:w-20 md:h-20 bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-full flex items-center justify-center mx-auto mb-6 shadow-xl">
+                  <Flower2 className="h-8 w-8 md:h-10 md:w-10 text-white" />
                 </div>
-                <h3 className="text-5xl font-light mb-6 text-gray-800">
+                <h3 className="text-3xl sm:text-4xl md:text-5xl font-light mb-6 text-gray-800">
                   Experience <span className="text-emerald-600">Serenity</span>
                 </h3>
                 <div className="w-16 h-px bg-gradient-to-r from-emerald-400 to-amber-400 mx-auto mb-6"></div>
-                <p className="text-xl mb-8 max-w-3xl mx-auto text-gray-600 leading-relaxed">
+                <p className="text-lg md:text-xl mb-8 max-w-3xl mx-auto text-gray-600 leading-relaxed">
                   Step into our tranquil spa environment where every detail is
                   designed for your relaxation and every moment is crafted for
                   your wellbeing
@@ -679,11 +687,11 @@ export default function HomePage() {
               <Button
                 size="lg"
                 onClick={handleWatchStory}
-                className="bg-gradient-to-r from-emerald-600/20 to-amber-600/20 hover:from-emerald-600/30 hover:to-amber-600/30 backdrop-blur-sm border-2 border-emerald-600/30 text-emerald-800 hover:text-emerald-900 shadow-xl hover:shadow-2xl transition-all duration-300 px-8 py-4"
+                className="bg-gradient-to-r from-emerald-600/20 to-amber-600/20 hover:from-emerald-600/30 hover:to-amber-600/30 backdrop-blur-sm border-2 border-emerald-600/30 text-emerald-800 hover:text-emerald-900 shadow-xl hover:shadow-2xl transition-all duration-300 px-4 py-2 text-sm sm:px-6 sm:py-3 sm:text-base"
               >
-                <Play className="mr-3 h-5 w-5" />
+                <Play className="mr-3 h-4 w-4 sm:h-5 sm:w-5" />
                 Take a Virtual Tour
-                <Sparkles className="ml-3 h-4 w-4" />
+                <Sparkles className="ml-3 h-4 w-4 sm:h-5 sm:w-5" />
               </Button>
             </div>
           </div>
@@ -693,10 +701,10 @@ export default function HomePage() {
       {/* Enhanced Experience Section */}
       <section
         id="experience"
-        className="py-32 bg-gradient-to-br from-stone-100 via-emerald-50/30 to-amber-50/30"
+        className="py-20 md:py-24 lg:py-32 bg-gradient-to-br from-stone-100 via-emerald-50/30 to-amber-50/30"
       >
         <div className="max-w-7xl mx-auto px-6">
-          <div className="text-center mb-24">
+          <div className="text-center mb-16 md:mb-24">
             <Badge
               variant="outline"
               className="mb-6 text-amber-700 border-amber-300 bg-amber-50 px-6 py-2 text-sm font-medium"
@@ -704,30 +712,30 @@ export default function HomePage() {
               <Award className="mr-2 h-4 w-4" />
               The LEWA Experience
             </Badge>
-            <h2 className="text-6xl md:text-7xl font-extralight text-gray-800 mb-8 tracking-wide">
+            <h2 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-extralight text-gray-800 mb-6 md:mb-8 tracking-wide">
               Your Wellness <span className="text-amber-600">Journey</span>
             </h2>
-            <div className="w-24 h-px bg-gradient-to-r from-amber-400 to-emerald-400 mx-auto mb-8"></div>
-            <p className="text-xl text-gray-600 max-w-4xl mx-auto leading-relaxed">
+            <div className="w-24 h-px bg-gradient-to-r from-amber-400 to-emerald-400 mx-auto mb-6 md:mb-8"></div>
+            <p className="text-lg md:text-xl text-gray-600 max-w-4xl mx-auto leading-relaxed">
               Every moment crafted for your wellbeing and inner peace through
               our holistic approach to luxury wellness
             </p>
           </div>
 
-          <div className="grid md:grid-cols-3 gap-12">
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8 md:gap-12">
             {/* Enhanced Feature Cards */}
             <div className="text-center group cursor-pointer">
               <div className="relative mb-10">
-                <div className="w-full h-64 bg-gradient-to-br from-emerald-200 via-emerald-300 to-emerald-400 rounded-3xl flex items-center justify-center group-hover:scale-105 transition-all duration-700 shadow-xl group-hover:shadow-2xl">
+                <div className="w-full h-56 sm:h-64 bg-gradient-to-br from-emerald-200 via-emerald-300 to-emerald-400 rounded-3xl flex items-center justify-center group-hover:scale-105 transition-all duration-700 shadow-xl group-hover:shadow-2xl">
                   <div className="absolute inset-0 bg-gradient-to-br from-white/20 to-transparent rounded-3xl"></div>
                   <Flower2 className="relative h-20 w-20 text-emerald-800 group-hover:rotate-12 transition-transform duration-500" />
                 </div>
                 <div className="absolute -bottom-4 left-1/2 transform -translate-x-1/2 w-8 h-8 bg-white rounded-full shadow-lg border-4 border-emerald-100"></div>
               </div>
-              <h3 className="text-3xl font-light text-gray-800 mb-6 group-hover:text-emerald-600 transition-colors">
+              <h3 className="text-2xl md:text-3xl font-light text-gray-800 mb-6 group-hover:text-emerald-600 transition-colors">
                 Serene Atmosphere
               </h3>
-              <p className="text-gray-600 leading-relaxed text-lg">
+              <p className="text-gray-600 leading-relaxed text-base md:text-lg">
                 Immerse yourself in carefully curated spaces designed for
                 ultimate relaxation, peace, and spiritual renewal
               </p>
@@ -735,33 +743,33 @@ export default function HomePage() {
 
             <div className="text-center group cursor-pointer">
               <div className="relative mb-10">
-                <div className="w-full h-64 bg-gradient-to-br from-amber-200 via-amber-300 to-amber-400 rounded-3xl flex items-center justify-center group-hover:scale-105 transition-all duration-700 shadow-xl group-hover:shadow-2xl">
+                <div className="w-full h-56 sm:h-64 bg-gradient-to-br from-amber-200 via-amber-300 to-amber-400 rounded-3xl flex items-center justify-center group-hover:scale-105 transition-all duration-700 shadow-xl group-hover:shadow-2xl">
                   <div className="absolute inset-0 bg-gradient-to-br from-white/20 to-transparent rounded-3xl"></div>
                   <Heart className="relative h-20 w-20 text-amber-800 group-hover:scale-110 transition-transform duration-500" />
                 </div>
                 <div className="absolute -bottom-4 left-1/2 transform -translate-x-1/2 w-8 h-8 bg-white rounded-full shadow-lg border-4 border-amber-100"></div>
               </div>
-              <h3 className="text-3xl font-light text-gray-800 mb-6 group-hover:text-amber-600 transition-colors">
+              <h3 className="text-2xl md:text-3xl font-light text-gray-800 mb-6 group-hover:text-amber-600 transition-colors">
                 Expert Care
               </h3>
-              <p className="text-gray-600 leading-relaxed text-lg">
+              <p className="text-gray-600 leading-relaxed text-base md:text-lg">
                 Our skilled therapists provide personalized attention and expert
                 care tailored to your unique wellness journey
               </p>
             </div>
 
-            <div className="text-center group cursor-pointer">
+            <div className="text-center group cursor-pointer md:col-span-2 lg:col-span-1">
               <div className="relative mb-10">
-                <div className="w-full h-64 bg-gradient-to-br from-emerald-200 via-amber-200 to-emerald-300 rounded-3xl flex items-center justify-center group-hover:scale-105 transition-all duration-700 shadow-xl group-hover:shadow-2xl">
+                <div className="w-full h-56 sm:h-64 bg-gradient-to-br from-emerald-200 via-amber-200 to-emerald-300 rounded-3xl flex items-center justify-center group-hover:scale-105 transition-all duration-700 shadow-xl group-hover:shadow-2xl">
                   <div className="absolute inset-0 bg-gradient-to-br from-white/20 to-transparent rounded-3xl"></div>
                   <Award className="relative h-20 w-20 text-emerald-800 group-hover:rotate-12 transition-transform duration-500" />
                 </div>
                 <div className="absolute -bottom-4 left-1/2 transform -translate-x-1/2 w-8 h-8 bg-white rounded-full shadow-lg border-4 border-emerald-100"></div>
               </div>
-              <h3 className="text-3xl font-light text-gray-800 mb-6 group-hover:text-emerald-600 transition-colors">
+              <h3 className="text-2xl md:text-3xl font-light text-gray-800 mb-6 group-hover:text-emerald-600 transition-colors">
                 Premium Treatments
               </h3>
-              <p className="text-gray-600 leading-relaxed text-lg">
+              <p className="text-gray-600 leading-relaxed text-base md:text-lg">
                 Experience luxury treatments using the finest organic products
                 and time-honored techniques for lasting results
               </p>
@@ -811,9 +819,9 @@ export default function HomePage() {
       </section>
 
       {/* NEW: Feedback Section */}
-      <section className="py-32 px-6 bg-gradient-to-br from-white via-emerald-50/20 to-amber-50/20">
+      <section className="py-20 md:py-24 lg:py-32 px-6 bg-gradient-to-br from-white via-emerald-50/20 to-amber-50/20">
         <div className="max-w-7xl mx-auto">
-          <div className="text-center mb-20">
+          <div className="text-center mb-16 md:mb-20">
             <Badge
               variant="outline"
               className="mb-6 text-emerald-700 border-emerald-300 bg-emerald-50 px-6 py-2 text-sm font-medium"
@@ -821,17 +829,17 @@ export default function HomePage() {
               <Heart className="mr-2 h-4 w-4" />
               Guest Testimonials
             </Badge>
-            <h2 className="text-6xl md:text-7xl font-extralight text-gray-800 mb-8 tracking-wide">
+            <h2 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-extralight text-gray-800 mb-6 md:mb-8 tracking-wide">
               Our Guests <span className="text-emerald-600">Love Us</span>
             </h2>
-            <div className="w-24 h-px bg-gradient-to-r from-emerald-400 to-amber-400 mx-auto mb-8"></div>
-            <p className="text-xl text-gray-600 max-w-4xl mx-auto leading-relaxed">
+            <div className="w-24 h-px bg-gradient-to-r from-emerald-400 to-amber-400 mx-auto mb-6 md:mb-8"></div>
+            <p className="text-lg md:text-xl text-gray-600 max-w-4xl mx-auto leading-relaxed">
               Discover what our guests have to say about their experiences at
               LEWA Luxury Spa
             </p>
           </div>
 
-          <div className="grid lg:grid-cols-2 gap-16 items-center">
+          <div className="grid lg:grid-cols-2 gap-8 md:gap-16 items-center">
             {/* Feedback Display */}
             <div className="lg:order-2">
               <FeedbackDisplay />
@@ -839,12 +847,12 @@ export default function HomePage() {
 
             {/* Feedback Benefits */}
             <div className="space-y-8 lg:order-1">
-              <div className="flex items-start space-x-6 group">
-                <div className="w-16 h-16 bg-gradient-to-br from-emerald-100 to-emerald-200 rounded-full flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
+              <div className="flex items-start space-x-4 md:space-x-6 group">
+                <div className="w-16 h-16 bg-gradient-to-br from-emerald-100 to-emerald-200 rounded-full flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform duration-300">
                   <Star className="h-8 w-8 text-emerald-600" />
                 </div>
                 <div>
-                  <h3 className="text-xl font-medium text-gray-800 mb-2 group-hover:text-emerald-600 transition-colors">
+                  <h3 className="text-lg md:text-xl font-medium text-gray-800 mb-2 group-hover:text-emerald-600 transition-colors">
                     Authentic Experiences
                   </h3>
                   <p className="text-gray-600 leading-relaxed">
@@ -854,12 +862,12 @@ export default function HomePage() {
                 </div>
               </div>
 
-              <div className="flex items-start space-x-6 group">
-                <div className="w-16 h-16 bg-gradient-to-br from-amber-100 to-amber-200 rounded-full flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
+              <div className="flex items-start space-x-4 md:space-x-6 group">
+                <div className="w-16 h-16 bg-gradient-to-br from-amber-100 to-amber-200 rounded-full flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform duration-300">
                   <MessageSquare className="h-8 w-8 text-amber-600" />
                 </div>
                 <div>
-                  <h3 className="text-xl font-medium text-gray-800 mb-2 group-hover:text-amber-600 transition-colors">
+                  <h3 className="text-lg md:text-xl font-medium text-gray-800 mb-2 group-hover:text-amber-600 transition-colors">
                     Your Voice Matters
                   </h3>
                   <p className="text-gray-600 leading-relaxed">
@@ -869,12 +877,12 @@ export default function HomePage() {
                 </div>
               </div>
 
-              <div className="flex items-start space-x-6 group">
-                <div className="w-16 h-16 bg-gradient-to-br from-emerald-100 to-amber-100 rounded-full flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
+              <div className="flex items-start space-x-4 md:space-x-6 group">
+                <div className="w-16 h-16 bg-gradient-to-br from-emerald-100 to-amber-100 rounded-full flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform duration-300">
                   <Award className="h-8 w-8 text-emerald-600" />
                 </div>
                 <div>
-                  <h3 className="text-xl font-medium text-gray-800 mb-2 group-hover:text-emerald-600 transition-colors">
+                  <h3 className="text-lg md:text-xl font-medium text-gray-800 mb-2 group-hover:text-emerald-600 transition-colors">
                     Recognized Excellence
                   </h3>
                   <p className="text-gray-600 leading-relaxed">
@@ -887,7 +895,7 @@ export default function HomePage() {
               <Button
                 size="lg"
                 onClick={() => setShowFeedbackModal(true)}
-                className="bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-700 hover:to-emerald-800 text-white px-12 py-4 text-xl shadow-xl hover:shadow-emerald-500/25 transform hover:scale-105 transition-all duration-300"
+                className="w-full sm:w-auto bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-700 hover:to-emerald-800 text-white px-6 py-4 text-base sm:px-8 sm:text-lg md:px-12 md:text-xl shadow-xl hover:shadow-emerald-500/25 transform hover:scale-105 transition-all duration-300"
               >
                 <Heart className="mr-3 h-6 w-6" />
                 Share Your Feedback
@@ -901,10 +909,10 @@ export default function HomePage() {
       {/* Enhanced Contact Section */}
       <section
         id="contact"
-        className="py-32 px-6 bg-gradient-to-br from-emerald-50 via-white to-stone-50"
+        className="py-20 md:py-24 lg:py-32 px-6 bg-gradient-to-br from-emerald-50 via-white to-stone-50"
       >
         <div className="max-w-6xl mx-auto">
-          <div className="text-center mb-20">
+          <div className="text-center mb-16 md:mb-20">
             <Badge
               variant="outline"
               className="mb-6 text-emerald-700 border-emerald-300 bg-emerald-50 px-6 py-2 text-sm font-medium"
@@ -912,26 +920,26 @@ export default function HomePage() {
               <MapPin className="mr-2 h-4 w-4" />
               Visit Us Today
             </Badge>
-            <h2 className="text-6xl md:text-7xl font-extralight text-gray-800 mb-8 tracking-wide">
+            <h2 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-extralight text-gray-800 mb-6 md:mb-8 tracking-wide">
               Visit Our Spa <span className="text-emerald-600">Sanctuary</span>
             </h2>
-            <div className="w-24 h-px bg-gradient-to-r from-emerald-400 to-amber-400 mx-auto mb-8"></div>
-            <p className="text-xl text-gray-600 max-w-3xl mx-auto leading-relaxed">
+            <div className="w-24 h-px bg-gradient-to-r from-emerald-400 to-amber-400 mx-auto mb-6 md:mb-8"></div>
+            <p className="text-lg md:text-xl text-gray-600 max-w-3xl mx-auto leading-relaxed">
               Located in the heart of Harare's prestigious Highlands district
             </p>
           </div>
 
-          <div className="grid md:grid-cols-3 gap-12 mb-20">
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8 md:gap-12 mb-16 md:mb-20">
             {/* Enhanced Contact Cards */}
             <Card className="group text-center border-0 shadow-xl hover:shadow-2xl transition-all duration-500 bg-gradient-to-br from-white to-emerald-50/30 overflow-hidden">
-              <CardContent className="p-10">
-                <div className="w-20 h-20 mx-auto mb-8 bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-full flex items-center justify-center shadow-xl group-hover:scale-110 transition-transform duration-300">
-                  <MapPin className="h-10 w-10 text-white" />
+              <CardContent className="p-8 md:p-10">
+                <div className="w-16 h-16 md:w-20 md:h-20 mx-auto mb-8 bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-full flex items-center justify-center shadow-xl group-hover:scale-110 transition-transform duration-300">
+                  <MapPin className="h-8 w-8 md:h-10 md:w-10 text-white" />
                 </div>
-                <h3 className="text-2xl font-light text-gray-800 mb-6 group-hover:text-emerald-600 transition-colors">
+                <h3 className="text-xl md:text-2xl font-light text-gray-800 mb-6 group-hover:text-emerald-600 transition-colors">
                   Our Location
                 </h3>
-                <div className="space-y-2 text-gray-600 leading-relaxed text-lg">
+                <div className="space-y-2 text-gray-600 leading-relaxed text-base md:text-lg">
                   <p>29 Montgomery Road</p>
                   <p>Highlands, Harare</p>
                   <p>Zimbabwe</p>
@@ -940,14 +948,14 @@ export default function HomePage() {
             </Card>
 
             <Card className="group text-center border-0 shadow-xl hover:shadow-2xl transition-all duration-500 bg-gradient-to-br from-white to-amber-50/30 overflow-hidden">
-              <CardContent className="p-10">
-                <div className="w-20 h-20 mx-auto mb-8 bg-gradient-to-br from-amber-500 to-amber-600 rounded-full flex items-center justify-center shadow-xl group-hover:scale-110 transition-transform duration-300">
-                  <Phone className="h-10 w-10 text-white" />
+              <CardContent className="p-8 md:p-10">
+                <div className="w-16 h-16 md:w-20 md:h-20 mx-auto mb-8 bg-gradient-to-br from-amber-500 to-amber-600 rounded-full flex items-center justify-center shadow-xl group-hover:scale-110 transition-transform duration-300">
+                  <Phone className="h-8 w-8 md:h-10 md:w-10 text-white" />
                 </div>
-                <h3 className="text-2xl font-light text-gray-800 mb-6 group-hover:text-amber-600 transition-colors">
+                <h3 className="text-xl md:text-2xl font-light text-gray-800 mb-6 group-hover:text-amber-600 transition-colors">
                   Contact Us
                 </h3>
-                <div className="space-y-2 text-gray-600 leading-relaxed text-lg">
+                <div className="space-y-2 text-gray-600 leading-relaxed text-base md:text-lg">
                   <p>+263 78 004 5833</p>
                   <p>info@lewa.co.zw</p>
                   <p>www.lewa.co.zw</p>
@@ -956,17 +964,19 @@ export default function HomePage() {
             </Card>
 
             {/* Replace static opening hours with dynamic display */}
-            <OperatingHoursDisplay />
+            <div className="md:col-span-2 lg:col-span-1">
+              <OperatingHoursDisplay />
+            </div>
           </div>
 
           {/* Enhanced CTA Section */}
-          <div className="text-center bg-gradient-to-br from-emerald-900 to-emerald-800 rounded-3xl p-16 text-white relative overflow-hidden">
+          <div className="text-center bg-gradient-to-br from-emerald-900 to-emerald-800 rounded-3xl p-8 md:p-12 lg:p-16 text-white relative overflow-hidden">
             <div className="absolute inset-0 bg-gradient-to-br from-emerald-600/20 to-amber-600/20"></div>
             <div className="relative">
-              <h3 className="text-4xl font-light mb-6">
+              <h3 className="text-2xl md:text-3xl lg:text-4xl font-light mb-6">
                 Ready to Begin Your Wellness Journey?
               </h3>
-              <p className="text-xl text-emerald-100 mb-10 max-w-2xl mx-auto">
+              <p className="text-lg md:text-xl text-emerald-100 mb-10 max-w-2xl mx-auto">
                 Book your appointment today and experience the ultimate in
                 luxury spa treatments
               </p>
@@ -974,17 +984,17 @@ export default function HomePage() {
                 <Button
                   size="lg"
                   onClick={handleBookNow}
-                  className="bg-white text-emerald-800 hover:bg-emerald-50 px-16 py-6 text-xl shadow-2xl hover:shadow-white/25 transform hover:scale-105 transition-all duration-300 border-2 border-white/20"
+                  className="w-full sm:w-auto bg-white text-emerald-800 hover:bg-emerald-50 px-8 py-5 text-lg md:px-16 md:py-6 md:text-xl shadow-2xl hover:shadow-white/25 transform hover:scale-105 transition-all duration-300 border-2 border-white/20"
                 >
                   <Calendar className="mr-3 h-6 w-6" />
                   Book Your Treatment
                   <Sparkles className="ml-3 h-5 w-5" />
                 </Button>
-                <Link href="/dashboard" className="inline-block">
+                <Link href="/dashboard" className="inline-block w-full sm:w-auto">
                   <Button
                     size="lg"
                     variant="ghost"
-                    className="text-white hover:bg-white/10 px-12 py-6 text-xl border-2 border-white/30 hover:border-white/50 transition-all duration-300"
+                    className="w-full text-white hover:bg-white/10 px-8 py-5 text-lg md:px-12 md:py-6 md:text-xl border-2 border-white/30 hover:border-white/50 transition-all duration-300"
                   >
                     Staff Portal
                     <ArrowRight className="ml-2 h-5 w-5" />
@@ -997,44 +1007,44 @@ export default function HomePage() {
       </section>
 
       {/* Enhanced Footer */}
-      <footer className="bg-gradient-to-br from-gray-900 via-emerald-900 to-gray-900 text-white py-20">
+      <footer className="bg-gradient-to-br from-gray-900 via-emerald-900 to-gray-900 text-white py-16 md:py-20">
         <div className="max-w-7xl mx-auto px-6">
           <div className="text-center">
             <div className="flex items-center justify-center mb-8">
               <div className="relative">
                 <div className="absolute inset-0 bg-emerald-400/20 rounded-full blur-lg"></div>
-                <Flower2 className="relative h-12 w-12 text-emerald-400 mr-4" />
+                <Flower2 className="relative h-10 w-10 md:h-12 md:w-12 text-emerald-400 mr-4" />
               </div>
               <div>
-                <span className="text-4xl font-extralight tracking-wide">
+                <span className="text-3xl md:text-4xl font-extralight tracking-wide">
                   LEWA
                 </span>
-                <span className="block text-lg text-emerald-400 font-light -mt-1">
+                <span className="block text-base md:text-lg text-emerald-400 font-light -mt-1">
                   HEALTH SPA
                 </span>
               </div>
             </div>
-            <p className="text-emerald-100 mb-10 max-w-3xl mx-auto text-lg leading-relaxed">
+            <p className="text-emerald-100 mb-10 max-w-3xl mx-auto text-base md:text-lg leading-relaxed">
               Escape to tranquility and rejuvenation. Experience the perfect
               harmony of wellness and luxury in Zimbabwe's premier spa
               destination.
             </p>
-            <div className="flex justify-center space-x-8 mb-12">
+            <div className="flex flex-col sm:flex-row items-center justify-center space-y-4 sm:space-y-0 sm:space-x-8 mb-12">
               <a
                 href="#"
-                className="text-emerald-300 hover:text-emerald-200 transition-colors text-lg"
+                className="text-emerald-300 hover:text-emerald-200 transition-colors text-base"
               >
                 Privacy Policy
               </a>
               <a
                 href="#"
-                className="text-emerald-300 hover:text-emerald-200 transition-colors text-lg"
+                className="text-emerald-300 hover:text-emerald-200 transition-colors text-base"
               >
                 Terms of Service
               </a>
               <a
                 href="#contact"
-                className="text-emerald-300 hover:text-emerald-200 transition-colors text-lg"
+                className="text-emerald-300 hover:text-emerald-200 transition-colors text-base"
               >
                 Contact
               </a>
@@ -1042,7 +1052,7 @@ export default function HomePage() {
               <div className="mt-0">
                 {!showDeveloperContact ? (
                   <button
-                    className="text-emerald-300 hover:text-emerald-100 underline text-lg transition-colors"
+                    className="text-emerald-300 hover:text-emerald-100 underline text-base transition-colors"
                     onClick={() => setShowDeveloperContact(true)}
                   >
                     Developer Contact
@@ -1062,7 +1072,7 @@ export default function HomePage() {
               </div>
             </div>
             <div className="pt-8 border-t border-emerald-800/50">
-              <p className="text-emerald-400 text-lg">
+              <p className="text-emerald-400 text-base md:text-lg">
                 &copy; {new Date().getFullYear()} LEWA HEALTH Spa. All rights
                 reserved.
               </p>
@@ -1075,7 +1085,7 @@ export default function HomePage() {
       <div className="fixed bottom-6 right-6 z-40">
         <Button
           onClick={() => setShowFeedbackModal(true)}
-          className="bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-700 hover:to-emerald-800 text-white rounded-full w-16 h-16 shadow-2xl hover:shadow-emerald-500/25 transform hover:scale-110 transition-all duration-300 group"
+          className="bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-700 hover:to-emerald-800 text-white rounded-full w-14 h-14 sm:w-16 sm:h-16 shadow-2xl hover:shadow-emerald-500/25 transform hover:scale-110 transition-all duration-300 group"
           title="Share Your Feedback"
         >
           <Heart className="h-6 w-6 group-hover:scale-110 transition-transform duration-300" />
@@ -1085,33 +1095,32 @@ export default function HomePage() {
       {/* Enhanced Booking Modal */}
       {showBookingModal && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto">
-          <div className="bg-white rounded-3xl p-8 max-w-3xl w-full max-h-[90vh] overflow-y-auto shadow-3xl border border-emerald-100">
+          <div className="bg-white rounded-3xl p-4 sm:p-8 max-w-3xl w-full max-h-[90vh] overflow-y-auto shadow-3xl border border-emerald-100">
             <div className="text-center mb-8">
               <div className="w-16 h-16 bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-full flex items-center justify-center mx-auto mb-6">
                 <Calendar className="h-8 w-8 text-white" />
               </div>
-              <h3 className="text-4xl font-light text-gray-800 mb-3">
+              <h3 className="text-3xl md:text-4xl font-light text-gray-800 mb-3">
                 Book Your <span className="text-emerald-600">Experience</span>
               </h3>
               <div className="w-16 h-px bg-gradient-to-r from-emerald-400 to-amber-400 mx-auto mb-4"></div>
-              <p className="text-gray-600 text-lg">
+              <p className="text-gray-600 text-base md:text-lg">
                 Fill out the form below and we'll confirm your booking shortly
               </p>
             </div>
 
-            <form onSubmit={handleSubmitBooking} className="space-y-8">
+            <form onSubmit={handleSubmitBooking} className="space-y-6 md:space-y-8">
               {/* Enhanced form sections with better styling */}
-              <div className="space-y-6">
+              <div className="space-y-4 md:space-y-6">
                 <div className="flex items-center space-x-3 pb-3 border-b border-emerald-100">
                   <div className="w-8 h-8 bg-emerald-100 rounded-full flex items-center justify-center">
                     <Users className="h-4 w-4 text-emerald-600" />
                   </div>
-                  <h4 className="text-xl font-medium text-gray-800">
+                  <h4 className="text-lg md:text-xl font-medium text-gray-800">
                     Contact Information
                   </h4>
                 </div>
 
-                {/* Form fields with enhanced styling - existing form fields remain the same but with improved classes */}
                 <div className="space-y-4">
                   <div className="grid gap-4 md:grid-cols-2">
                     <div className="space-y-2">
@@ -1154,12 +1163,12 @@ export default function HomePage() {
                 </div>
               </div>
 
-              <div className="space-y-6">
+              <div className="space-y-4 md:space-y-6">
                 <div className="flex items-center space-x-3 pb-3 border-b border-emerald-100">
                   <div className="w-8 h-8 bg-emerald-100 rounded-full flex items-center justify-center">
                     <Calendar className="h-4 w-4 text-emerald-600" />
                   </div>
-                  <h4 className="text-xl font-medium text-gray-800">
+                  <h4 className="text-lg md:text-xl font-medium text-gray-800">
                     Booking Details
                   </h4>
                 </div>
@@ -1272,20 +1281,20 @@ export default function HomePage() {
               </div>
 
               {/* Enhanced action buttons */}
-              <div className="flex gap-4 pt-6">
+              <div className="flex flex-col sm:flex-row gap-4 pt-6">
                 <Button
                   type="button"
                   variant="outline"
                   onClick={() => setShowBookingModal(false)}
                   disabled={isSubmitting}
-                  className="flex-1 py-4 text-lg border-2 border-emerald-200 hover:border-emerald-300 text-emerald-700 hover:bg-emerald-50"
+                  className="flex-1 py-3 md:py-4 text-base md:text-lg border-2 border-emerald-200 hover:border-emerald-300 text-emerald-700 hover:bg-emerald-50"
                 >
                   Cancel
                 </Button>
                 <Button
                   type="submit"
                   disabled={isSubmitting}
-                  className="flex-1 py-4 text-lg bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-700 hover:to-emerald-800 shadow-xl hover:shadow-emerald-500/25"
+                  className="flex-1 py-3 md:py-4 text-base md:text-lg bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-700 hover:to-emerald-800 shadow-xl hover:shadow-emerald-500/25"
                 >
                   {isSubmitting ? (
                     <>

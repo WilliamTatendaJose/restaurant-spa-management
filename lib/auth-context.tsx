@@ -110,10 +110,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   useEffect(() => {
-    // Get initial session
+    // Get initial session and user
     supabase.auth.getSession().then(async ({ data: { session } }) => {
       setSession(session);
-      const user = session?.user ?? null;
+      let user = session?.user ?? null;
+
+      // If no user, try to get user from Supabase (reads cookie)
+      if (!user) {
+        const { data } = await supabase.auth.getUser();
+        user = data.user ?? null;
+      }
       setUser(user);
 
       if (user) {
@@ -178,11 +184,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => subscription.unsubscribe();
   }, [supabase.auth]);
 
-
-
   useEffect(() => {
-    console.log("AuthProvider state:", { user, session, userDetails, isLoading });
-  }, [user, session, userDetails, isLoading]);
+    console.log('[AuthProvider] user:', user, 'isLoading:', isLoading, 'session:', session, 'userDetails:', userDetails);
+  }, [user, isLoading, session, userDetails]);
 
   const signIn = async (email: string, password: string) => {
     setIsLoading(true);

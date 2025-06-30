@@ -14,6 +14,7 @@ import { Switch } from "@/components/ui/switch"
 import { useToast } from "@/components/ui/use-toast"
 import { useSyncStatus } from "@/components/sync-status-provider"
 import { spaServicesApi } from "@/lib/db"
+import Image from "next/image"
 
 interface SpaService {
   id?: string
@@ -24,6 +25,7 @@ interface SpaService {
   category: string
   status?: string
   isActive?: boolean
+  image_url?: string
 }
 
 interface SpaServiceFormProps {
@@ -44,6 +46,8 @@ export function SpaServiceForm({ service }: SpaServiceFormProps) {
     status: service?.status || "active",
   })
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [isLoading, setIsLoading] = useState(false)
+  const [isUploading, setIsUploading] = useState(false)
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target
@@ -56,6 +60,44 @@ export function SpaServiceForm({ service }: SpaServiceFormProps) {
 
   const handleSwitchChange = (checked: boolean) => {
     setFormData((prev) => ({ ...prev, status: checked ? "active" : "inactive" }))
+  }
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    setIsUploading(true)
+    try {
+      // 1. Get a signed URL from our API
+      const { signedUrl, publicUrl } = await fetch("/api/upload", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ fileName: file.name, fileType: file.type }),
+      }).then((res) => res.json())
+
+      // 2. Upload the file to the signed URL
+      const { error } = await fetch(signedUrl, {
+        method: "PUT",
+        body: file,
+        headers: { "Content-Type": file.type },
+      })
+
+      if (error) {
+        throw new Error("Failed to upload to storage")
+      }
+
+      setFormData((prev) => ({ ...prev, image_url: publicUrl }))
+      toast({ title: "Image uploaded successfully!" })
+    } catch (error) {
+      console.error("Upload failed:", error)
+      toast({
+        title: "Upload Failed",
+        description: "Could not upload the image. Please try again.",
+        variant: "destructive",
+      })
+    } finally {
+      setIsUploading(false)
+    }
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -188,6 +230,30 @@ export function SpaServiceForm({ service }: SpaServiceFormProps) {
               />
               <Label htmlFor="status">Service is active and available for booking</Label>
             </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="image">Service Image</Label>
+            <Input
+              id="image"
+              name="image"
+              type="file"
+              onChange={handleFileChange}
+              disabled={isUploading}
+              accept="image/*"
+            />
+            {isUploading && <p className="text-sm text-muted-foreground">Uploading image...</p>}
+            {formData.image_url && (
+              <div className="mt-4">
+                <Image
+                  src={formData.image_url}
+                  alt="Service preview"
+                  width={200}
+                  height={200}
+                  className="rounded-md object-cover"
+                />
+              </div>
+            )}
           </div>
 
           <div className="flex justify-end gap-2">

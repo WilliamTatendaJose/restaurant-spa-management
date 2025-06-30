@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { signInWithEmail } from "./actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -14,7 +15,7 @@ import {
 } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useToast } from "@/components/ui/use-toast";
-import { useAuth } from "@/lib/auth-context";
+
 import {
   Loader2,
   Eye,
@@ -30,69 +31,32 @@ import {
 } from "lucide-react";
 
 export default function LoginPage() {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [isSignUp, setIsSignUp] = useState(false);
-
-  const { signIn, signUp, user, isLoading: isAuthLoading } = useAuth();
   const { toast } = useToast();
   const router = useRouter();
 
-  useEffect(() => {
-    if (user) {
-      router.push("/dashboard");
-    }
-  }, [user, router]);
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError("");
+  async function handleServerAction(formData: FormData) {
     setIsLoading(true);
-
-    try {
-      const result = isSignUp
-        ? await signUp(email, password)
-        : await signIn(email, password);
-
-      if (result.error) {
-        setError(result.error.message);
-        toast({
-          title: isSignUp ? "Sign up failed" : "Sign in failed",
-          description: result.error.message,
-          variant: "destructive",
-        });
-      } else {
-        toast({
-          title: isSignUp ? "Account created" : "Welcome back!",
-          description: isSignUp
-            ? "Please check your email to verify your account."
-            : "You have been successfully signed in.",
-        });
-        // The redirect will now be handled by the useEffect hook
-      }
-    } catch (error) {
-      const errorMessage =
-        error instanceof Error ? error.message : "An unexpected error occurred";
-      setError(errorMessage);
+    setError("");
+    const result = await signInWithEmail(formData);
+    setIsLoading(false);
+    if (result.error) {
+      setError(result.error.message);
       toast({
-        title: "Error",
-        description: errorMessage,
+        title: "Sign in failed",
+        description: result.error.message,
         variant: "destructive",
       });
-    } finally {
-      setIsLoading(false);
+    } else {
+      toast({
+        title: "Welcome back!",
+        description: "You have been successfully signed in.",
+      });
+      router.push("/dashboard");
     }
-  };
-
-  if (isAuthLoading || user) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <Loader2 className="h-10 w-10 animate-spin text-blue-600" />
-      </div>
-    );
   }
 
   return (
@@ -244,7 +208,7 @@ export default function LoginPage() {
             </CardHeader>
 
             <CardContent className="pb-10 relative z-10">
-              <form onSubmit={handleSubmit} className="space-y-6">
+              <form action={handleServerAction} className="space-y-6">
                 {error && (
                   <Alert
                     variant="destructive"
@@ -269,10 +233,9 @@ export default function LoginPage() {
                     <div className="relative group">
                       <Input
                         id="email"
+                        name="email"
                         type="email"
                         placeholder="Enter your email address"
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
                         required
                         disabled={isLoading}
                         className="h-14 text-lg border-2 border-gray-200 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/20 transition-all duration-200 rounded-xl bg-white/80 backdrop-blur-sm"
@@ -292,10 +255,9 @@ export default function LoginPage() {
                     <div className="relative group">
                       <Input
                         id="password"
+                        name="password"
                         type={showPassword ? "text" : "password"}
                         placeholder="Enter your password"
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
                         required
                         disabled={isLoading}
                         minLength={6}
@@ -328,13 +290,11 @@ export default function LoginPage() {
                   {isLoading ? (
                     <>
                       <Loader2 className="mr-3 h-5 w-5 animate-spin" />
-                      {isSignUp
-                        ? "Creating Your Account..."
-                        : "Signing You In..."}
+                      {"Signing You In..."}
                     </>
                   ) : (
                     <>
-                      {isSignUp ? "Create Account" : "Sign In"}
+                      {"Sign In"}
                       <ArrowRight className="ml-3 h-5 w-5 group-hover:translate-x-1 transition-transform" />
                     </>
                   )}

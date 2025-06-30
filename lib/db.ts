@@ -6,6 +6,7 @@ import { getSupabaseBrowserClient, isSupabaseConfigured } from "@/lib/supabase"
 let pendingChanges: SyncData[] = []
 let isInitialized = false
 let syncLock: Promise<SyncResult> | null = null;
+let lastSync: { [table: string]: number } = {};
 
 // Database structure
 interface Record {
@@ -260,10 +261,10 @@ const memoryManager = {
 async function openDatabase(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
     const request = indexedDB.open('RestaurantSpaDB', 1);
-    
+
     request.onerror = () => reject(request.error);
     request.onsuccess = () => resolve(request.result);
-    
+
     request.onupgradeneeded = (event) => {
       const db = (event.target as IDBOpenDBRequest).result;
       if (!db.objectStoreNames.contains('data')) {
@@ -278,7 +279,7 @@ async function saveDatabaseToStorage(): Promise<void> {
     const db = await openDatabase();
     const transaction = db.transaction(['data'], 'readwrite');
     const store = transaction.objectStore('data');
-    
+
     await store.put({
       id: 'memoryDb',
       data: memoryDb,
@@ -297,7 +298,7 @@ async function loadDatabaseFromStorage(): Promise<void> {
     const transaction = db.transaction(['data'], 'readonly');
     const store = transaction.objectStore('data');
     const request = store.get('memoryDb');
-    
+
     return new Promise((resolve, reject) => {
       request.onerror = () => reject(request.error);
       request.onsuccess = () => {
@@ -321,7 +322,7 @@ async function loadDatabaseFromStorage(): Promise<void> {
 // Initialize database
 async function initDatabase(): Promise<void> {
   if (isInitialized) return;
-  
+
   await loadDatabaseFromStorage();
   isInitialized = true;
 }
@@ -329,7 +330,7 @@ async function initDatabase(): Promise<void> {
 // Offline queue for operations
 class OfflineQueue {
   private static instance: OfflineQueue;
-  private queue: Array<{id: string, operation: string, table: string, data: any, retries: number}> = [];
+  private queue: Array<{ id: string, operation: string, table: string, data: any, retries: number }> = [];
 
   static getInstance(): OfflineQueue {
     if (!OfflineQueue.instance) {
@@ -351,7 +352,7 @@ async function addToIndexedDB(table: string, record: any): Promise<void> {
     const db = await openDatabase();
     const transaction = db.transaction(['data'], 'readwrite');
     const store = transaction.objectStore('data');
-    
+
     await store.put({
       id: `${table}_${record.id}`,
       table,
@@ -366,21 +367,26 @@ async function addToIndexedDB(table: string, record: any): Promise<void> {
 // Get single record
 export async function getRecord(table: string, id: string): Promise<any | null> {
   await initDatabase();
-  
+
   if (!memoryDb[table]) {
     return null;
   }
-  
+
   return memoryDb[table].find(record => record.id === id) || null;
 }
 
 // Enhanced database operations with caching
-export async function listRecords(table: string, filters: any = {}) {
+export async function listRecords(table: string, filters: any = {}, force: boolean = false) {
   await initDatabase()
-  
+
+  const shouldSync = force || !lastSync[table] || (Date.now() - lastSync[table] > 5 * 60 * 1000);
+  if (shouldSync && navigator.onLine) {
+    await sync(force);
+  }
+
   const cache = DatabaseCache.getInstance();
   const optimizer = QueryOptimizer.getInstance();
-  
+
   const cacheKey = `${table}:${JSON.stringify(filters)}`;
   const cached = cache.get(cacheKey);
   if (cached) {
@@ -399,7 +405,7 @@ export async function listRecords(table: string, filters: any = {}) {
   }
 
   cache.set(cacheKey, results);
-  
+
   if (Object.keys(filters).length === 1) {
     const [field] = Object.keys(filters);
     optimizer.createIndex(table, field, memoryDb[table]);
@@ -439,10 +445,10 @@ export async function createRecord(table: string, data: any) {
 
   const cache = DatabaseCache.getInstance();
   const optimizer = QueryOptimizer.getInstance();
-  
+
   cache.invalidate(`${table}:`);
   optimizer.invalidateIndex(table);
-  
+
   return record;
 }
 
@@ -483,10 +489,10 @@ export async function updateRecord(table: string, id: string, data: any) {
 
   const cache = DatabaseCache.getInstance();
   const optimizer = QueryOptimizer.getInstance();
-  
+
   cache.invalidate(`${table}:`);
   optimizer.invalidateIndex(table);
-  
+
   return updatedRecord;
 }
 
@@ -518,11 +524,58 @@ export async function deleteRecord(table: string, id: string) {
 
   const cache = DatabaseCache.getInstance();
   const optimizer = QueryOptimizer.getInstance();
-  
+
   cache.invalidate(`${table}:`);
   optimizer.invalidateIndex(table);
-  
+
   return { success: true }
+}
+
+export async function sync(force: boolean = false): Promise<SyncResult> {
+  if (!isSupabaseConfigured() || (!force && !navigator.onLine)) {
+    return { success: false, error: 'Sync offline or not configured.' };
+  }
+  if (syncLock) return syncLock;
+
+  const promise = (async (): Promise<SyncResult> => {
+    const supabase = getSupabaseBrowserClient();
+    let changesProcessed = 0;
+    const errors: ErrorDetail[] = [];
+
+    // 1. Push local changes
+    const changesToPush = [...pendingChanges];
+    if (changesToPush.length > 0) {
+      // Logic for batching and pushing changes will go here
+    }
+
+    // 2. Pull remote changes
+    for (const table of Object.keys(memoryDb)) {
+      try {
+        const { data, error } = await supabase.from(table).select('*');
+        if (error) throw error;
+
+        // Simple merge: replace local with remote
+        memoryDb[table] = data || [];
+        lastSync[table] = Date.now();
+
+      } catch (error: any) {
+        errors.push({ table, id: 'N/A', type: 'pull', error: error.message });
+      }
+    }
+
+    await saveDatabaseToStorage();
+    DatabaseCache.getInstance().clear();
+    QueryOptimizer.getInstance().invalidateIndex('all');
+
+    return { success: errors.length === 0, count: changesProcessed, errors };
+  })();
+
+  syncLock = promise;
+  promise.finally(() => {
+    syncLock = null;
+  });
+
+  return promise;
 }
 
 // Enhanced transaction API with better performance
@@ -531,7 +584,7 @@ export const transactionsApi = {
     if (!navigator.onLine) {
       const queue = OfflineQueue.getInstance();
       const queueId = await queue.addToQueue('create', 'transactions', transaction, 3);
-      
+
       const localTransaction = {
         ...transaction,
         id: transaction.id || crypto.randomUUID(),
@@ -539,11 +592,11 @@ export const transactionsApi = {
         _queueId: queueId,
         _createdAt: new Date().toISOString()
       };
-      
+
       await addToIndexedDB('transactions', localTransaction);
       return localTransaction;
     }
-    
+
     return createRecord("transactions", transaction);
   },
   get: (id: string) => getRecord("transactions", id),
@@ -575,7 +628,7 @@ export const transactionsApi = {
   getDailyRevenue: async (days: number = 7) => {
     const cache = DatabaseCache.getInstance();
     const cacheKey = `daily_revenue:${days}`;
-    
+
     const cached = cache.get(cacheKey);
     if (cached) {
       return cached;
@@ -586,7 +639,7 @@ export const transactionsApi = {
 
     const optimizer = QueryOptimizer.getInstance();
     optimizer.createIndex('transactions', 'status', memoryDb.transactions);
-    
+
     let completedTransactions = optimizer.queryByIndex('transactions', 'status', 'completed') || [];
     const paidTransactions = optimizer.queryByIndex('transactions', 'status', 'paid') || [];
     completedTransactions = [...completedTransactions, ...paidTransactions];
@@ -594,7 +647,7 @@ export const transactionsApi = {
     const today = new Date();
     today.setHours(23, 59, 59, 999);
     const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-    
+
     type RevenueData = { [key: string]: { spa: number, restaurant: number, name: string } };
     const revenueByDay: RevenueData = {};
 
@@ -604,21 +657,21 @@ export const transactionsApi = {
       date.setDate(date.getDate() - i);
       const dateString = date.toISOString().split('T')[0];
       dateRange.push(dateString);
-      revenueByDay[dateString] = { 
-        spa: 0, 
-        restaurant: 0, 
-        name: dayNames[date.getDay()] 
+      revenueByDay[dateString] = {
+        spa: 0,
+        restaurant: 0,
+        name: dayNames[date.getDay()]
       };
     }
 
     const dateSet = new Set(dateRange);
     completedTransactions.forEach(transaction => {
       const date = transaction.transaction_date.split('T')[0];
-      
+
       if (dateSet.has(date)) {
         const serviceType = transaction.transaction_type?.toLowerCase() || "restaurant";
         const amount = transaction.total_amount || 0;
-        
+
         if (serviceType === "spa") {
           revenueByDay[date].spa += amount;
         } else {
@@ -641,7 +694,7 @@ export const transactionsApi = {
   getRecent: async (limit: number = 10, page: number = 1) => {
     const cache = DatabaseCache.getInstance();
     const cacheKey = `recent_transactions:${limit}:${page}`;
-    
+
     const cached = cache.get(cacheKey);
     if (cached) {
       return cached;
@@ -670,17 +723,17 @@ export const bookingsApi = {
   getRecent: async (limit: number = 10) => {
     const cache = DatabaseCache.getInstance();
     const cacheKey = `recent_bookings:${limit}`;
-    
+
     const cached = cache.get(cacheKey);
     if (cached) return cached;
-    
+
     await initDatabase();
     if (!memoryDb.bookings) return [];
-    
+
     const sortedBookings = [...memoryDb.bookings].sort((a, b) => {
       return new Date(b.booking_date).getTime() - new Date(a.booking_date).getTime();
     });
-    
+
     const result = sortedBookings.slice(0, limit);
     cache.set(cacheKey, result, 2 * 60 * 1000);
     return result;
@@ -688,19 +741,19 @@ export const bookingsApi = {
   getUpcoming: async (limit: number = 10) => {
     const cache = DatabaseCache.getInstance();
     const cacheKey = `upcoming_bookings:${limit}`;
-    
+
     const cached = cache.get(cacheKey);
     if (cached) return cached;
-    
+
     await initDatabase();
     if (!memoryDb.bookings) return [];
-    
+
     const now = new Date();
     const upcomingBookings = memoryDb.bookings
       .filter(booking => new Date(booking.booking_date) >= now)
       .sort((a, b) => new Date(a.booking_date).getTime() - new Date(b.booking_date).getTime())
       .slice(0, limit);
-    
+
     cache.set(cacheKey, upcomingBookings, 2 * 60 * 1000);
     return upcomingBookings;
   }
@@ -811,17 +864,17 @@ export const feedbackApi = {
   getRecent: async (limit: number = 10) => {
     const cache = DatabaseCache.getInstance();
     const cacheKey = `recent_feedback:${limit}`;
-    
+
     const cached = cache.get(cacheKey);
     if (cached) return cached;
-    
+
     await initDatabase();
     if (!memoryDb.feedback) return [];
-    
+
     const sortedFeedback = [...memoryDb.feedback].sort((a, b) => {
       return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
     });
-    
+
     const result = sortedFeedback.slice(0, limit);
     cache.set(cacheKey, result, 2 * 60 * 1000);
     return result;
@@ -829,42 +882,42 @@ export const feedbackApi = {
   getAverageRating: async () => {
     const cache = DatabaseCache.getInstance();
     const cacheKey = `average_rating`;
-    
+
     const cached = cache.get(cacheKey);
     if (cached) return cached;
-    
+
     await initDatabase();
     if (!memoryDb.feedback || memoryDb.feedback.length === 0) return 0;
-    
+
     const totalRating = memoryDb.feedback.reduce((sum: number, feedback: any) => {
       return sum + (feedback.rating || 0);
     }, 0);
-    
+
     const average = totalRating / memoryDb.feedback.length;
     const result = Math.round(average * 10) / 10; // Round to 1 decimal place
-    
+
     cache.set(cacheKey, result, 5 * 60 * 1000);
     return result;
   },
   getRatingDistribution: async () => {
     const cache = DatabaseCache.getInstance();
     const cacheKey = `rating_distribution`;
-    
+
     const cached = cache.get(cacheKey);
     if (cached) return cached;
-    
+
     await initDatabase();
     if (!memoryDb.feedback) return { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
-    
+
     const distribution = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
-    
+
     memoryDb.feedback.forEach((feedback: any) => {
       const rating = feedback.rating;
       if (rating >= 1 && rating <= 5) {
         distribution[rating as keyof typeof distribution]++;
       }
     });
-    
+
     cache.set(cacheKey, distribution, 5 * 60 * 1000);
     return distribution;
   }
@@ -891,7 +944,7 @@ export const settingsApi = {
     }
     return settings;
   },
-  
+
   updateOperatingHours: (hours: any[]) => {
     return updateRecord("settings", "operating_hours", { data: hours });
   },
@@ -905,7 +958,7 @@ export { initDatabase };
 // Add sample data function
 export async function addSampleData() {
   await initDatabase();
-  
+
   // Add sample spa services if none exist
   const existingServices = await listRecords("spa_services");
   if (existingServices.length === 0) {
@@ -917,7 +970,7 @@ export async function addSampleData() {
       category: "massage",
       status: "active"
     });
-    
+
     await createRecord("spa_services", {
       name: "Facial Treatment",
       description: "Deep cleansing facial",
@@ -927,7 +980,7 @@ export async function addSampleData() {
       status: "active"
     });
   }
-  
+
   // Add sample menu items if none exist (without dietary field to avoid sync issues)
   const existingItems = await listRecords("menu_items");
   if (existingItems.length === 0) {
@@ -939,7 +992,7 @@ export async function addSampleData() {
       category: "food",
       status: "active"
     });
-    
+
     await createRecord("menu_items", {
       name: "Grilled Salmon",
       description: "Fresh salmon with herbs and lemon",
@@ -1021,11 +1074,11 @@ export const performanceMonitor = {
   startTimer: (label: string) => {
     console.time(label);
   },
-  
+
   endTimer: (label: string) => {
     console.timeEnd(label);
   },
-  
+
   getStats: () => ({
     memoryUsage: memoryManager.getMemoryUsage(),
     cacheStats: DatabaseCache.getInstance().getStats(),
@@ -1034,7 +1087,7 @@ export const performanceMonitor = {
       Object.entries(memoryDb).map(([table, data]) => [table, data.length])
     )
   }),
-  
+
   enableAutoCleanup: () => {
     setInterval(() => {
       memoryManager.cleanup();
