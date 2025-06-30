@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { businessSettingsApi } from '@/lib/db';
 import { useAuth } from '@/lib/auth-context';
 import {
@@ -103,108 +103,159 @@ const allRoutes: Route[] = [
   },
 ];
 
-  function Sidebar() {
-    const pathname = usePathname();
-    const [businessName, setBusinessName] = useState('LEWA HOSPITALITY');
-    const { hasPermission } = useAuth();
-    const [mobileOpen, setMobileOpen] = useState(false);
-  
-    // Filter routes based on user role
-    const routes = allRoutes.filter((route) => {
-      if (!route.requiredRole) return true; // Route available to all
-      return hasPermission(route.requiredRole);
-    });
-  
-    useEffect(() => {
-      async function loadBusinessName() {
-        try {
-          const defaultSettings = {
-            businessName: 'LEWA HOSPITALITY',
-            address: '29 Montgomery Road, Highlands, Harare, Zimbabwe',
-            phone: '(555) 123-4567',
-            email: 'info@lewa.co.zw',
-            website: 'www.lewa.co.zw',
-            taxRate: '14%',
-            openingHours: 'Sunday-Friday: 9am-9pm\nSaturday:Closed',
-          };
-  
-          const settings = await businessSettingsApi.getSettings(defaultSettings);
-          setBusinessName(settings.businessName || 'LEWA HOSPITALITY');
-        } catch (error) {
-          console.error('Error loading business settings:', error);
+function Sidebar() {
+  const pathname = usePathname();
+  const [businessName, setBusinessName] = useState('LEWA HOSPITALITY');
+  const { hasPermission } = useAuth();
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const sidebarRef = useRef<HTMLDivElement>(null);
+
+  // Filter routes based on user role
+  const routes = allRoutes.filter((route) => {
+    if (!route.requiredRole) return true; // Route available to all
+    return hasPermission(route.requiredRole);
+  });
+
+  // Trap focus inside sidebar when open
+  useEffect(() => {
+    if (!mobileOpen) return;
+    const focusableSelectors = [
+      'a[href]',
+      'button:not([disabled])',
+      '[tabindex]:not([tabindex="-1"])',
+    ];
+    const sidebar = sidebarRef.current;
+    if (!sidebar) return;
+    const focusableEls = sidebar.querySelectorAll(focusableSelectors.join(','));
+    const firstEl = focusableEls[0] as HTMLElement;
+    const lastEl = focusableEls[focusableEls.length - 1] as HTMLElement;
+    function handleKey(e: KeyboardEvent) {
+      if (e.key === 'Tab') {
+        if (e.shiftKey) {
+          if (document.activeElement === firstEl) {
+            e.preventDefault();
+            lastEl.focus();
+          }
+        } else {
+          if (document.activeElement === lastEl) {
+            e.preventDefault();
+            firstEl.focus();
+          }
         }
+      } else if (e.key === 'Escape') {
+        setMobileOpen(false);
       }
-      loadBusinessName();
-    }, []);
-  
-    // Sidebar content as a function for reuse
-    const sidebarContent = (
-      <div className="flex h-full flex-col px-3 py-4">
-        <Link href="/" className="mb-6 flex items-center px-2 py-2" onClick={() => setMobileOpen(false)}>
-          <div className="flex items-center gap-2">
-            <Home className="h-6 w-6 text-primary" />
-            <span className="text-xl font-bold">{businessName}</span>
-          </div>
-        </Link>
-        <div className="space-y-1">
-          {routes.map((route) => (
-            <Link
-              key={route.href}
-              href={route.href}
-              onClick={() => setMobileOpen(false)}
-              className={cn(
-                'flex items-center rounded-lg px-3 py-2 text-sm font-medium transition-all hover:bg-accent hover:text-accent-foreground',
-                pathname === route.href
-                  ? 'bg-accent text-accent-foreground'
-                  : 'transparent'
-              )}
-            >
-              <route.icon className={cn('mr-3 h-5 w-5', route.color)} />
-              {route.label}
-            </Link>
-          ))}
+    }
+    document.addEventListener('keydown', handleKey);
+    // Focus first element
+    firstEl?.focus();
+    // Prevent body scroll
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.removeEventListener('keydown', handleKey);
+      document.body.style.overflow = '';
+    };
+  }, [mobileOpen]);
+
+  useEffect(() => {
+    async function loadBusinessName() {
+      try {
+        const defaultSettings = {
+          businessName: 'LEWA HOSPITALITY',
+          address: '29 Montgomery Road, Highlands, Harare, Zimbabwe',
+          phone: '(555) 123-4567',
+          email: 'info@lewa.co.zw',
+          website: 'www.lewa.co.zw',
+          taxRate: '14%',
+          openingHours: 'Sunday-Friday: 9am-9pm\nSaturday:Closed',
+        };
+
+        const settings = await businessSettingsApi.getSettings(defaultSettings);
+        setBusinessName(settings.businessName || 'LEWA HOSPITALITY');
+      } catch (error) {
+        console.error('Error loading business settings:', error);
+      }
+    }
+    loadBusinessName();
+  }, []);
+
+  // Sidebar content as a function for reuse
+  const sidebarContent = (
+    <div className="flex h-full flex-col px-3 py-4">
+      <Link href="/" className="mb-6 flex items-center px-2 py-2" onClick={() => setMobileOpen(false)}>
+        <div className="flex items-center gap-2">
+          <Home className="h-6 w-6 text-primary" />
+          <span className="text-xl font-bold">{businessName}</span>
         </div>
+      </Link>
+      <div className="space-y-1">
+        {routes.map((route) => (
+          <Link
+            key={route.href}
+            href={route.href}
+            onClick={() => setMobileOpen(false)}
+            className={cn(
+              'flex items-center rounded-lg px-3 py-2 text-sm font-medium transition-all hover:bg-accent hover:text-accent-foreground',
+              pathname === route.href
+                ? 'bg-accent text-accent-foreground'
+                : 'transparent'
+            )}
+          >
+            <route.icon className={cn('mr-3 h-5 w-5', route.color)} />
+            {route.label}
+          </Link>
+        ))}
       </div>
-    );
-  
-    return (
-      <>
-        {/* Hamburger button for mobile */}
-        <button
-          className="fixed top-4 left-4 z-40 md:hidden bg-card p-2 rounded-lg shadow-lg"
-          onClick={() => setMobileOpen(true)}
-          aria-label="Open sidebar"
-          type="button"
-        >
-          <MenuIcon className="h-6 w-6" />
-        </button>
-  
-        {/* Mobile sidebar overlay */}
-        {mobileOpen && (
-          <div className="fixed inset-0 z-50 bg-black/40 flex">
-            <div className="relative w-64 bg-card h-full shadow-lg animate-slide-in-left">
-              <button
-                className="absolute top-4 right-4 z-50 bg-muted p-2 rounded-full"
-                onClick={() => setMobileOpen(false)}
-                aria-label="Close sidebar"
-                type="button"
-              >
-                <CloseIcon className="h-5 w-5" />
-              </button>
-              {sidebarContent}
-            </div>
-            {/* Click outside to close */}
-            <div className="flex-1" onClick={() => setMobileOpen(false)} />
+    </div>
+  );
+
+  return (
+    <>
+      {/* Hamburger button for mobile */}
+      <button
+        className="fixed top-4 left-4 z-40 md:hidden bg-card p-2 rounded-lg shadow-lg"
+        onClick={() => setMobileOpen(true)}
+        aria-label="Open sidebar"
+        aria-expanded={mobileOpen}
+        aria-controls="mobile-sidebar"
+        type="button"
+      >
+        <MenuIcon className="h-6 w-6" />
+      </button>
+
+      {/* Mobile sidebar overlay */}
+      {mobileOpen && (
+        <div className="fixed inset-0 z-50 bg-black/40 flex">
+          <div
+            ref={sidebarRef}
+            id="mobile-sidebar"
+            className="relative w-64 bg-card h-full shadow-lg animate-slide-in-left outline-none"
+            tabIndex={-1}
+            aria-modal="true"
+            role="dialog"
+          >
+            <button
+              className="absolute top-4 right-4 z-50 bg-muted p-2 rounded-full"
+              onClick={() => setMobileOpen(false)}
+              aria-label="Close sidebar"
+              type="button"
+            >
+              <CloseIcon className="h-5 w-5" />
+            </button>
+            {sidebarContent}
           </div>
-        )}
-  
-        {/* Desktop sidebar */}
-        <div className="hidden border-r bg-card md:block md:w-64">
-          {sidebarContent}
+          {/* Click outside to close */}
+          <div className="flex-1" onClick={() => setMobileOpen(false)} tabIndex={-1} aria-hidden="true" />
         </div>
-      </>
-    );
-  }
-  
-  export default Sidebar;
+      )}
+
+      {/* Desktop sidebar */}
+      <div className="hidden border-r bg-card md:block md:w-64">
+        {sidebarContent}
+      </div>
+    </>
+  );
+}
+
+export default Sidebar;
 

@@ -1,9 +1,9 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { useAuth } from '@/lib/auth-context';
 import { Loader2 } from 'lucide-react';
+import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -14,34 +14,53 @@ interface ProtectedRouteProps {
 export default function ProtectedRoute({
   children,
   redirectTo = '/login',
-  allowedRoles,
+  allowedRoles = [],
 }: ProtectedRouteProps) {
-  const { user, isLoading } = useAuth();
+  const [userRole, setUserRole] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
 
   useEffect(() => {
-    if (!isLoading) {
+    const fetchUserRole = async () => {
+      setIsLoading(true);
+      const supabase = createClientComponentClient();
+      const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
+        setIsLoading(false);
         router.push(redirectTo);
-      } else if (allowedRoles && (!user.role || !allowedRoles.includes(user.role))) {
+        return;
+      }
+      // Fetch the user's role from user_profiles table
+      const { data, error } = await supabase
+        .from('user_profiles')
+        .select('role')
+        .eq('id', user.id)
+        .single();
+      if (error || !data) {
+        setIsLoading(false);
+        router.push('/unauthorized');
+        return;
+      }
+      setUserRole(data.role);
+      setIsLoading(false);
+      if (!allowedRoles.includes(data.role)) {
         router.push('/unauthorized');
       }
-    }
-  }, [user, isLoading, router, redirectTo, allowedRoles]);
+    };
+    fetchUserRole();
+  }, [allowedRoles, redirectTo, router]);
 
-  if (
-    isLoading ||
-    !user ||
-    (allowedRoles && (!user.role || !allowedRoles.includes(user.role)))
-  ) {
+  if (isLoading) {
     return (
-      <div className='flex min-h-screen items-center justify-center'>
-        <div className='space-y-4 text-center'>
-          <Loader2 className='mx-auto h-8 w-8 animate-spin' />
-          <p className='text-muted-foreground'>Verifying access...</p>
-        </div>
+      <div className="flex min-h-screen items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin" />
+        <p className="ml-2 text-muted-foreground">Verifying access...</p>
       </div>
     );
+  }
+
+  if (!userRole || !allowedRoles.includes(userRole)) {
+    return null;
   }
 
   return <>{children}</>;
