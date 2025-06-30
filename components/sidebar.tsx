@@ -115,6 +115,44 @@ function Sidebar() {
     return hasPermission(route.requiredRole);
   });
 
+  // Ensure we always have at least some basic routes available
+  const fallbackRoutes: Route[] = [
+    {
+      label: 'Dashboard',
+      icon: LayoutDashboard,
+      href: '/dashboard',
+      color: 'text-sky-500',
+    },
+    {
+      label: 'Point of Sale',
+      icon: ShoppingCart,
+      href: '/pos',
+      color: 'text-pink-700',
+    },
+    {
+      label: 'Customers',
+      icon: Users,
+      href: '/customers',
+      color: 'text-blue-500',
+    },
+  ];
+
+  // Use filtered routes if available, otherwise use fallback routes
+  const displayRoutes = routes.length > 0 ? routes : fallbackRoutes;
+
+  // Debug logging
+  console.log('Sidebar routes:', {
+    allRoutes: allRoutes.length,
+    filteredRoutes: routes.length,
+    displayRoutes: displayRoutes.length,
+    userDetails: useAuth().userDetails,
+  });
+
+  // Debug mobile sidebar state
+  useEffect(() => {
+    console.log('Mobile sidebar state:', { mobileOpen, displayRoutes: displayRoutes.length });
+  }, [mobileOpen, displayRoutes]);
+
   useEffect(() => {
     async function loadBusinessName() {
       try {
@@ -147,7 +185,7 @@ function Sidebar() {
         </div>
       </Link>
       <div className="space-y-1">
-        {routes.map((route) => (
+        {displayRoutes.map((route) => (
           <Link
             key={route.href}
             href={route.href}
@@ -163,6 +201,10 @@ function Sidebar() {
             {route.label}
           </Link>
         ))}
+      </div>
+      {/* Debug info for mobile */}
+      <div className="mt-auto p-2 text-xs text-gray-500 md:hidden">
+        Routes: {displayRoutes.length}
       </div>
     </div>
   );
@@ -182,7 +224,7 @@ function Sidebar() {
       {/* Mobile sidebar overlay */}
       {mobileOpen && (
         <div className="fixed inset-0 z-[99] bg-black/40 flex w-full h-full pointer-events-auto">
-          <div className="relative w-64 bg-card h-full shadow-lg animate-slide-in-left">
+          <div className="relative w-64 bg-card h-full shadow-lg transform transition-transform duration-300 ease-in-out translate-x-0 overflow-y-auto">
             <button
               className="absolute top-4 right-4 z-50 bg-muted p-2 rounded-full"
               onClick={() => setMobileOpen(false)}
@@ -191,7 +233,9 @@ function Sidebar() {
             >
               <CloseIcon className="h-5 w-5" />
             </button>
-            {sidebarContent}
+            <div className="pt-16">
+              {sidebarContent}
+            </div>
           </div>
           {/* Click outside to close */}
           <div className="flex-1 h-full w-full" onClick={() => setMobileOpen(false)} />

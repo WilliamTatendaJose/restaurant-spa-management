@@ -59,7 +59,7 @@ export default function TreatmentsPage() {
           throw error;
         }
 
-        // Map image_url storage keys to public URLs
+        // Map image_url storage keys to public URLs and deduplicate services
         const servicesWithUrls = (data || []).map((service) => {
           if (service.image_url) {
             // If image_url is already a full URL, use as is
@@ -77,7 +77,26 @@ export default function TreatmentsPage() {
           }
           return { ...service, image_url: placeholderImage };
         });
-        setServices(servicesWithUrls);
+
+        // Deduplicate services by ID (keep the most recent one if duplicates exist)
+        const uniqueServices = servicesWithUrls.reduce((acc, current) => {
+          const existingService = acc.find((service: SpaService) => service.id === current.id);
+          if (!existingService) {
+            acc.push(current);
+          } else {
+            // If duplicate found, keep the one with the most recent updated_at timestamp
+            const existingDate = new Date(existingService.updated_at || existingService.created_at || '');
+            const currentDate = new Date(current.updated_at || current.created_at || '');
+            if (currentDate > existingDate) {
+              // Replace the existing service with the current one
+              const index = acc.findIndex((service: SpaService) => service.id === current.id);
+              acc[index] = current;
+            }
+          }
+          return acc;
+        }, [] as SpaService[]);
+
+        setServices(uniqueServices);
       } catch (error) {
         console.error('Failed to load active spa services:', error);
         toast({
