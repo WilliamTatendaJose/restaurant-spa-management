@@ -3,7 +3,7 @@ User-agent: *
 Allow: /
 
 # Host
-Host: https://restaurant-spa-management.com
+Host: https://restaurant-spa-management.vercel.app
 
 # Sitemaps
-Sitemap: https://restaurant-spa-management.com/sitemap.xml
+Sitemap: https://restaurant-spa-management.vercel.app/sitemap.xml

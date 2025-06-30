@@ -427,10 +427,10 @@ export function POSInterface() {
           const existingIndex = acc.findIndex(
             (transaction) =>
               transaction.customer_name?.toLowerCase() ===
-                current.customer_name?.toLowerCase() &&
+              current.customer_name?.toLowerCase() &&
               transaction.transaction_date === current.transaction_date &&
               Math.abs(transaction.total_amount - current.total_amount) <
-                0.01 && // Allow for small floating point differences
+              0.01 && // Allow for small floating point differences
               transaction.payment_method === current.payment_method
           );
 
@@ -1252,11 +1252,11 @@ export function POSInterface() {
                                 .includes(customerSearchQuery.toLowerCase()) ||
                               customer.phone?.includes(customerSearchQuery)
                           ).length === 0 && (
-                            <div className='p-2 text-center text-muted-foreground'>
-                              No customers found matching "{customerSearchQuery}
-                              "
-                            </div>
-                          )}
+                              <div className='p-2 text-center text-muted-foreground'>
+                                No customers found matching "{customerSearchQuery}
+                                "
+                              </div>
+                            )}
                         </div>
                       )}
                     </div>
@@ -1607,7 +1607,7 @@ export function POSInterface() {
               <div>
                 <p className='mb-2 text-sm text-muted-foreground'>Items</p>
                 {selectedTransaction.items &&
-                selectedTransaction.items.length > 0 ? (
+                  selectedTransaction.items.length > 0 ? (
                   <div className='overflow-hidden rounded-md border'>
                     <table className='w-full'>
                       <thead>

@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { SyncStatus } from '@/components/sync-status';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
-import { Sidebar } from '@/components/sidebar';
+import  Sidebar  from '@/components/sidebar';
 import { Menu, Bell, LogOut, User, Settings } from 'lucide-react';
 import {
   DropdownMenu,

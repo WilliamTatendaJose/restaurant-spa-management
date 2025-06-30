@@ -17,6 +17,8 @@ import {
   Users,
   Utensils,
   MessageSquare,
+  Menu as MenuIcon,
+  X as CloseIcon,
 } from 'lucide-react';
 
 type UserRole = 'admin' | 'manager' | 'staff';
@@ -101,53 +103,55 @@ const allRoutes: Route[] = [
   },
 ];
 
-export function Sidebar() {
-  const pathname = usePathname();
-  const [businessName, setBusinessName] = useState('LEWA HOSPITALITY');
-  const { userDetails, hasPermission } = useAuth();
-
-  // Filter routes based on user role
-  const routes = allRoutes.filter((route) => {
-    if (!route.requiredRole) return true; // Route available to all
-    return hasPermission(route.requiredRole);
-  });
-
-  useEffect(() => {
-    async function loadBusinessName() {
-      try {
-        const defaultSettings = {
-          businessName: 'LEWA HOSPITALITY',
-          address: '29 Montgomery Road, Highlands, Harare, Zimbabwe',
-          phone: '(555) 123-4567',
-          email: 'info@lewa.co.zw',
-          website: 'www.lewa.co.zw',
-          taxRate: '14%',
-          openingHours: 'Sunday-Friday: 9am-9pm\nSaturday:Closed',
-        };
-
-        const settings = await businessSettingsApi.getSettings(defaultSettings);
-        setBusinessName(settings.businessName || 'LEWA HOSPITALITY');
-      } catch (error) {
-        console.error('Error loading business settings:', error);
+  function Sidebar() {
+    const pathname = usePathname();
+    const [businessName, setBusinessName] = useState('LEWA HOSPITALITY');
+    const { hasPermission } = useAuth();
+    const [mobileOpen, setMobileOpen] = useState(false);
+  
+    // Filter routes based on user role
+    const routes = allRoutes.filter((route) => {
+      if (!route.requiredRole) return true; // Route available to all
+      return hasPermission(route.requiredRole);
+    });
+  
+    useEffect(() => {
+      async function loadBusinessName() {
+        try {
+          const defaultSettings = {
+            businessName: 'LEWA HOSPITALITY',
+            address: '29 Montgomery Road, Highlands, Harare, Zimbabwe',
+            phone: '(555) 123-4567',
+            email: 'info@lewa.co.zw',
+            website: 'www.lewa.co.zw',
+            taxRate: '14%',
+            openingHours: 'Sunday-Friday: 9am-9pm\nSaturday:Closed',
+          };
+  
+          const settings = await businessSettingsApi.getSettings(defaultSettings);
+          setBusinessName(settings.businessName || 'LEWA HOSPITALITY');
+        } catch (error) {
+          console.error('Error loading business settings:', error);
+        }
       }
-    }
-    loadBusinessName();
-  }, []);
-
-  return (
-    <div className='hidden border-r bg-card md:block md:w-64'>
-      <div className='flex h-full flex-col px-3 py-4'>
-        <Link href='/' className='mb-6 flex items-center px-2 py-2'>
-          <div className='flex items-center gap-2'>
-            <Home className='h-6 w-6 text-primary' />
-            <span className='text-xl font-bold'>{businessName}</span>
+      loadBusinessName();
+    }, []);
+  
+    // Sidebar content as a function for reuse
+    const sidebarContent = (
+      <div className="flex h-full flex-col px-3 py-4">
+        <Link href="/" className="mb-6 flex items-center px-2 py-2" onClick={() => setMobileOpen(false)}>
+          <div className="flex items-center gap-2">
+            <Home className="h-6 w-6 text-primary" />
+            <span className="text-xl font-bold">{businessName}</span>
           </div>
         </Link>
-        <div className='space-y-1'>
+        <div className="space-y-1">
           {routes.map((route) => (
             <Link
               key={route.href}
               href={route.href}
+              onClick={() => setMobileOpen(false)}
               className={cn(
                 'flex items-center rounded-lg px-3 py-2 text-sm font-medium transition-all hover:bg-accent hover:text-accent-foreground',
                 pathname === route.href
@@ -161,6 +165,46 @@ export function Sidebar() {
           ))}
         </div>
       </div>
-    </div>
-  );
-}
+    );
+  
+    return (
+      <>
+        {/* Hamburger button for mobile */}
+        <button
+          className="fixed top-4 left-4 z-40 md:hidden bg-card p-2 rounded-lg shadow-lg"
+          onClick={() => setMobileOpen(true)}
+          aria-label="Open sidebar"
+          type="button"
+        >
+          <MenuIcon className="h-6 w-6" />
+        </button>
+  
+        {/* Mobile sidebar overlay */}
+        {mobileOpen && (
+          <div className="fixed inset-0 z-50 bg-black/40 flex">
+            <div className="relative w-64 bg-card h-full shadow-lg animate-slide-in-left">
+              <button
+                className="absolute top-4 right-4 z-50 bg-muted p-2 rounded-full"
+                onClick={() => setMobileOpen(false)}
+                aria-label="Close sidebar"
+                type="button"
+              >
+                <CloseIcon className="h-5 w-5" />
+              </button>
+              {sidebarContent}
+            </div>
+            {/* Click outside to close */}
+            <div className="flex-1" onClick={() => setMobileOpen(false)} />
+          </div>
+        )}
+  
+        {/* Desktop sidebar */}
+        <div className="hidden border-r bg-card md:block md:w-64">
+          {sidebarContent}
+        </div>
+      </>
+    );
+  }
+  
+  export default Sidebar;
+

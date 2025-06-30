@@ -29,8 +29,8 @@ interface Customer {
 export function DashboardStats() {
   const { hasPermission } = useAuth();
 
-  // Only managers and admins can see revenue data
-  const canViewRevenue = hasPermission('manager') || hasPermission('admin');
+  // Only admins can see revenue and stats
+  const canViewStats = hasPermission('admin');
 
   const [stats, setStats] = useState({
     totalRevenue: 0,
@@ -47,6 +47,7 @@ export function DashboardStats() {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
+    if (!canViewStats) return;
     async function fetchStats() {
       try {
         // Get all transactions
@@ -101,7 +102,7 @@ export function DashboardStats() {
             return (
               txDate < lastMonthDate &&
               txDate >=
-                new Date(lastMonthDate.getTime() - 30 * 24 * 60 * 60 * 1000)
+              new Date(lastMonthDate.getTime() - 30 * 24 * 60 * 60 * 1000)
             );
           }
         );
@@ -134,7 +135,7 @@ export function DashboardStats() {
           return (
             bookingDate < lastWeekDate &&
             bookingDate >=
-              new Date(lastWeekDate.getTime() - 7 * 24 * 60 * 60 * 1000)
+            new Date(lastWeekDate.getTime() - 7 * 24 * 60 * 60 * 1000)
           );
         });
 
@@ -143,8 +144,8 @@ export function DashboardStats() {
           prevWeekBookings.length === 0
             ? 100
             : ((thisWeekBookings.length - prevWeekBookings.length) /
-                prevWeekBookings.length) *
-              100;
+              prevWeekBookings.length) *
+            100;
 
         // Filter orders for today and yesterday
         const todayOrders = restaurantOrders.filter((tx: Transaction) => {
@@ -162,8 +163,8 @@ export function DashboardStats() {
           yesterdayOrders.length === 0
             ? 100
             : ((todayOrders.length - yesterdayOrders.length) /
-                yesterdayOrders.length) *
-              100;
+              yesterdayOrders.length) *
+            100;
 
         const todaySpaOrders = spaOrders.filter((tx: Transaction) => {
           const txDate = new Date(tx.transaction_date);
@@ -179,8 +180,8 @@ export function DashboardStats() {
           yesterdaySpaOrders.length === 0
             ? 100
             : ((todaySpaOrders.length - yesterdaySpaOrders.length) /
-                yesterdaySpaOrders.length) *
-              100;
+              yesterdaySpaOrders.length) *
+            100;
 
         // Calculate new customers this month
         const newCustomersThisMonth = customers.filter((customer: Customer) => {
@@ -209,9 +210,10 @@ export function DashboardStats() {
         setIsLoading(false);
       }
     }
-
     fetchStats();
-  }, []);
+  }, [canViewStats]);
+
+  if (!canViewStats) return null;
 
   // Format currency
   const formatCurrency = (amount: number) => {
@@ -229,32 +231,29 @@ export function DashboardStats() {
 
   return (
     <div className='grid gap-4 md:grid-cols-2 lg:grid-cols-3'>
-      {canViewRevenue && (
-        <Card>
-          <CardHeader className='flex flex-row items-center justify-between space-y-0 pb-2'>
-            <CardTitle className='text-sm font-medium'>Total Revenue</CardTitle>
-            <DollarSign className='h-4 w-4 text-muted-foreground' />
-          </CardHeader>
-          <CardContent>
-            {isLoading ? (
-              <div className='text-2xl font-bold'>Loading...</div>
-            ) : (
-              <>
-                <div className='text-2xl font-bold'>
-                  {formatCurrency(stats.totalRevenue)}
-                </div>
-                <p
-                  className={`text-xs ${
-                    stats.revenueChange >= 0 ? 'text-green-500' : 'text-red-500'
+      <Card>
+        <CardHeader className='flex flex-row items-center justify-between space-y-0 pb-2'>
+          <CardTitle className='text-sm font-medium'>Total Revenue</CardTitle>
+          <DollarSign className='h-4 w-4 text-muted-foreground' />
+        </CardHeader>
+        <CardContent>
+          {isLoading ? (
+            <div className='text-2xl font-bold'>Loading...</div>
+          ) : (
+            <>
+              <div className='text-2xl font-bold'>
+                {formatCurrency(stats.totalRevenue)}
+              </div>
+              <p
+                className={`text-xs ${stats.revenueChange >= 0 ? 'text-green-500' : 'text-red-500'
                   }`}
-                >
-                  {formatChange(stats.revenueChange)} from last month
-                </p>
-              </>
-            )}
-          </CardContent>
-        </Card>
-      )}
+              >
+                {formatChange(stats.revenueChange)} from last month
+              </p>
+            </>
+          )}
+        </CardContent>
+      </Card>
       <Card>
         <CardHeader className='flex flex-row items-center justify-between space-y-0 pb-2'>
           <CardTitle className='text-sm font-medium'>Bookings</CardTitle>
@@ -267,9 +266,8 @@ export function DashboardStats() {
             <>
               <div className='text-2xl font-bold'>+{stats.bookingsCount}</div>
               <p
-                className={`text-xs ${
-                  stats.bookingsChange >= 0 ? 'text-green-500' : 'text-red-500'
-                }`}
+                className={`text-xs ${stats.bookingsChange >= 0 ? 'text-green-500' : 'text-red-500'
+                  }`}
               >
                 {formatChange(stats.bookingsChange)} from last week
               </p>
@@ -293,9 +291,8 @@ export function DashboardStats() {
                 +{stats.restaurantOrdersCount}
               </div>
               <p
-                className={`text-xs ${
-                  stats.ordersChange >= 0 ? 'text-green-500' : 'text-red-500'
-                }`}
+                className={`text-xs ${stats.ordersChange >= 0 ? 'text-green-500' : 'text-red-500'
+                  }`}
               >
                 {formatChange(stats.ordersChange)} from yesterday
               </p>
@@ -315,9 +312,8 @@ export function DashboardStats() {
             <>
               <div className='text-2xl font-bold'>+{stats.spaOrdersCount}</div>
               <p
-                className={`text-xs ${
-                  stats.spaOrdersChange >= 0 ? 'text-green-500' : 'text-red-500'
-                }`}
+                className={`text-xs ${stats.spaOrdersChange >= 0 ? 'text-green-500' : 'text-red-500'
+                  }`}
               >
                 {formatChange(stats.ordersChange)} from yesterday
               </p>

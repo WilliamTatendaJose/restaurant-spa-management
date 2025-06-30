@@ -178,15 +178,16 @@ export default function TreatmentsPage() {
                   key={service.id}
                   className='group flex flex-col overflow-hidden border border-emerald-100 bg-white shadow-lg transition-shadow duration-300 hover:shadow-xl'
                 >
-                  <div className='relative h-48 w-full bg-emerald-50'>
+                  <figure className='relative w-full aspect-[4/3] bg-emerald-50'>
                     <Image
                       src={service.image_url || placeholderImage}
                       alt={service.name}
                       fill
                       sizes='(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw'
                       className='object-cover'
+                      priority={false}
                     />
-                  </div>
+                  </figure>
                   <CardContent className='flex flex-grow flex-col p-6'>
                     <h2 className='mb-2 text-2xl font-semibold text-gray-800'>
                       {service.name}

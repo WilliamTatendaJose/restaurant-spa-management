@@ -33,6 +33,7 @@ import {
   Calendar,
   User,
 } from 'lucide-react';
+import ProtectedRoute from '@/components/protected-route';
 
 interface Feedback {
   id: string;
@@ -52,7 +53,7 @@ interface Feedback {
   created_at: string;
 }
 
-export default function FeedbackPage() {
+export default function FeedbackPage({ children }: { children?: React.ReactNode }) {
   const [feedbacks, setFeedbacks] = useState<Feedback[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -190,9 +191,8 @@ export default function FeedbackPage() {
         {[1, 2, 3, 4, 5].map((star) => (
           <Star
             key={star}
-            className={`h-4 w-4 ${
-              star <= rating ? 'fill-amber-500 text-amber-500' : 'text-gray-300'
-            }`}
+            className={`h-4 w-4 ${star <= rating ? 'fill-amber-500 text-amber-500' : 'text-gray-300'
+              }`}
           />
         ))}
       </div>
@@ -204,272 +204,274 @@ export default function FeedbackPage() {
   const rejectedFeedbacks = feedbacks.filter((f) => f.status === 'rejected');
 
   return (
-    <div className='container mx-auto px-4 py-6'>
-      <PageHeader
-        heading='Customer Feedback'
-        subheading='Review and manage customer feedback submissions'
-      />
+    <ProtectedRoute allowedRoles={['admin', 'manager']}>
+      <div className='container mx-auto px-4 py-6'>
+        <PageHeader
+          heading='Customer Feedback'
+          subheading='Review and manage customer feedback submissions'
+        />
 
-      <Tabs defaultValue='pending' className='mt-6'>
-        <TabsList className='mb-4'>
-          <TabsTrigger value='pending'>
-            Pending{' '}
-            <Badge variant='outline' className='ml-2'>
-              {pendingFeedbacks.length}
-            </Badge>
-          </TabsTrigger>
-          <TabsTrigger value='published'>
-            Published{' '}
-            <Badge variant='outline' className='ml-2'>
-              {publishedFeedbacks.length}
-            </Badge>
-          </TabsTrigger>
-          <TabsTrigger value='rejected'>
-            Rejected{' '}
-            <Badge variant='outline' className='ml-2'>
-              {rejectedFeedbacks.length}
-            </Badge>
-          </TabsTrigger>
-        </TabsList>
+        <Tabs defaultValue='pending' className='mt-6'>
+          <TabsList className='mb-4'>
+            <TabsTrigger value='pending'>
+              Pending{' '}
+              <Badge variant='outline' className='ml-2'>
+                {pendingFeedbacks.length}
+              </Badge>
+            </TabsTrigger>
+            <TabsTrigger value='published'>
+              Published{' '}
+              <Badge variant='outline' className='ml-2'>
+                {publishedFeedbacks.length}
+              </Badge>
+            </TabsTrigger>
+            <TabsTrigger value='rejected'>
+              Rejected{' '}
+              <Badge variant='outline' className='ml-2'>
+                {rejectedFeedbacks.length}
+              </Badge>
+            </TabsTrigger>
+          </TabsList>
 
-        {loading ? (
-          <Card>
-            <CardContent className='flex h-64 items-center justify-center'>
-              <div className='flex flex-col items-center space-y-4'>
-                <div className='h-12 w-12 animate-spin rounded-full border-b-2 border-emerald-700'></div>
-                <p className='text-muted-foreground'>
-                  Loading feedback data...
-                </p>
-              </div>
-            </CardContent>
-          </Card>
-        ) : error ? (
-          <Card>
-            <CardContent className='flex h-64 items-center justify-center'>
-              <div className='text-center text-destructive'>
-                <p className='text-lg font-semibold'>{error}</p>
-                <Button
-                  variant='outline'
-                  className='mt-4'
-                  onClick={() => fetchFeedbacks()}
-                >
-                  Try Again
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        ) : (
-          <>
-            <TabsContent value='pending'>
-              <FeedbackTable
-                feedbacks={pendingFeedbacks}
-                onView={(feedback) => {
-                  setSelectedFeedback(feedback);
-                  setViewDialogOpen(true);
-                }}
-                onApprove={(id) => updateFeedbackStatus(id, 'published')}
-                onReject={(id) => updateFeedbackStatus(id, 'rejected')}
-                showActions={true}
-                getStatusColor={getStatusColor}
-                formatDate={formatDate}
-                renderStars={renderStars}
-              />
-            </TabsContent>
-
-            <TabsContent value='published'>
-              <FeedbackTable
-                feedbacks={publishedFeedbacks}
-                onView={(feedback) => {
-                  setSelectedFeedback(feedback);
-                  setViewDialogOpen(true);
-                }}
-                onApprove={(id) => {}}
-                onReject={(id) => updateFeedbackStatus(id, 'rejected')}
-                showActions={false}
-                getStatusColor={getStatusColor}
-                formatDate={formatDate}
-                renderStars={renderStars}
-              />
-            </TabsContent>
-
-            <TabsContent value='rejected'>
-              <FeedbackTable
-                feedbacks={rejectedFeedbacks}
-                onView={(feedback) => {
-                  setSelectedFeedback(feedback);
-                  setViewDialogOpen(true);
-                }}
-                onApprove={(id) => updateFeedbackStatus(id, 'published')}
-                onReject={(id) => {}}
-                showActions={false}
-                getStatusColor={getStatusColor}
-                formatDate={formatDate}
-                renderStars={renderStars}
-              />
-            </TabsContent>
-          </>
-        )}
-      </Tabs>
-
-      {/* Feedback View Dialog */}
-      <Dialog open={viewDialogOpen} onOpenChange={setViewDialogOpen}>
-        <DialogContent className='max-h-[90vh] max-w-3xl overflow-y-auto'>
-          {selectedFeedback && (
+          {loading ? (
+            <Card>
+              <CardContent className='flex h-64 items-center justify-center'>
+                <div className='flex flex-col items-center space-y-4'>
+                  <div className='h-12 w-12 animate-spin rounded-full border-b-2 border-emerald-700'></div>
+                  <p className='text-muted-foreground'>
+                    Loading feedback data...
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          ) : error ? (
+            <Card>
+              <CardContent className='flex h-64 items-center justify-center'>
+                <div className='text-center text-destructive'>
+                  <p className='text-lg font-semibold'>{error}</p>
+                  <Button
+                    variant='outline'
+                    className='mt-4'
+                    onClick={() => fetchFeedbacks()}
+                  >
+                    Try Again
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          ) : (
             <>
-              <DialogHeader>
-                <DialogTitle className='flex items-center justify-between'>
-                  <span>Feedback from {selectedFeedback.customer_name}</span>
-                  <Badge className={getStatusColor(selectedFeedback.status)}>
-                    {selectedFeedback.status.charAt(0).toUpperCase() +
-                      selectedFeedback.status.slice(1)}
-                  </Badge>
-                </DialogTitle>
-                <DialogDescription>
-                  <div className='mt-4 grid grid-cols-1 gap-4 md:grid-cols-2'>
-                    <div className='flex items-center gap-2'>
-                      <User className='h-4 w-4 text-muted-foreground' />
-                      <span className='text-sm text-muted-foreground'>
-                        {selectedFeedback.customer_email}
-                      </span>
-                    </div>
-                    <div className='flex items-center gap-2'>
-                      <Calendar className='h-4 w-4 text-muted-foreground' />
-                      <span className='text-sm text-muted-foreground'>
-                        {selectedFeedback.visit_date
-                          ? formatDate(selectedFeedback.visit_date)
-                          : formatDate(selectedFeedback.created_at)}
-                      </span>
-                    </div>
-                  </div>
-                </DialogDescription>
-              </DialogHeader>
+              <TabsContent value='pending'>
+                <FeedbackTable
+                  feedbacks={pendingFeedbacks}
+                  onView={(feedback) => {
+                    setSelectedFeedback(feedback);
+                    setViewDialogOpen(true);
+                  }}
+                  onApprove={(id) => updateFeedbackStatus(id, 'published')}
+                  onReject={(id) => updateFeedbackStatus(id, 'rejected')}
+                  showActions={true}
+                  getStatusColor={getStatusColor}
+                  formatDate={formatDate}
+                  renderStars={renderStars}
+                />
+              </TabsContent>
 
-              <div className='my-4 space-y-6'>
-                {/* Service Type and Recommendation */}
-                <div className='grid grid-cols-1 gap-4 md:grid-cols-2'>
-                  <div className='rounded-md bg-gray-50 p-4'>
-                    <h4 className='mb-1 text-sm font-medium text-gray-500'>
-                      Service Type
-                    </h4>
-                    <p className='font-medium text-gray-900'>
-                      {getServiceTypeText(selectedFeedback.service_type)}
-                    </p>
-                  </div>
-                  <div className='rounded-md bg-gray-50 p-4'>
-                    <h4 className='mb-1 text-sm font-medium text-gray-500'>
-                      Would Recommend
-                    </h4>
-                    <div className='flex items-center gap-2'>
-                      {selectedFeedback.recommend === 'definitely' ||
-                      selectedFeedback.recommend === 'probably' ? (
-                        <ThumbsUp className='h-4 w-4 text-green-600' />
-                      ) : selectedFeedback.recommend === 'definitely_not' ||
-                        selectedFeedback.recommend === 'probably_not' ? (
-                        <ThumbsDown className='h-4 w-4 text-red-600' />
-                      ) : (
-                        <div className='h-4 w-4' />
-                      )}
-                      <p className='font-medium'>
-                        {getRecommendText(selectedFeedback.recommend)}
-                      </p>
-                    </div>
-                  </div>
-                </div>
+              <TabsContent value='published'>
+                <FeedbackTable
+                  feedbacks={publishedFeedbacks}
+                  onView={(feedback) => {
+                    setSelectedFeedback(feedback);
+                    setViewDialogOpen(true);
+                  }}
+                  onApprove={(id) => { }}
+                  onReject={(id) => updateFeedbackStatus(id, 'rejected')}
+                  showActions={false}
+                  getStatusColor={getStatusColor}
+                  formatDate={formatDate}
+                  renderStars={renderStars}
+                />
+              </TabsContent>
 
-                {/* Ratings */}
-                <div className='rounded-md bg-gray-50 p-4'>
-                  <h4 className='mb-3 text-sm font-medium text-gray-500'>
-                    Ratings
-                  </h4>
-                  <div className='grid grid-cols-1 gap-4 md:grid-cols-2'>
-                    <div>
-                      <p className='mb-1 text-sm text-gray-500'>
-                        Overall Rating
-                      </p>
-                      {renderStars(selectedFeedback.overall_rating)}
-                    </div>
-                    <div>
-                      <p className='mb-1 text-sm text-gray-500'>
-                        Service Quality
-                      </p>
-                      {renderStars(selectedFeedback.service_quality)}
-                    </div>
-                    <div>
-                      <p className='mb-1 text-sm text-gray-500'>
-                        Staff Friendliness
-                      </p>
-                      {renderStars(selectedFeedback.staff_friendliness)}
-                    </div>
-                    <div>
-                      <p className='mb-1 text-sm text-gray-500'>Cleanliness</p>
-                      {renderStars(selectedFeedback.cleanliness)}
-                    </div>
-                    <div>
-                      <p className='mb-1 text-sm text-gray-500'>
-                        Value for Money
-                      </p>
-                      {renderStars(selectedFeedback.value_for_money)}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Comments and Improvements */}
-                <div className='space-y-4'>
-                  {selectedFeedback.comments && (
-                    <div className='rounded-md bg-gray-50 p-4'>
-                      <h4 className='mb-1 text-sm font-medium text-gray-500'>
-                        Comments
-                      </h4>
-                      <p className='whitespace-pre-line text-gray-700'>
-                        {selectedFeedback.comments}
-                      </p>
-                    </div>
-                  )}
-
-                  {selectedFeedback.improvements && (
-                    <div className='rounded-md bg-gray-50 p-4'>
-                      <h4 className='mb-1 text-sm font-medium text-gray-500'>
-                        Suggested Improvements
-                      </h4>
-                      <p className='whitespace-pre-line text-gray-700'>
-                        {selectedFeedback.improvements}
-                      </p>
-                    </div>
-                  )}
-                </div>
-
-                {/* Action Buttons */}
-                {selectedFeedback.status === 'pending' && (
-                  <div className='flex justify-end space-x-2'>
-                    <Button
-                      variant='outline'
-                      className='border-red-200 bg-red-50 text-red-700 hover:bg-red-100'
-                      onClick={() => {
-                        updateFeedbackStatus(selectedFeedback.id, 'rejected');
-                        setViewDialogOpen(false);
-                      }}
-                    >
-                      <XCircle className='mr-2 h-4 w-4' />
-                      Reject
-                    </Button>
-                    <Button
-                      className='bg-green-600 hover:bg-green-700'
-                      onClick={() => {
-                        updateFeedbackStatus(selectedFeedback.id, 'published');
-                        setViewDialogOpen(false);
-                      }}
-                    >
-                      <CheckCircle className='mr-2 h-4 w-4' />
-                      Publish
-                    </Button>
-                  </div>
-                )}
-              </div>
+              <TabsContent value='rejected'>
+                <FeedbackTable
+                  feedbacks={rejectedFeedbacks}
+                  onView={(feedback) => {
+                    setSelectedFeedback(feedback);
+                    setViewDialogOpen(true);
+                  }}
+                  onApprove={(id) => updateFeedbackStatus(id, 'published')}
+                  onReject={(id) => { }}
+                  showActions={false}
+                  getStatusColor={getStatusColor}
+                  formatDate={formatDate}
+                  renderStars={renderStars}
+                />
+              </TabsContent>
             </>
           )}
-        </DialogContent>
-      </Dialog>
-    </div>
+        </Tabs>
+
+        {/* Feedback View Dialog */}
+        <Dialog open={viewDialogOpen} onOpenChange={setViewDialogOpen}>
+          <DialogContent className='max-h-[90vh] max-w-3xl overflow-y-auto'>
+            {selectedFeedback && (
+              <>
+                <DialogHeader>
+                  <DialogTitle className='flex items-center justify-between'>
+                    <span>Feedback from {selectedFeedback.customer_name}</span>
+                    <Badge className={getStatusColor(selectedFeedback.status)}>
+                      {selectedFeedback.status.charAt(0).toUpperCase() +
+                        selectedFeedback.status.slice(1)}
+                    </Badge>
+                  </DialogTitle>
+                  <DialogDescription>
+                    <div className='mt-4 grid grid-cols-1 gap-4 md:grid-cols-2'>
+                      <div className='flex items-center gap-2'>
+                        <User className='h-4 w-4 text-muted-foreground' />
+                        <span className='text-sm text-muted-foreground'>
+                          {selectedFeedback.customer_email}
+                        </span>
+                      </div>
+                      <div className='flex items-center gap-2'>
+                        <Calendar className='h-4 w-4 text-muted-foreground' />
+                        <span className='text-sm text-muted-foreground'>
+                          {selectedFeedback.visit_date
+                            ? formatDate(selectedFeedback.visit_date)
+                            : formatDate(selectedFeedback.created_at)}
+                        </span>
+                      </div>
+                    </div>
+                  </DialogDescription>
+                </DialogHeader>
+
+                <div className='my-4 space-y-6'>
+                  {/* Service Type and Recommendation */}
+                  <div className='grid grid-cols-1 gap-4 md:grid-cols-2'>
+                    <div className='rounded-md bg-gray-50 p-4'>
+                      <h4 className='mb-1 text-sm font-medium text-gray-500'>
+                        Service Type
+                      </h4>
+                      <p className='font-medium text-gray-900'>
+                        {getServiceTypeText(selectedFeedback.service_type)}
+                      </p>
+                    </div>
+                    <div className='rounded-md bg-gray-50 p-4'>
+                      <h4 className='mb-1 text-sm font-medium text-gray-500'>
+                        Would Recommend
+                      </h4>
+                      <div className='flex items-center gap-2'>
+                        {selectedFeedback.recommend === 'definitely' ||
+                          selectedFeedback.recommend === 'probably' ? (
+                          <ThumbsUp className='h-4 w-4 text-green-600' />
+                        ) : selectedFeedback.recommend === 'definitely_not' ||
+                          selectedFeedback.recommend === 'probably_not' ? (
+                          <ThumbsDown className='h-4 w-4 text-red-600' />
+                        ) : (
+                          <div className='h-4 w-4' />
+                        )}
+                        <p className='font-medium'>
+                          {getRecommendText(selectedFeedback.recommend)}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Ratings */}
+                  <div className='rounded-md bg-gray-50 p-4'>
+                    <h4 className='mb-3 text-sm font-medium text-gray-500'>
+                      Ratings
+                    </h4>
+                    <div className='grid grid-cols-1 gap-4 md:grid-cols-2'>
+                      <div>
+                        <p className='mb-1 text-sm text-gray-500'>
+                          Overall Rating
+                        </p>
+                        {renderStars(selectedFeedback.overall_rating)}
+                      </div>
+                      <div>
+                        <p className='mb-1 text-sm text-gray-500'>
+                          Service Quality
+                        </p>
+                        {renderStars(selectedFeedback.service_quality)}
+                      </div>
+                      <div>
+                        <p className='mb-1 text-sm text-gray-500'>
+                          Staff Friendliness
+                        </p>
+                        {renderStars(selectedFeedback.staff_friendliness)}
+                      </div>
+                      <div>
+                        <p className='mb-1 text-sm text-gray-500'>Cleanliness</p>
+                        {renderStars(selectedFeedback.cleanliness)}
+                      </div>
+                      <div>
+                        <p className='mb-1 text-sm text-gray-500'>
+                          Value for Money
+                        </p>
+                        {renderStars(selectedFeedback.value_for_money)}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Comments and Improvements */}
+                  <div className='space-y-4'>
+                    {selectedFeedback.comments && (
+                      <div className='rounded-md bg-gray-50 p-4'>
+                        <h4 className='mb-1 text-sm font-medium text-gray-500'>
+                          Comments
+                        </h4>
+                        <p className='whitespace-pre-line text-gray-700'>
+                          {selectedFeedback.comments}
+                        </p>
+                      </div>
+                    )}
+
+                    {selectedFeedback.improvements && (
+                      <div className='rounded-md bg-gray-50 p-4'>
+                        <h4 className='mb-1 text-sm font-medium text-gray-500'>
+                          Suggested Improvements
+                        </h4>
+                        <p className='whitespace-pre-line text-gray-700'>
+                          {selectedFeedback.improvements}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Action Buttons */}
+                  {selectedFeedback.status === 'pending' && (
+                    <div className='flex justify-end space-x-2'>
+                      <Button
+                        variant='outline'
+                        className='border-red-200 bg-red-50 text-red-700 hover:bg-red-100'
+                        onClick={() => {
+                          updateFeedbackStatus(selectedFeedback.id, 'rejected');
+                          setViewDialogOpen(false);
+                        }}
+                      >
+                        <XCircle className='mr-2 h-4 w-4' />
+                        Reject
+                      </Button>
+                      <Button
+                        className='bg-green-600 hover:bg-green-700'
+                        onClick={() => {
+                          updateFeedbackStatus(selectedFeedback.id, 'published');
+                          setViewDialogOpen(false);
+                        }}
+                      >
+                        <CheckCircle className='mr-2 h-4 w-4' />
+                        Publish
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              </>
+            )}
+          </DialogContent>
+        </Dialog>
+      </div>
+    </ProtectedRoute>
   );
 }
 

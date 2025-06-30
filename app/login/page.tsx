@@ -83,81 +83,88 @@ export default function LoginPage() {
           </div>
         </div>
 
-        <Card className='animate-slide-up relative overflow-hidden rounded-2xl border-0 bg-white/80 shadow-2xl backdrop-blur-lg'>
-          <CardHeader className='space-y-1 text-center'>
-            <CardTitle className='text-2xl font-bold tracking-tight'>
-              Welcome Back
-            </CardTitle>
-            <CardDescription>
-              Enter your credentials to access your dashboard.
-            </CardDescription>
-          </CardHeader>
+        {isLoading ? (
+          <div className='flex flex-col items-center'>
+            <Loader2 className='h-10 w-10 animate-spin text-primary mb-4' />
+            <p className='text-lg text-muted-foreground'>Signing you in...</p>
+          </div>
+        ) : (
+          <Card className='animate-slide-up relative overflow-hidden rounded-2xl border-0 bg-white/80 shadow-2xl backdrop-blur-lg'>
+            <CardHeader className='space-y-1 text-center'>
+              <CardTitle className='text-2xl font-bold tracking-tight'>
+                Welcome Back
+              </CardTitle>
+              <CardDescription>
+                Enter your credentials to access your dashboard.
+              </CardDescription>
+            </CardHeader>
 
-          <CardContent>
-            <form action={handleServerAction} className='space-y-4'>
-              {error && (
-                <Alert variant='destructive'>
-                  <AlertDescription>{error}</AlertDescription>
-                </Alert>
-              )}
-              <div className='space-y-2'>
-                <Label htmlFor='email'>Email</Label>
-                <div className='relative'>
-                  <Mail className='absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400' />
-                  <Input
-                    id='email'
-                    name='email'
-                    type='email'
-                    placeholder='your.email@example.com'
-                    required
-                    disabled={isLoading}
-                    className='h-12 pl-10'
-                  />
-                </div>
-              </div>
-              <div className='space-y-2'>
-                <Label htmlFor='password'>Password</Label>
-                <div className='relative'>
-                  <Lock className='absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400' />
-                  <Input
-                    id='password'
-                    name='password'
-                    type={showPassword ? 'text' : 'password'}
-                    placeholder='••••••••'
-                    required
-                    disabled={isLoading}
-                    className='h-12 pl-10'
-                  />
-                  <Button
-                    type='button'
-                    variant='ghost'
-                    size='icon'
-                    className='absolute right-1 top-1/2 h-8 w-8 -translate-y-1/2 text-gray-500'
-                    onClick={() => setShowPassword(!showPassword)}
-                  >
-                    {showPassword ? (
-                      <EyeOff className='h-5 w-5' />
-                    ) : (
-                      <Eye className='h-5 w-5' />
-                    )}
-                  </Button>
-                </div>
-              </div>
-              <Button
-                type='submit'
-                className='text-md h-12 w-full'
-                disabled={isLoading}
-              >
-                {isLoading ? (
-                  <Loader2 className='mr-2 h-4 w-4 animate-spin' />
-                ) : (
-                  'Sign In'
+            <CardContent>
+              <form action={handleServerAction} className='space-y-4'>
+                {error && (
+                  <Alert variant='destructive'>
+                    <AlertDescription>{error}</AlertDescription>
+                  </Alert>
                 )}
-                {!isLoading && <ArrowRight className='ml-2 h-4 w-4' />}
-              </Button>
-            </form>
-          </CardContent>
-        </Card>
+                <div className='space-y-2'>
+                  <Label htmlFor='email'>Email</Label>
+                  <div className='relative'>
+                    <Mail className='absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400' />
+                    <Input
+                      id='email'
+                      name='email'
+                      type='email'
+                      placeholder='your.email@example.com'
+                      required
+                      disabled={isLoading}
+                      className='h-12 pl-10'
+                    />
+                  </div>
+                </div>
+                <div className='space-y-2'>
+                  <Label htmlFor='password'>Password</Label>
+                  <div className='relative'>
+                    <Lock className='absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400' />
+                    <Input
+                      id='password'
+                      name='password'
+                      type={showPassword ? 'text' : 'password'}
+                      placeholder='••••••••'
+                      required
+                      disabled={isLoading}
+                      className='h-12 pl-10'
+                    />
+                    <Button
+                      type='button'
+                      variant='ghost'
+                      size='icon'
+                      className='absolute right-1 top-1/2 h-8 w-8 -translate-y-1/2 text-gray-500'
+                      onClick={() => setShowPassword(!showPassword)}
+                    >
+                      {showPassword ? (
+                        <EyeOff className='h-5 w-5' />
+                      ) : (
+                        <Eye className='h-5 w-5' />
+                      )}
+                    </Button>
+                  </div>
+                </div>
+                <Button
+                  type='submit'
+                  className='text-md h-12 w-full'
+                  disabled={isLoading}
+                >
+                  {isLoading ? (
+                    <Loader2 className='mr-2 h-4 w-4 animate-spin' />
+                  ) : (
+                    'Sign In'
+                  )}
+                  {!isLoading && <ArrowRight className='ml-2 h-4 w-4' />}
+                </Button>
+              </form>
+            </CardContent>
+          </Card>
+        )}
       </div>
     </div>
   );

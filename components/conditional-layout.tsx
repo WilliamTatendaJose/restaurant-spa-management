@@ -2,7 +2,7 @@
 
 import { usePathname } from 'next/navigation';
 import { Header } from '@/components/header';
-import { Sidebar } from '@/components/sidebar';
+import Sidebar  from '@/components/sidebar';
 import ProtectedRoute from '@/components/protected-route';
 
 export function ConditionalLayout({ children }: { children: React.ReactNode }) {
