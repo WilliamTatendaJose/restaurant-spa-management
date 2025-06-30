@@ -29,6 +29,7 @@ import {
 } from "@/components/ui/select";
 import { useToast } from "@/components/ui/use-toast";
 import { HeroBookingModal } from "@/components/bookings/hero-booking-modal";
+import { getSupabaseBrowserClient } from "@/lib/supabase";
 
 interface SpaService {
   id: string;
@@ -38,7 +39,10 @@ interface SpaService {
   duration: number;
   category: string;
   benefits: string;
+  image_url: string;
 }
+
+const placeholderImage = '/placeholder.svg';
 
 export default function TreatmentsPage() {
   const [services, setServices] = useState<SpaService[]>([]);
@@ -61,12 +65,46 @@ export default function TreatmentsPage() {
     async function loadServices() {
       try {
         const data = await spaServicesApi.list();
-        // Deduplicate services by ID
-        const uniqueServices = data.filter(
-          (service: SpaService, index: number, self: SpaService[]) =>
-            self.findIndex((s) => s.id === service.id) === index
-        );
-        setServices(uniqueServices as SpaService[]);
+        const supabase = getSupabaseBrowserClient();
+        // Map image_url storage keys to public URLs
+        const servicesWithUrls = (data || []).map((service: any) => {
+          if (service.image_url) {
+            if (service.image_url.startsWith('http')) {
+              return service;
+            }
+            const { data: publicUrlData } = supabase.storage
+              .from('spa-services')
+              .getPublicUrl(service.image_url);
+            return {
+              ...service,
+              image_url: publicUrlData?.publicUrl || placeholderImage,
+            };
+          }
+          return { ...service, image_url: placeholderImage };
+        });
+
+        // Deduplicate by name (case-insensitive) and category
+        const dedupedServices = servicesWithUrls.reduce((acc: { list: any[]; map: Map<string, number> }, current: any) => {
+          const key = (current.name?.toLowerCase() || '') + '|' + (current.category || '');
+          if (!acc.map.has(key)) {
+            acc.map.set(key, acc.list.length);
+            acc.list.push(current);
+          } else {
+            // Replace with the more recently updated/created one if needed
+            const idx = acc.map.get(key);
+            if (typeof idx === 'number') {
+              const existing = acc.list[idx];
+              const currentDate = new Date(current.updated_at || current.created_at || 0);
+              const existingDate = new Date(existing.updated_at || existing.created_at || 0);
+              if (currentDate > existingDate) {
+                acc.list[idx] = current;
+              }
+            }
+          }
+          return acc;
+        }, { list: [], map: new Map() }).list;
+
+        setServices(dedupedServices);
       } catch (error) {
         console.error("Error loading services:", error);
       } finally {
@@ -390,11 +428,10 @@ export default function TreatmentsPage() {
                 variant={selectedCategory === category ? "default" : "outline"}
                 size="sm"
                 onClick={() => setSelectedCategory(category)}
-                className={`capitalize px-4 py-2 ${
-                  selectedCategory === category
-                    ? "bg-gradient-to-r from-emerald-700 to-emerald-800 text-white"
-                    : "border-emerald-300 text-emerald-800 hover:bg-emerald-50"
-                }`}
+                className={`capitalize px-4 py-2 ${selectedCategory === category
+                  ? "bg-gradient-to-r from-emerald-700 to-emerald-800 text-white"
+                  : "border-emerald-300 text-emerald-800 hover:bg-emerald-50"
+                  }`}
               >
                 {category === "all" ? "All Treatments" : category}
               </Button>
@@ -431,13 +468,12 @@ export default function TreatmentsPage() {
                   {/* Service Image */}
                   <div className="relative h-48 overflow-hidden">
                     <div
-                      className={`w-full h-full bg-gradient-to-br ${
-                        index % 3 === 0
-                          ? "from-emerald-300 to-emerald-500"
-                          : index % 3 === 1
-                            ? "from-amber-300 to-amber-500"
-                            : "from-emerald-300 via-amber-300 to-emerald-400"
-                      } group-hover:scale-110 transition-transform duration-1000`}
+                      className={`w-full h-full bg-gradient-to-br ${index % 3 === 0
+                        ? "from-emerald-300 to-emerald-500"
+                        : index % 3 === 1
+                          ? "from-amber-300 to-amber-500"
+                          : "from-emerald-300 via-amber-300 to-emerald-400"
+                        } group-hover:scale-110 transition-transform duration-1000`}
                     >
                       <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent"></div>
                       <div className="absolute bottom-4 left-4 flex items-center">
@@ -450,8 +486,8 @@ export default function TreatmentsPage() {
                         {(!service.category ||
                           (service.category !== "massage" &&
                             service.category !== "facial")) && (
-                          <Sparkles className="h-6 w-6 text-white mr-2" />
-                        )}
+                            <Sparkles className="h-6 w-6 text-white mr-2" />
+                          )}
                         <Badge className="bg-white/20 text-white border-white/30 backdrop-blur-sm font-medium">
                           {service.category || "Wellness"}
                         </Badge>
