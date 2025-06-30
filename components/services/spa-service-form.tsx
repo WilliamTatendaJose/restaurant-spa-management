@@ -44,6 +44,7 @@ export function SpaServiceForm({ service }: SpaServiceFormProps) {
     price: service?.price?.toString() || "",
     category: service?.category || "massage",
     status: service?.status || "active",
+    image_url: service?.image_url || "",
   })
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
@@ -76,13 +77,12 @@ export function SpaServiceForm({ service }: SpaServiceFormProps) {
       }).then((res) => res.json())
 
       // 2. Upload the file to the signed URL
-      const { error } = await fetch(signedUrl, {
+      const uploadRes = await fetch(signedUrl, {
         method: "PUT",
         body: file,
         headers: { "Content-Type": file.type },
       })
-
-      if (error) {
+      if (!uploadRes.ok) {
         throw new Error("Failed to upload to storage")
       }
 
@@ -112,14 +112,19 @@ export function SpaServiceForm({ service }: SpaServiceFormProps) {
         price: parseFloat(formData.price),
         category: formData.category,
         status: formData.status,
+        image_url: formData.image_url,
       }
+      console.log('[SERVICE FORM] Submitting serviceData:', serviceData)
 
+      let result
       if (service?.id) {
         // Update existing service
-        await spaServicesApi.update(service.id, serviceData)
+        result = await spaServicesApi.update(service.id, serviceData)
+        console.log('[SERVICE FORM] Update result:', result)
       } else {
         // Create new service
-        await spaServicesApi.create(serviceData)
+        result = await spaServicesApi.create(serviceData)
+        console.log('[SERVICE FORM] Create result:', result)
       }
 
       toast({
@@ -132,7 +137,7 @@ export function SpaServiceForm({ service }: SpaServiceFormProps) {
       router.push("/services/spa")
       router.refresh()
     } catch (error) {
-      console.error("Error saving service:", error)
+      console.error("[SERVICE FORM] Error saving service:", error)
       toast({
         title: "Error",
         description: "Failed to save service. Please try again.",
