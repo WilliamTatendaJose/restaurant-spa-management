@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { spaServicesApi } from "@/lib/db";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -10,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import Image from "next/image";
 import { HeroBookingModal } from "@/components/bookings/hero-booking-modal";
 import { useToast } from "@/components/ui/use-toast";
+import { getSupabaseBrowserClient } from "@/lib/supabase";
 
 interface SpaService {
   id: string;
@@ -40,31 +40,31 @@ export default function TreatmentsPage() {
     async function loadServices() {
       try {
         setIsLoading(true);
-        const activeServices = await spaServicesApi.listActive() as SpaService[];
-        // Deduplicate by name+category, keep most recent
-        const deduplicated = activeServices.reduce((acc: SpaService[], current) => {
-          const existing = acc.find(item => item.name === current.name && item.category === current.category);
-          if (!existing) {
-            acc.push(current);
-          } else {
-            const existingDate = new Date(existing.updated_at || existing.created_at || 0).getTime();
-            const currentDate = new Date(current.updated_at || current.created_at || 0).getTime();
-            if (currentDate > existingDate) {
-              const index = acc.findIndex(item => item.id === existing.id);
-              acc[index] = current;
-            }
-          }
-          return acc;
-        }, []);
-        setServices(deduplicated);
+        const supabase = getSupabaseBrowserClient();
+        const { data, error } = await supabase
+          .from("spa_services")
+          .select("*")
+          .eq("status", "active");
+
+        if (error) {
+          throw error;
+        }
+
+        console.log('[TREATMENTS] Loaded active services:', data);
+        setServices(data || []);
       } catch (error) {
         console.error("Failed to load active spa services:", error);
+        toast({
+          title: "Error",
+          description: "Could not load treatments. Please try again later.",
+          variant: "destructive",
+        });
       } finally {
         setIsLoading(false);
       }
     }
     loadServices();
-  }, []);
+  }, [toast]);
 
   const handleBookNow = (service: SpaService) => {
     setSelectedService(service);
@@ -132,7 +132,7 @@ export default function TreatmentsPage() {
               <Button
                 key={category}
                 variant={selectedCategory === category ? "default" : "outline"}
-                onClick={() => setSelectedCategory(category)}
+                onClick={() => setSelectedCategory(category || null)}
                 className="capitalize"
               >
                 {category}
@@ -145,7 +145,7 @@ export default function TreatmentsPage() {
         {isLoading ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {[...Array(6)].map((_, i) => (
-              <Card key={i} className="overflow-hidden shadow-lg animate-pulse">
+              <Card key={i} className="overflow-hidden shadow-lg animate-pulse bg-white border border-emerald-100">
                 <div className="w-full h-48 bg-gray-200"></div>
                 <CardContent className="p-6">
                   <div className="h-6 w-3/4 bg-gray-200 rounded mb-2"></div>
@@ -162,9 +162,9 @@ export default function TreatmentsPage() {
               filteredServices.map((service) => (
                 <Card
                   key={service.id}
-                  className="overflow-hidden shadow-lg hover:shadow-xl transition-shadow duration-300 flex flex-col group"
+                  className="overflow-hidden shadow-lg hover:shadow-xl transition-shadow duration-300 flex flex-col group bg-white border border-emerald-100"
                 >
-                  <div className="relative w-full h-48">
+                  <div className="relative w-full h-48 bg-emerald-50">
                     <Image
                       src={service.image_url || placeholderImage}
                       alt={service.name}
