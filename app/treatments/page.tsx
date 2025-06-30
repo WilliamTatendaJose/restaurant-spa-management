@@ -59,8 +59,25 @@ export default function TreatmentsPage() {
           throw error;
         }
 
-        console.log('[TREATMENTS] Loaded active services:', data);
-        setServices(data || []);
+        // Map image_url storage keys to public URLs
+        const servicesWithUrls = (data || []).map((service) => {
+          if (service.image_url) {
+            // If image_url is already a full URL, use as is
+            if (service.image_url.startsWith('http')) {
+              return service;
+            }
+            // Otherwise, generate public URL from storage key
+            const { data: publicUrlData } = supabase.storage
+              .from('service-images') // bucket name
+              .getPublicUrl(service.image_url);
+            return {
+              ...service,
+              image_url: publicUrlData?.publicUrl || placeholderImage,
+            };
+          }
+          return { ...service, image_url: placeholderImage };
+        });
+        setServices(servicesWithUrls);
       } catch (error) {
         console.error('Failed to load active spa services:', error);
         toast({

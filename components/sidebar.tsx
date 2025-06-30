@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { businessSettingsApi } from '@/lib/db';
 import { useAuth } from '@/lib/auth-context';
 import {
@@ -108,54 +108,12 @@ function Sidebar() {
   const [businessName, setBusinessName] = useState('LEWA HOSPITALITY');
   const { hasPermission } = useAuth();
   const [mobileOpen, setMobileOpen] = useState(false);
-  const sidebarRef = useRef<HTMLDivElement>(null);
 
   // Filter routes based on user role
   const routes = allRoutes.filter((route) => {
     if (!route.requiredRole) return true; // Route available to all
     return hasPermission(route.requiredRole);
   });
-
-  // Trap focus inside sidebar when open
-  useEffect(() => {
-    if (!mobileOpen) return;
-    const focusableSelectors = [
-      'a[href]',
-      'button:not([disabled])',
-      '[tabindex]:not([tabindex="-1"])',
-    ];
-    const sidebar = sidebarRef.current;
-    if (!sidebar) return;
-    const focusableEls = sidebar.querySelectorAll(focusableSelectors.join(','));
-    const firstEl = focusableEls[0] as HTMLElement;
-    const lastEl = focusableEls[focusableEls.length - 1] as HTMLElement;
-    function handleKey(e: KeyboardEvent) {
-      if (e.key === 'Tab') {
-        if (e.shiftKey) {
-          if (document.activeElement === firstEl) {
-            e.preventDefault();
-            lastEl.focus();
-          }
-        } else {
-          if (document.activeElement === lastEl) {
-            e.preventDefault();
-            firstEl.focus();
-          }
-        }
-      } else if (e.key === 'Escape') {
-        setMobileOpen(false);
-      }
-    }
-    document.addEventListener('keydown', handleKey);
-    // Focus first element
-    firstEl?.focus();
-    // Prevent body scroll
-    document.body.style.overflow = 'hidden';
-    return () => {
-      document.removeEventListener('keydown', handleKey);
-      document.body.style.overflow = '';
-    };
-  }, [mobileOpen]);
 
   useEffect(() => {
     async function loadBusinessName() {
@@ -213,11 +171,9 @@ function Sidebar() {
     <>
       {/* Hamburger button for mobile */}
       <button
-        className="fixed top-4 left-4 z-40 md:hidden bg-card p-2 rounded-lg shadow-lg"
+        className="fixed top-4 left-4 z-[100] md:hidden bg-card p-2 rounded-lg shadow-lg"
         onClick={() => setMobileOpen(true)}
         aria-label="Open sidebar"
-        aria-expanded={mobileOpen}
-        aria-controls="mobile-sidebar"
         type="button"
       >
         <MenuIcon className="h-6 w-6" />
@@ -225,15 +181,8 @@ function Sidebar() {
 
       {/* Mobile sidebar overlay */}
       {mobileOpen && (
-        <div className="fixed inset-0 z-50 bg-black/40 flex">
-          <div
-            ref={sidebarRef}
-            id="mobile-sidebar"
-            className="relative w-64 bg-card h-full shadow-lg animate-slide-in-left outline-none"
-            tabIndex={-1}
-            aria-modal="true"
-            role="dialog"
-          >
+        <div className="fixed inset-0 z-[99] bg-black/40 flex w-full h-full pointer-events-auto">
+          <div className="relative w-64 bg-card h-full shadow-lg animate-slide-in-left">
             <button
               className="absolute top-4 right-4 z-50 bg-muted p-2 rounded-full"
               onClick={() => setMobileOpen(false)}
@@ -245,12 +194,12 @@ function Sidebar() {
             {sidebarContent}
           </div>
           {/* Click outside to close */}
-          <div className="flex-1" onClick={() => setMobileOpen(false)} tabIndex={-1} aria-hidden="true" />
+          <div className="flex-1 h-full w-full" onClick={() => setMobileOpen(false)} />
         </div>
       )}
 
       {/* Desktop sidebar */}
-      <div className="hidden border-r bg-card md:block md:w-64">
+      <div className="hidden border-r bg-card md:block md:w-64 h-full">
         {sidebarContent}
       </div>
     </>

@@ -135,7 +135,7 @@ export function HeroBookingModal({
         const duplicateBooking = existingBookings.find(
           (booking: any) =>
             booking.customer_email?.toLowerCase() ===
-              formData.customer_email.toLowerCase() &&
+            formData.customer_email.toLowerCase() &&
             booking.booking_date === formData.booking_date &&
             booking.booking_time === formData.booking_time &&
             booking.service === formData.service &&
@@ -213,7 +213,7 @@ export function HeroBookingModal({
         const serviceName =
           formData.booking_type === 'spa'
             ? spaServices.find((s: SpaService) => s.id === formData.service)
-                ?.name || 'Spa Service'
+              ?.name || 'Spa Service'
             : `Table for ${formData.party_size} - Restaurant Reservation`;
 
         const response = await fetch('/api/bookings/confirm', {
@@ -274,17 +274,17 @@ export function HeroBookingModal({
   const selectedService = spaServices.find((s) => s.id === formData.service);
 
   return (
-    <div className='fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/60 p-4 backdrop-blur-sm'>
-      <div className='shadow-3xl max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-3xl border border-emerald-100 bg-white p-8'>
+    <div className='fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/60 dark:bg-black/80 p-4 backdrop-blur-sm'>
+      <div className='shadow-3xl max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-3xl border border-emerald-100 dark:border-emerald-900 bg-white dark:bg-gray-900 p-8'>
         <div className='mb-8 text-center'>
-          <div className='mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br from-emerald-600 to-emerald-700 shadow-xl'>
+          <div className='mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br from-emerald-600 to-emerald-700 dark:from-emerald-800 dark:to-emerald-900 shadow-xl'>
             <Calendar className='h-8 w-8 text-white' />
           </div>
-          <h3 className='mb-3 text-4xl font-light text-gray-800'>
-            Book Your <span className='text-emerald-700'>Experience</span>
+          <h3 className='mb-3 text-4xl font-light text-gray-800 dark:text-gray-100'>
+            Book Your <span className='text-emerald-700 dark:text-emerald-400'>Experience</span>
           </h3>
-          <div className='mx-auto mb-4 h-px w-16 bg-gradient-to-r from-emerald-500 to-amber-500'></div>
-          <p className='text-lg text-gray-700'>
+          <div className='mx-auto mb-4 h-px w-16 bg-gradient-to-r from-emerald-500 to-amber-500 dark:from-emerald-700 dark:to-amber-700'></div>
+          <p className='text-lg text-gray-700 dark:text-gray-200'>
             Fill out the form below and we'll confirm your booking shortly
           </p>
         </div>
@@ -292,11 +292,11 @@ export function HeroBookingModal({
         <form onSubmit={handleSubmit} className='space-y-8'>
           {/* Contact Information */}
           <div className='space-y-6'>
-            <div className='flex items-center space-x-3 border-b border-emerald-200 pb-3'>
-              <div className='flex h-8 w-8 items-center justify-center rounded-full bg-emerald-100'>
-                <Calendar className='h-4 w-4 text-emerald-700' />
+            <div className='flex items-center space-x-3 border-b border-emerald-200 dark:border-emerald-900 pb-3'>
+              <div className='flex h-8 w-8 items-center justify-center rounded-full bg-emerald-100 dark:bg-emerald-900'>
+                <Calendar className='h-4 w-4 text-emerald-700 dark:text-emerald-300' />
               </div>
-              <h4 className='text-xl font-medium text-gray-800'>
+              <h4 className='text-xl font-medium text-gray-800 dark:text-gray-100'>
                 Contact Information
               </h4>
             </div>
@@ -304,7 +304,7 @@ export function HeroBookingModal({
             <div className='space-y-4'>
               <div className='grid gap-4 md:grid-cols-2'>
                 <div className='space-y-2'>
-                  <Label htmlFor='customer_name' className='text-gray-800'>
+                  <Label htmlFor='customer_name' className='text-gray-800 dark:text-gray-100'>
                     Full Name *
                   </Label>
                   <Input
@@ -314,12 +314,12 @@ export function HeroBookingModal({
                     onChange={handleInputChange}
                     placeholder='Enter your full name'
                     required
-                    className='border-gray-300 bg-white text-gray-800 focus:border-emerald-700 focus:ring-2 focus:ring-emerald-700/20'
+                    className='border-gray-300 dark:border-emerald-900 bg-white dark:bg-gray-950 text-gray-800 dark:text-gray-100 focus:border-emerald-700 dark:focus:border-emerald-400 focus:ring-2 focus:ring-emerald-700/20 dark:focus:ring-emerald-800/40'
                   />
                 </div>
 
                 <div className='space-y-2'>
-                  <Label htmlFor='customer_phone' className='text-gray-800'>
+                  <Label htmlFor='customer_phone' className='text-gray-800 dark:text-gray-100'>
                     Phone Number *
                   </Label>
                   <Input
@@ -329,13 +329,13 @@ export function HeroBookingModal({
                     onChange={handleInputChange}
                     placeholder='+263 xxx xxx xxx'
                     required
-                    className='border-gray-300 bg-white text-gray-800 focus:border-emerald-700 focus:ring-2 focus:ring-emerald-700/20'
+                    className='border-gray-300 dark:border-emerald-900 bg-white dark:bg-gray-950 text-gray-800 dark:text-gray-100 focus:border-emerald-700 dark:focus:border-emerald-400 focus:ring-2 focus:ring-emerald-700/20 dark:focus:ring-emerald-800/40'
                   />
                 </div>
               </div>
 
               <div className='space-y-2'>
-                <Label htmlFor='customer_email' className='text-gray-800'>
+                <Label htmlFor='customer_email' className='text-gray-800 dark:text-gray-100'>
                   Email Address *
                 </Label>
                 <Input
@@ -346,7 +346,7 @@ export function HeroBookingModal({
                   onChange={handleInputChange}
                   placeholder='your.email@example.com'
                   required
-                  className='border-gray-300 bg-white text-gray-800 focus:border-emerald-700 focus:ring-2 focus:ring-emerald-700/20'
+                  className='border-gray-300 dark:border-emerald-900 bg-white dark:bg-gray-950 text-gray-800 dark:text-gray-100 focus:border-emerald-700 dark:focus:border-emerald-400 focus:ring-2 focus:ring-emerald-700/20 dark:focus:ring-emerald-800/40'
                 />
               </div>
             </div>
@@ -354,18 +354,18 @@ export function HeroBookingModal({
 
           {/* Booking Details */}
           <div className='space-y-6'>
-            <div className='flex items-center space-x-3 border-b border-emerald-200 pb-3'>
-              <div className='flex h-8 w-8 items-center justify-center rounded-full bg-emerald-100'>
-                <Clock className='h-4 w-4 text-emerald-700' />
+            <div className='flex items-center space-x-3 border-b border-emerald-200 dark:border-emerald-900 pb-3'>
+              <div className='flex h-8 w-8 items-center justify-center rounded-full bg-emerald-100 dark:bg-emerald-900'>
+                <Clock className='h-4 w-4 text-emerald-700 dark:text-emerald-300' />
               </div>
-              <h4 className='text-xl font-medium text-gray-800'>
+              <h4 className='text-xl font-medium text-gray-800 dark:text-gray-100'>
                 Booking Details
               </h4>
             </div>
 
             <div className='space-y-4'>
               <div className='space-y-2'>
-                <Label htmlFor='booking_type' className='text-gray-800'>
+                <Label htmlFor='booking_type' className='text-gray-800 dark:text-gray-100'>
                   Experience Type *
                 </Label>
                 <Select
@@ -377,7 +377,7 @@ export function HeroBookingModal({
                 >
                   <SelectTrigger
                     id='booking_type'
-                    className='border-gray-300 bg-white text-gray-800 focus:border-emerald-700 focus:ring-2 focus:ring-emerald-700/20'
+                    className='border-gray-300 dark:border-emerald-900 bg-white dark:bg-gray-950 text-gray-800 dark:text-gray-100 focus:border-emerald-700 dark:focus:border-emerald-400 focus:ring-2 focus:ring-emerald-700/20 dark:focus:ring-emerald-800/40'
                   >
                     <SelectValue placeholder='Select booking type' />
                   </SelectTrigger>
@@ -392,7 +392,7 @@ export function HeroBookingModal({
 
               {formData.booking_type === 'spa' ? (
                 <div className='space-y-2'>
-                  <Label htmlFor='service' className='text-gray-800'>
+                  <Label htmlFor='service' className='text-gray-800 dark:text-gray-100'>
                     Select Treatment *
                   </Label>
                   <Select
@@ -404,7 +404,7 @@ export function HeroBookingModal({
                   >
                     <SelectTrigger
                       id='service'
-                      className='border-gray-300 bg-white text-gray-800 focus:border-emerald-700 focus:ring-2 focus:ring-emerald-700/20'
+                      className='border-gray-300 dark:border-emerald-900 bg-white dark:bg-gray-950 text-gray-800 dark:text-gray-100 focus:border-emerald-700 dark:focus:border-emerald-400 focus:ring-2 focus:ring-emerald-700/20 dark:focus:ring-emerald-800/40'
                     >
                       <SelectValue placeholder='Select a treatment' />
                     </SelectTrigger>
@@ -420,26 +420,26 @@ export function HeroBookingModal({
 
                   {/* Display selected service details */}
                   {selectedService && (
-                    <div className='mt-2 rounded-md border border-emerald-200 bg-emerald-50 p-3'>
+                    <div className='mt-2 rounded-md border border-emerald-200 dark:border-emerald-900 bg-emerald-50 dark:bg-emerald-950 p-3'>
                       <div className='flex justify-between'>
-                        <span className='text-sm font-medium text-emerald-700'>
+                        <span className='text-sm font-medium text-emerald-700 dark:text-emerald-300'>
                           Selected treatment:
                         </span>
-                        <span className='text-sm font-medium text-gray-700'>
+                        <span className='text-sm font-medium text-gray-700 dark:text-gray-100'>
                           {selectedService.name}
                         </span>
                       </div>
                       <div className='mt-1 flex justify-between'>
-                        <span className='text-sm text-emerald-700'>
+                        <span className='text-sm text-emerald-700 dark:text-emerald-300'>
                           Duration:
                         </span>
-                        <span className='text-sm text-gray-700'>
+                        <span className='text-sm text-gray-700 dark:text-gray-100'>
                           {selectedService.duration} minutes
                         </span>
                       </div>
                       <div className='mt-1 flex justify-between'>
-                        <span className='text-sm text-emerald-700'>Price:</span>
-                        <span className='text-sm text-gray-700'>
+                        <span className='text-sm text-emerald-700 dark:text-emerald-300'>Price:</span>
+                        <span className='text-sm text-gray-700 dark:text-gray-100'>
                           ${selectedService.price}
                         </span>
                       </div>
@@ -448,7 +448,7 @@ export function HeroBookingModal({
                 </div>
               ) : (
                 <div className='space-y-2'>
-                  <Label htmlFor='party_size' className='text-gray-800'>
+                  <Label htmlFor='party_size' className='text-gray-800 dark:text-gray-100'>
                     Number of Guests *
                   </Label>
                   <Select
@@ -459,7 +459,7 @@ export function HeroBookingModal({
                   >
                     <SelectTrigger
                       id='party_size'
-                      className='border-gray-300 bg-white text-gray-800 focus:border-emerald-700 focus:ring-2 focus:ring-emerald-700/20'
+                      className='border-gray-300 dark:border-emerald-900 bg-white dark:bg-gray-950 text-gray-800 dark:text-gray-100 focus:border-emerald-700 dark:focus:border-emerald-400 focus:ring-2 focus:ring-emerald-700/20 dark:focus:ring-emerald-800/40'
                     >
                       <SelectValue placeholder='Select party size' />
                     </SelectTrigger>
@@ -477,7 +477,7 @@ export function HeroBookingModal({
 
               <div className='grid gap-4 md:grid-cols-2'>
                 <div className='space-y-2'>
-                  <Label htmlFor='booking_date' className='text-gray-800'>
+                  <Label htmlFor='booking_date' className='text-gray-800 dark:text-gray-100'>
                     Preferred Date *
                   </Label>
                   <Input
@@ -488,12 +488,12 @@ export function HeroBookingModal({
                     onChange={handleInputChange}
                     min={new Date().toISOString().split('T')[0]}
                     required
-                    className='border-gray-300 bg-white text-gray-800 focus:border-emerald-700 focus:ring-2 focus:ring-emerald-700/20'
+                    className='border-gray-300 dark:border-emerald-900 bg-white dark:bg-gray-950 text-gray-800 dark:text-gray-100 focus:border-emerald-700 dark:focus:border-emerald-400 focus:ring-2 focus:ring-emerald-700/20 dark:focus:ring-emerald-800/40'
                   />
                 </div>
 
                 <div className='space-y-2'>
-                  <Label htmlFor='booking_time' className='text-gray-800'>
+                  <Label htmlFor='booking_time' className='text-gray-800 dark:text-gray-100'>
                     Preferred Time *
                   </Label>
                   <Input
@@ -503,13 +503,13 @@ export function HeroBookingModal({
                     value={formData.booking_time}
                     onChange={handleInputChange}
                     required
-                    className='border-gray-300 bg-white text-gray-800 focus:border-emerald-700 focus:ring-2 focus:ring-emerald-700/20'
+                    className='border-gray-300 dark:border-emerald-900 bg-white dark:bg-gray-950 text-gray-800 dark:text-gray-100 focus:border-emerald-700 dark:focus:border-emerald-400 focus:ring-2 focus:ring-emerald-700/20 dark:focus:ring-emerald-800/40'
                   />
                 </div>
               </div>
 
               <div className='space-y-2'>
-                <Label htmlFor='notes' className='text-gray-800'>
+                <Label htmlFor='notes' className='text-gray-800 dark:text-gray-100'>
                   Special Requests (Optional)
                 </Label>
                 <Textarea
@@ -519,7 +519,7 @@ export function HeroBookingModal({
                   onChange={handleInputChange}
                   placeholder='Any special requests, allergies, or preferences...'
                   rows={3}
-                  className='resize-none border-gray-300 bg-white text-gray-800 focus:border-emerald-700 focus:ring-2 focus:ring-emerald-700/20'
+                  className='resize-none border-gray-300 dark:border-emerald-900 bg-white dark:bg-gray-950 text-gray-800 dark:text-gray-100 focus:border-emerald-700 dark:focus:border-emerald-400 focus:ring-2 focus:ring-emerald-700/20 dark:focus:ring-emerald-800/40'
                 />
               </div>
             </div>
@@ -532,7 +532,7 @@ export function HeroBookingModal({
               variant='outline'
               onClick={onClose}
               disabled={isSubmitting}
-              className='flex-1 border-2 border-emerald-300 py-4 text-lg text-emerald-800 hover:border-emerald-400 hover:bg-emerald-50'
+              className='flex-1 border-2 border-emerald-300 dark:border-emerald-800 py-4 text-lg text-emerald-800 dark:text-emerald-200 hover:border-emerald-400 dark:hover:border-emerald-500 hover:bg-emerald-50 dark:hover:bg-emerald-900/40'
             >
               <X className='mr-2 h-4 w-4' />
               Cancel
@@ -540,7 +540,7 @@ export function HeroBookingModal({
             <Button
               type='submit'
               disabled={isSubmitting}
-              className='flex-1 bg-gradient-to-r from-emerald-700 to-emerald-800 py-4 text-lg text-white shadow-xl hover:from-emerald-800 hover:to-emerald-900 hover:shadow-emerald-600/25'
+              className='flex-1 bg-gradient-to-r from-emerald-700 to-emerald-800 dark:from-emerald-900 dark:to-emerald-950 py-4 text-lg text-white shadow-xl hover:from-emerald-800 hover:to-emerald-900 dark:hover:from-emerald-800 dark:hover:to-emerald-900 hover:shadow-emerald-600/25'
             >
               {isSubmitting ? (
                 <>

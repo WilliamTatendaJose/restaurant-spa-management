@@ -920,7 +920,7 @@ export function POSInterface() {
   };
 
   return (
-    <div className='grid gap-6 md:grid-cols-[1fr_400px]'>
+    <div className='flex flex-col gap-6 md:grid md:grid-cols-[1fr_400px]'>
       {/* Error Alert */}
       {Object.entries(errors).some(([_, error]) => error) && (
         <div className='md:col-span-2'>
@@ -1039,7 +1039,7 @@ export function POSInterface() {
                 <p className='text-muted-foreground'>Loading products...</p>
               </div>
             ) : (
-              <div className='grid grid-cols-2 gap-4 md:grid-cols-3'>
+              <div className='grid grid-cols-2 gap-4 sm:grid-cols-3'>
                 {(() => {
                   let currentProducts =
                     products[activeTab as keyof typeof products];
@@ -1152,7 +1152,7 @@ export function POSInterface() {
         </Card>
       )}
 
-      <div className='flex flex-col gap-4'>
+      <div className='flex flex-col gap-4 w-full'>
         {!completedTransaction ? (
           <Card>
             <CardHeader>
@@ -1439,7 +1439,7 @@ export function POSInterface() {
 
       {/* Transaction History Modal */}
       <Dialog open={isHistoryOpen} onOpenChange={setIsHistoryOpen}>
-        <DialogContent className='max-h-[80vh] max-w-3xl overflow-auto'>
+        <DialogContent className='max-h-[80vh] w-full max-w-3xl overflow-auto px-2 sm:px-6'>
           <DialogHeader>
             <DialogTitle>Transaction History</DialogTitle>
             <DialogDescription>
@@ -1491,8 +1491,8 @@ export function POSInterface() {
               No transactions found
             </div>
           ) : (
-            <div className='overflow-hidden rounded-md border'>
-              <table className='w-full'>
+            <div className='overflow-x-auto rounded-md border'>
+              <table className='w-full min-w-[600px]'>
                 <thead>
                   <tr className='border-b bg-muted'>
                     <th className='p-2 text-left'>Date</th>
@@ -1565,7 +1565,7 @@ export function POSInterface() {
         open={isViewingTransactionDetails}
         onOpenChange={setIsViewingTransactionDetails}
       >
-        <DialogContent className='max-w-md'>
+        <DialogContent className='w-full max-w-md px-2 sm:px-6'>
           <DialogHeader>
             <DialogTitle>Transaction Details</DialogTitle>
             <DialogDescription>
@@ -1684,7 +1684,7 @@ export function POSInterface() {
 
       {/* Add Customer Modal */}
       <Dialog open={isCustomerModalOpen} onOpenChange={setIsCustomerModalOpen}>
-        <DialogContent className='max-w-md'>
+        <DialogContent className='w-full max-w-md px-2 sm:px-6'>
           <DialogHeader>
             <DialogTitle>Add New Customer</DialogTitle>
             <DialogDescription>

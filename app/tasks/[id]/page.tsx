@@ -6,7 +6,7 @@ type Props = {
   params: { id: string };
 };
 
-// This would typically fetch the task from a database
+  // This would typically fetch the task from a database
 const getTask = async (id: string) => {
   const task = {
     id: id,

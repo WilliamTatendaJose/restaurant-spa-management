@@ -87,7 +87,7 @@ export default function BookingsPage() {
             const existingIndex = acc.findIndex(
               (booking) =>
                 booking.customer_name?.toLowerCase() ===
-                  current.customer_name?.toLowerCase() &&
+                current.customer_name?.toLowerCase() &&
                 booking.booking_date === current.booking_date &&
                 booking.booking_time === current.booking_time &&
                 booking.booking_type === current.booking_type
@@ -338,141 +338,138 @@ export default function BookingsPage() {
   };
 
   return (
-    <div className='container mx-auto px-2 sm:px-4 py-4 sm:py-8'>
-      <h1 className='text-2xl sm:text-3xl font-bold mb-4'>Bookings</h1>
-      <div className='flex flex-col gap-4'>
-        <div className='flex items-center justify-between'>
-          <PageHeader
-            heading='Bookings'
-            subheading='Manage spa and restaurant reservations'
-          />
-          <Button asChild>
-            <Link href='/bookings/new'>
-              <Plus className='mr-2 h-4 w-4' />
-              New Booking
-            </Link>
-          </Button>
-        </div>
-
-        <Tabs defaultValue='calendar' className='mt-6'>
-          <TabsList>
-            <TabsTrigger value='calendar'>Calendar</TabsTrigger>
-            <TabsTrigger value='list'>List View</TabsTrigger>
-          </TabsList>
-          <TabsContent value='calendar' className='mt-4'>
-            <div className='grid h-[600px] grid-cols-1 gap-6 md:grid-cols-[250px_1fr]'>
-              <BookingFilters onFilterChange={handleFilterChange} />
-              <BookingCalendar />
-            </div>
-          </TabsContent>
-          <TabsContent value='list' className='mt-4'>
-            <div className='grid grid-cols-1 gap-6 md:grid-cols-[250px_1fr]'>
-              <BookingFilters onFilterChange={handleFilterChange} />
-              <div className='rounded-lg border bg-card shadow-sm'>
-                <h3 className='border-b p-4 text-lg font-medium'>Bookings</h3>
-
-                {isLoading ? (
-                  <div className='flex items-center justify-center p-8'>
-                    <p>Loading bookings...</p>
-                  </div>
-                ) : filteredBookings.length === 0 ? (
-                  <div className='p-6 text-center'>
-                    <p className='text-muted-foreground'>
-                      No bookings found matching the filters.
-                    </p>
-                  </div>
-                ) : (
-                  <div className='overflow-x-auto'>
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Date & Time</TableHead>
-                          <TableHead>Customer</TableHead>
-                          <TableHead>Service/Table</TableHead>
-                          <TableHead>Type</TableHead>
-                          <TableHead>Status</TableHead>
-                          <TableHead>Actions</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {filteredBookings.map((booking) => (
-                          <TableRow key={booking.id}>
-                            <TableCell>
-                              <div className='font-medium'>
-                                {formatDate(booking.booking_date)}
-                              </div>
-                              <div className='text-sm text-muted-foreground'>
-                                {formatTime(booking.booking_time)}
-                              </div>
-                            </TableCell>
-                            <TableCell>{booking.customer_name}</TableCell>
-                            <TableCell>{getServiceDisplay(booking)}</TableCell>
-                            <TableCell>
-                              <Badge
-                                variant={
-                                  booking.booking_type === 'spa'
-                                    ? 'secondary'
-                                    : 'outline'
-                                }
-                              >
-                                {booking.booking_type === 'spa'
-                                  ? 'Spa'
-                                  : 'Restaurant'}
-                              </Badge>
-                            </TableCell>
-                            <TableCell>
-                              <Select
-                                value={booking.status}
-                                onValueChange={(value) =>
-                                  handleStatusChange(booking.id, value)
-                                }
-                                disabled={updatingStatus === booking.id}
-                              >
-                                <SelectTrigger className='h-8 w-[110px]'>
-                                  <SelectValue>
-                                    <Badge
-                                      variant={
-                                        getStatusColor(booking.status) as any
-                                      }
-                                    >
-                                      {booking.status}
-                                    </Badge>
-                                  </SelectValue>
-                                </SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value='pending'>Pending</SelectItem>
-                                  <SelectItem value='confirmed'>
-                                    Confirmed
-                                  </SelectItem>
-                                  <SelectItem value='cancelled'>
-                                    Cancelled
-                                  </SelectItem>
-                                </SelectContent>
-                              </Select>
-                            </TableCell>
-                            <TableCell>
-                              <Button
-                                variant='ghost'
-                                size='sm'
-                                asChild
-                                className='h-8 px-2 py-0'
-                              >
-                                <Link href={`/bookings/edit/${booking.id}`}>
-                                  Edit
-                                </Link>
-                              </Button>
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </div>
-                )}
-              </div>
-            </div>
-          </TabsContent>
-        </Tabs>
+    <div className='container mx-auto px-2 py-4 sm:px-4 sm:py-6'>
+      <div className='flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between'>
+        <PageHeader
+          heading='Bookings'
+          subheading='Manage spa and restaurant reservations'
+        />
+        <Button asChild className='w-full sm:w-auto'>
+          <Link href='/bookings/new'>
+            <Plus className='mr-2 h-4 w-4' />
+            New Booking
+          </Link>
+        </Button>
       </div>
+
+      <Tabs defaultValue='calendar' className='mt-6'>
+        <TabsList className='w-full sm:w-auto'>
+          <TabsTrigger value='calendar'>Calendar</TabsTrigger>
+          <TabsTrigger value='list'>List View</TabsTrigger>
+        </TabsList>
+        <TabsContent value='calendar' className='mt-4'>
+          <div className='grid h-[600px] grid-cols-1 gap-6 md:grid-cols-[250px_1fr]'>
+            <BookingFilters onFilterChange={handleFilterChange} />
+            <BookingCalendar />
+          </div>
+        </TabsContent>
+        <TabsContent value='list' className='mt-4'>
+          <div className='grid grid-cols-1 gap-6 md:grid-cols-[250px_1fr]'>
+            <BookingFilters onFilterChange={handleFilterChange} />
+            <div className='rounded-lg border bg-card shadow-sm'>
+              <h3 className='border-b p-4 text-lg font-medium'>Bookings</h3>
+
+              {isLoading ? (
+                <div className='flex items-center justify-center p-8'>
+                  <p>Loading bookings...</p>
+                </div>
+              ) : filteredBookings.length === 0 ? (
+                <div className='p-6 text-center'>
+                  <p className='text-muted-foreground'>
+                    No bookings found matching the filters.
+                  </p>
+                </div>
+              ) : (
+                <div className='overflow-x-auto w-full'>
+                  <Table className='min-w-[700px]'>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Date & Time</TableHead>
+                        <TableHead>Customer</TableHead>
+                        <TableHead>Service/Table</TableHead>
+                        <TableHead>Type</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead>Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {filteredBookings.map((booking) => (
+                        <TableRow key={booking.id}>
+                          <TableCell>
+                            <div className='font-medium'>
+                              {formatDate(booking.booking_date)}
+                            </div>
+                            <div className='text-sm text-muted-foreground'>
+                              {formatTime(booking.booking_time)}
+                            </div>
+                          </TableCell>
+                          <TableCell>{booking.customer_name}</TableCell>
+                          <TableCell>{getServiceDisplay(booking)}</TableCell>
+                          <TableCell>
+                            <Badge
+                              variant={
+                                booking.booking_type === 'spa'
+                                  ? 'secondary'
+                                  : 'outline'
+                              }
+                            >
+                              {booking.booking_type === 'spa'
+                                ? 'Spa'
+                                : 'Restaurant'}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            <Select
+                              value={booking.status}
+                              onValueChange={(value) =>
+                                handleStatusChange(booking.id, value)
+                              }
+                              disabled={updatingStatus === booking.id}
+                            >
+                              <SelectTrigger className='h-8 w-[110px]'>
+                                <SelectValue>
+                                  <Badge
+                                    variant={
+                                      getStatusColor(booking.status) as any
+                                    }
+                                  >
+                                    {booking.status}
+                                  </Badge>
+                                </SelectValue>
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value='pending'>Pending</SelectItem>
+                                <SelectItem value='confirmed'>
+                                  Confirmed
+                                </SelectItem>
+                                <SelectItem value='cancelled'>
+                                  Cancelled
+                                </SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </TableCell>
+                          <TableCell>
+                            <Button
+                              variant='ghost'
+                              size='sm'
+                              asChild
+                              className='h-8 px-2 py-0'
+                            >
+                              <Link href={`/bookings/edit/${booking.id}`}>
+                                Edit
+                              </Link>
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
+            </div>
+          </div>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
