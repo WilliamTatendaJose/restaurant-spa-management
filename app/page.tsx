@@ -39,6 +39,9 @@ import { FeedbackForm } from "@/components/feedback-form";
 import { FeedbackDisplay } from "@/components/feedback-display";
 import { OperatingHoursDisplay } from "@/components/operating-hours-display";
 import { DeveloperContact } from "@/components/developer-contact";
+import hero from "@/public/candles.jpg";
+import facials from "@/public/facial.jpg";
+import massage from "@/public/massage.jpg";
 
 interface SpaService {
   id: string;
@@ -430,14 +433,11 @@ export default function HomePage() {
           style={{ transform: isMobile ? "none" : `translateY(${scrollY * 0.5}px)` }}
         >
           <Image
-            src="https://scontent.fhre2-2.fna.fbcdn.net/v/t39.30808-6/471263064_1106034651516041_5518068055766050068_n.jpg?_nc_cat=106&ccb=1-7&_nc_sid=833d8c&_nc_eui2=AeGx9YgYJXJBPiPRvN5yI6HPvjGzf6yINs--MbN_rIg2z6KXWoQZ1YJ8QAyh_CXj6A1UDMwG-8FfSDAOx5wpP7kp&_nc_ohc=xYUVGW6TKE8Q7kNvgGDhz_h&_nc_zt=23&_nc_ht=scontent.fhre2-2.fna&_nc_gid=A8HCtlnU8qy-wJ9yJhpNY4J&oh=00_AYCyqZGKSa2uZY4Yy5YoZZqQ7Jg1oBzFw8VyPRdcUqZZ5Q&oe=678BAE51"
+            src={hero}
             alt="Luxury Spa Treatment Room"
             fill
             className="object-cover scale-110"
             priority
-            onError={(e) => {
-              e.currentTarget.style.display = "none";
-            }}
           />
           <div className="absolute inset-0 bg-gradient-to-br from-emerald-900/70 via-emerald-800/50 to-amber-900/60"></div>
           <div className="absolute inset-0 bg-black/20"></div>
@@ -452,7 +452,7 @@ export default function HomePage() {
 
         {/* Hero Content */}
         <div className="relative z-10 text-center max-w-6xl mx-auto px-6">
-          <div className="mb-8 animate-fade-in-up">
+          {/* <div className="mb-8 animate-fade-in-up">
             <div className="flex items-center justify-center mb-6">
               <div className="relative p-4 md:p-6 rounded-full bg-white/10 backdrop-blur-lg border border-white/20 mr-4 md:mr-8">
                 <div className="absolute inset-0 bg-gradient-to-br from-emerald-400/20 to-amber-400/20 rounded-full blur-lg"></div>
@@ -471,17 +471,17 @@ export default function HomePage() {
                 </div>
               </div>
             </div>
-          </div>
+          </div> */}
 
           <div className="mb-12 animate-fade-in-up delay-300">
             <p className="text-2xl md:text-3xl lg:text-4xl text-white/95 mb-6 font-light leading-relaxed">
               Discover Your Sanctuary of Serenity
             </p>
-            <p className="text-lg md:text-xl lg:text-2xl text-white/85 max-w-4xl mx-auto leading-relaxed mb-4">
+            {/* <p className="text-lg md:text-xl lg:text-2xl text-white/85 max-w-4xl mx-auto leading-relaxed mb-4">
               Indulge in transformative wellness experiences that harmonize
               ancient healing traditions with contemporary luxury in Zimbabwe's
               most prestigious spa destination
-            </p>
+            </p> */}
             <p className="text-base md:text-lg lg:text-xl text-white/75 max-w-3xl mx-auto leading-relaxed">
               Located in the heart of Harare's exclusive Highlands district
             </p>
@@ -542,15 +542,12 @@ export default function HomePage() {
               <Card className="overflow-hidden border-0 shadow-2xl hover:shadow-3xl transition-all duration-700 bg-gradient-to-br from-emerald-50 via-white to-emerald-50/50">
                 <div className="relative overflow-hidden">
                   <Image
-                    src="https://scontent.fhre2-2.fna.fbcdn.net/v/t39.30808-6/471340765_1106034674849372_5056996816568959673_n.jpg?_nc_cat=108&ccb=1-7&_nc_sid=833d8c&_nc_eui2=AeHx4i6rRqTtFwRpEiR6hv-JR8gJtN3SuOVHyAm03dK45S7Tc1vPjzCYqb9eWz4HNRjY--YjG8W_x8tmnF11qA9B&_nc_ohc=j_KVtMLWL8MQ7kNvgELgvPk&_nc_zt=23&_nc_ht=scontent.fhre2-2.fna&_nc_gid=APnx5JMkJbZiI0R9SkMZKiM&oh=00_AYDhtH-lBnWR3CgmvBnDEXoE3WKRPJOJYRdKAmB8vQO5lg&oe=678BC568"
+                    src={massage}
                     alt="Relaxing Massage Therapy"
                     width={700}
                     height={400}
                     className="w-full h-80 object-cover group-hover:scale-110 transition-transform duration-1000"
-                    onError={(e) => {
-                      e.currentTarget.src =
-                        "https://scontent.fhre2-2.fna.fbcdn.net/v/t39.30808-6/471263064_1106034651516041_5518068055766050068_n.jpg?_nc_cat=106&ccb=1-7&_nc_sid=833d8c&_nc_eui2=AeGx9YgYJXJBPiPRvN5yI6HPvjGzf6yINs--MbN_rIg2z6KXWoQZ1YJ8QAyh_CXj6A1UDMwG-8FfSDAOx5wpP7kp&_nc_ohc=xYUVGW6TKE8Q7kNvgGDhz_h&_nc_zt=23&_nc_ht=scontent.fhre2-2.fna&_nc_gid=A8HCtlnU8qy-wJ9yJhpNY4J&oh=00_AYCyqZGKSa2uZY4Yy5YoZZqQ7Jg1oBzFw8VyPRdcUqZZ5Q&oe=678BAE51";
-                    }}
+                  
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-emerald-900/80 via-emerald-800/40 to-transparent"></div>
                   <div className="absolute bottom-4 left-4 md:bottom-6 md:left-6 text-white">
@@ -606,15 +603,12 @@ export default function HomePage() {
               <Card className="overflow-hidden border-0 shadow-2xl hover:shadow-3xl transition-all duration-700 bg-gradient-to-br from-amber-50 via-white to-amber-50/50">
                 <div className="relative overflow-hidden">
                   <Image
-                    src="https://scontent.fhre2-2.fna.fbcdn.net/v/t39.30808-6/471395154_1106034701516036_1418481364985871761_n.jpg?_nc_cat=105&ccb=1-7&_nc_sid=833d8c&_nc_eui2=AeHQD1YqZ3rDI9MQHbJXKqKvVq_dJLbTANlWr90kttMA2dpv-sLKV9PgIKr2v8PgOKJ5LTfYnrAH4cWjt0j7P9uQ&_nc_ohc=SJJQNi9YjOEQ7kNvgHZKy1p&_nc_zt=23&_nc_ht=scontent.fhre2-2.fna&_nc_gid=AZx5p4WXx6kWZrGS7-qRhPV&oh=00_AYBQbVJOLJhPfwTMi8HjRJ4vT5v4AYMcJ9wKqjGnw6MNRg&oe=678BCCF9"
+                    src={facials}
                     alt="Luxury Facial Treatment"
                     width={700}
                     height={400}
                     className="w-full h-80 object-cover group-hover:scale-110 transition-transform duration-1000"
-                    onError={(e) => {
-                      e.currentTarget.src =
-                        "https://scontent.fhre2-2.fna.fbcdn.net/v/t39.30808-6/471263064_1106034651516041_5518068055766050068_n.jpg?_nc_cat=106&ccb=1-7&_nc_sid=833d8c&_nc_eui2=AeGx9YgYJXJBPiPRvN5yI6HPvjGzf6yINs--MbN_rIg2z6KXWoQZ1YJ8QAyh_CXj6A1UDMwG-8FfSDAOx5wpP7kp&_nc_ohc=xYUVGW6TKE8Q7kNvgGDhz_h&_nc_zt=23&_nc_ht=scontent.fhre2-2.fna&_nc_gid=A8HCtlnU8qy-wJ9yJhpNY4J&oh=00_AYCyqZGKSa2uZY4Yy5YoZZqQ7Jg1oBzFw8VyPRdcUqZZ5Q&oe=678BAE51";
-                    }}
+                  
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-amber-900/80 via-amber-800/40 to-transparent"></div>
                   <div className="absolute bottom-4 left-4 md:bottom-6 md:left-6 text-white">
