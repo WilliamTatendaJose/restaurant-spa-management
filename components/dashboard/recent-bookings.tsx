@@ -1,6 +1,6 @@
-"use client";
+'use client';
 
-import { useState, useEffect } from "react";
+import { useState, useEffect } from 'react';
 import {
   Table,
   TableBody,
@@ -8,16 +8,16 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table";
+} from '@/components/ui/table';
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { bookingsApi, spaServicesApi } from "@/lib/db";
+} from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { bookingsApi, spaServicesApi } from '@/lib/db';
 
 interface Booking {
   id: string;
@@ -105,7 +105,7 @@ export function RecentBookings() {
 
         setBookings(deduplicatedBookings);
       } catch (error) {
-        console.error("Error fetching recent bookings:", error);
+        console.error('Error fetching recent bookings:', error);
       } finally {
         setIsLoading(false);
       }
@@ -115,17 +115,17 @@ export function RecentBookings() {
 
   // Format date and time for display
   const formatDateTime = (dateString: string, timeString: string) => {
-    if (!dateString || !timeString) return "N/A";
+    if (!dateString || !timeString) return 'N/A';
     try {
       const date = new Date(dateString);
       const formattedDate = date.toLocaleDateString();
 
-      const [hours, minutes] = timeString.split(":");
+      const [hours, minutes] = timeString.split(':');
       const time = new Date();
       time.setHours(parseInt(hours, 10), parseInt(minutes, 10));
       const formattedTime = time.toLocaleTimeString([], {
-        hour: "2-digit",
-        minute: "2-digit",
+        hour: '2-digit',
+        minute: '2-digit',
       });
 
       return `${formattedDate}, ${formattedTime}`;
@@ -136,10 +136,10 @@ export function RecentBookings() {
 
   // Get service description
   const getServiceDescription = (booking: Booking) => {
-    if (booking.booking_type === "spa") {
-      return serviceMap[booking.service] || "Unknown Service";
+    if (booking.booking_type === 'spa') {
+      return serviceMap[booking.service] || 'Unknown Service';
     } else {
-      return `Reservation (${booking.party_size || "?"} people)`;
+      return `Reservation (${booking.party_size || '?'} people)`;
     }
   };
 
@@ -150,14 +150,14 @@ export function RecentBookings() {
     }
 
     // If booking is spa type, show the price from the service
-    if (booking.booking_type === "spa" && booking.service) {
+    if (booking.booking_type === 'spa' && booking.service) {
       const price = servicePrices[booking.service];
       if (price) {
         return `$${price.toFixed(2)}`;
       }
     }
 
-    return "$0.00";
+    return '$0.00';
   };
 
   return (
@@ -168,12 +168,12 @@ export function RecentBookings() {
       </CardHeader>
       <CardContent>
         {isLoading ? (
-          <div className="flex justify-center items-center py-4">
-            <p className="text-sm text-muted-foreground">Loading bookings...</p>
+          <div className='flex items-center justify-center py-4'>
+            <p className='text-sm text-muted-foreground'>Loading bookings...</p>
           </div>
         ) : bookings.length === 0 ? (
-          <div className="py-4 text-center">
-            <p className="text-sm text-muted-foreground">
+          <div className='py-4 text-center'>
+            <p className='text-sm text-muted-foreground'>
               No recent bookings found
             </p>
           </div>
@@ -186,13 +186,13 @@ export function RecentBookings() {
                 <TableHead>Date & Time</TableHead>
                 <TableHead>Type</TableHead>
                 <TableHead>Status</TableHead>
-                <TableHead className="text-right">Amount</TableHead>
+                <TableHead className='text-right'>Amount</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {bookings.map((booking) => (
                 <TableRow key={booking.id}>
-                  <TableCell className="font-medium">
+                  <TableCell className='font-medium'>
                     {booking.customer_name}
                   </TableCell>
                   <TableCell>{getServiceDescription(booking)}</TableCell>
@@ -202,26 +202,26 @@ export function RecentBookings() {
                   <TableCell>
                     <Badge
                       variant={
-                        booking.booking_type === "spa" ? "secondary" : "outline"
+                        booking.booking_type === 'spa' ? 'secondary' : 'outline'
                       }
                     >
-                      {booking.booking_type === "spa" ? "Spa" : "Restaurant"}
+                      {booking.booking_type === 'spa' ? 'Spa' : 'Restaurant'}
                     </Badge>
                   </TableCell>
                   <TableCell>
                     <Badge
                       variant={
-                        booking.status === "confirmed"
-                          ? "success"
-                          : booking.status === "pending"
-                            ? "secondary"
-                            : "outline"
+                        booking.status === 'confirmed'
+                          ? 'success'
+                          : booking.status === 'pending'
+                            ? 'secondary'
+                            : 'outline'
                       }
                     >
                       {booking.status}
                     </Badge>
                   </TableCell>
-                  <TableCell className="text-right">
+                  <TableCell className='text-right'>
                     {getAmountDisplay(booking)}
                   </TableCell>
                 </TableRow>

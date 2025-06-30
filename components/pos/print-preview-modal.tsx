@@ -1,7 +1,7 @@
-"use client";
+'use client';
 
-import { useState, useEffect, type RefObject } from "react";
-import { Button } from "@/components/ui/button";
+import { useState, useEffect, type RefObject } from 'react';
+import { Button } from '@/components/ui/button';
 import {
   Dialog,
   DialogContent,
@@ -9,9 +9,9 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog";
-import { Printer, X } from "lucide-react";
-import { businessSettingsApi } from "@/lib/db";
+} from '@/components/ui/dialog';
+import { Printer, X } from 'lucide-react';
+import { businessSettingsApi } from '@/lib/db';
 
 interface BusinessSettings {
   businessName: string;
@@ -39,25 +39,25 @@ export function PrintPreviewModal({
   const [businessSettings, setBusinessSettings] =
     useState<BusinessSettings | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [previewContent, setPreviewContent] = useState("");
+  const [previewContent, setPreviewContent] = useState('');
 
   useEffect(() => {
     async function loadSettings() {
       try {
         const defaultSettings = {
-          businessName: "Spa & Bistro",
-          address: "123 Relaxation Ave, Harare, Zimbabwe",
-          phone: "+263 4 123-4567",
-          email: "info@spaandbistro.com",
-          website: "www.spaandbistro.com",
-          taxRate: "14", // Zimbabwe VAT rate
-          openingHours: "Monday-Friday: 9am-9pm\nSaturday-Sunday: 10am-8pm",
+          businessName: 'Spa & Bistro',
+          address: '123 Relaxation Ave, Harare, Zimbabwe',
+          phone: '+263 4 123-4567',
+          email: 'info@spaandbistro.com',
+          website: 'www.spaandbistro.com',
+          taxRate: '14', // Zimbabwe VAT rate
+          openingHours: 'Monday-Friday: 9am-9pm\nSaturday-Sunday: 10am-8pm',
         };
 
         const settings = await businessSettingsApi.getSettings(defaultSettings);
         setBusinessSettings(settings as BusinessSettings);
       } catch (error) {
-        console.error("Error loading business settings:", error);
+        console.error('Error loading business settings:', error);
       } finally {
         setIsLoading(false);
       }
@@ -81,12 +81,14 @@ export function PrintPreviewModal({
 
     // If that fails, try to find by ID
     if (!receiptElement) {
-      receiptElement = document.getElementById("receipt-to-print");
+      receiptElement = document.getElementById('receipt-to-print');
     }
 
     // If still no element, try querySelector
     if (!receiptElement) {
-      receiptElement = document.querySelector('[data-receipt="true"] #receipt-to-print');
+      receiptElement = document.querySelector(
+        '[data-receipt="true"] #receipt-to-print'
+      );
     }
 
     if (receiptElement) {
@@ -94,14 +96,14 @@ export function PrintPreviewModal({
       const content = receiptElement.innerHTML;
       setPreviewContent(content);
     } else {
-      console.error("Receipt element not found for preview");
-      setPreviewContent("<div>Receipt content not available for preview</div>");
+      console.error('Receipt element not found for preview');
+      setPreviewContent('<div>Receipt content not available for preview</div>');
     }
   };
 
   const handlePrint = () => {
     if (!receiptRef?.current) {
-      console.error("Receipt reference is not available");
+      console.error('Receipt reference is not available');
       return;
     }
     onPrint();
@@ -110,29 +112,29 @@ export function PrintPreviewModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-[500px] max-h-[90vh] overflow-auto">
+      <DialogContent className='max-h-[90vh] max-w-[500px] overflow-auto'>
         <DialogHeader>
           <DialogTitle>
-            Receipt Preview - {businessSettings?.businessName || "Spa & Bistro"}
+            Receipt Preview - {businessSettings?.businessName || 'Spa & Bistro'}
           </DialogTitle>
           <DialogDescription>
             Preview how your receipt will look when printed
           </DialogDescription>
         </DialogHeader>
 
-        <div className="border rounded-md p-4 bg-white my-4 overflow-auto max-h-[60vh]">
+        <div className='my-4 max-h-[60vh] overflow-auto rounded-md border bg-white p-4'>
           {isLoading ? (
-            <div className="text-center py-8">Loading preview...</div>
+            <div className='py-8 text-center'>Loading preview...</div>
           ) : (
             <div
-              className="receipt-preview"
+              className='receipt-preview'
               style={{
-                fontFamily: "Arial, sans-serif",
-                color: "#000",
-                fontSize: "14px",
-                lineHeight: "1.4",
-                maxWidth: "350px",
-                margin: "0 auto",
+                fontFamily: 'Arial, sans-serif',
+                color: '#000',
+                fontSize: '14px',
+                lineHeight: '1.4',
+                maxWidth: '350px',
+                margin: '0 auto',
               }}
             >
               <style>{`
@@ -207,12 +209,12 @@ export function PrintPreviewModal({
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
-            <X className="mr-2 h-4 w-4" />
+          <Button variant='outline' onClick={() => onOpenChange(false)}>
+            <X className='mr-2 h-4 w-4' />
             Cancel
           </Button>
           <Button onClick={handlePrint} disabled={!receiptRef?.current}>
-            <Printer className="mr-2 h-4 w-4" />
+            <Printer className='mr-2 h-4 w-4' />
             Print
           </Button>
         </DialogFooter>

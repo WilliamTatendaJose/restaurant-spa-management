@@ -1,23 +1,23 @@
-"use client";
+'use client';
 
-import { useState, useEffect } from "react";
+import { useState, useEffect } from 'react';
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+} from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
-import { bookingsApi, spaServicesApi, customersApi } from "@/lib/db";
-import { useToast } from "@/components/ui/use-toast";
+} from '@/components/ui/select';
+import { bookingsApi, spaServicesApi, customersApi } from '@/lib/db';
+import { useToast } from '@/components/ui/use-toast';
 
 interface Booking {
   id: string;
@@ -96,7 +96,7 @@ export function UpcomingBookings() {
 
         setBookings(deduplicatedBookings);
       } catch (error) {
-        console.error("Error fetching upcoming bookings:", error);
+        console.error('Error fetching upcoming bookings:', error);
       } finally {
         setIsLoading(false);
       }
@@ -114,8 +114,8 @@ export function UpcomingBookings() {
       const date = new Date(bookingDate);
       const time = new Date(`${bookingDate}T${bookingTime}`);
       const timeString = time.toLocaleTimeString([], {
-        hour: "2-digit",
-        minute: "2-digit",
+        hour: '2-digit',
+        minute: '2-digit',
       });
 
       // Display relative date for today and tomorrow
@@ -133,10 +133,10 @@ export function UpcomingBookings() {
 
   // Get service description
   const getServiceDescription = (booking: Booking) => {
-    if (booking.booking_type === "spa") {
-      return serviceMap[booking.service] || "Unknown service";
+    if (booking.booking_type === 'spa') {
+      return serviceMap[booking.service] || 'Unknown service';
     } else {
-      return "Restaurant reservation";
+      return 'Restaurant reservation';
     }
   };
 
@@ -147,7 +147,7 @@ export function UpcomingBookings() {
       await bookingsApi.update(bookingId, { status: newStatus });
 
       // Update local state to reflect the change
-      if (newStatus === "cancelled") {
+      if (newStatus === 'cancelled') {
         // Remove cancelled bookings from the list
         setBookings((prev) =>
           prev.filter((booking) => booking.id !== bookingId)
@@ -163,34 +163,34 @@ export function UpcomingBookings() {
       }
 
       // Send confirmation notification if status changed to "confirmed"
-      if (newStatus === "confirmed") {
+      if (newStatus === 'confirmed') {
         const booking = bookings.find((b) => b.id === bookingId);
         if (booking) {
           try {
             // Get customer details
-            let customerEmail = "";
-            let customerPhone = "";
+            let customerEmail = '';
+            let customerPhone = '';
 
             if (booking.customer_id) {
               const customer = await customersApi.get(booking.customer_id);
               if (customer) {
-                customerEmail = customer.email || "";
-                customerPhone = customer.phone || "";
+                customerEmail = customer.email || '';
+                customerPhone = customer.phone || '';
               }
             }
 
             // Get service name
-            let serviceName = "";
-            if (booking.booking_type === "spa") {
-              serviceName = serviceMap[booking.service] || "Spa Service";
+            let serviceName = '';
+            if (booking.booking_type === 'spa') {
+              serviceName = serviceMap[booking.service] || 'Spa Service';
             } else {
-              serviceName = `Restaurant Reservation (${booking.party_size || "?"} people)`;
+              serviceName = `Restaurant Reservation (${booking.party_size || '?'} people)`;
             }
 
             // Send confirmation notification
-            const confirmationResponse = await fetch("/api/bookings/confirm", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
+            const confirmationResponse = await fetch('/api/bookings/confirm', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
                 bookingId: booking.id,
                 customerName: booking.customer_name,
@@ -199,7 +199,7 @@ export function UpcomingBookings() {
                 serviceName,
                 bookingDate: booking.booking_date,
                 bookingTime: booking.booking_time,
-                notificationType: "both",
+                notificationType: 'both',
               }),
             });
 
@@ -208,55 +208,55 @@ export function UpcomingBookings() {
             if (confirmationResult.success) {
               const notifications = [];
               if (confirmationResult.results?.email?.success)
-                notifications.push("email");
+                notifications.push('email');
               if (confirmationResult.results?.whatsapp?.success)
-                notifications.push("WhatsApp");
+                notifications.push('WhatsApp');
 
               if (notifications.length > 0) {
                 toast({
-                  title: "Booking confirmed & customer notified",
-                  description: `Confirmation sent via ${notifications.join(" and ")} to ${booking.customer_name}`,
+                  title: 'Booking confirmed & customer notified',
+                  description: `Confirmation sent via ${notifications.join(' and ')} to ${booking.customer_name}`,
                 });
               } else {
                 toast({
-                  title: "Booking confirmed",
+                  title: 'Booking confirmed',
                   description:
-                    "No customer contact information available for notifications",
+                    'No customer contact information available for notifications',
                 });
               }
             } else {
               toast({
-                title: "Booking confirmed",
+                title: 'Booking confirmed',
                 description:
-                  "Customer notification failed, but booking status updated",
-                variant: "default",
+                  'Customer notification failed, but booking status updated',
+                variant: 'default',
               });
             }
           } catch (notificationError) {
             console.error(
-              "Error sending confirmation notification:",
+              'Error sending confirmation notification:',
               notificationError
             );
             toast({
-              title: "Booking confirmed",
+              title: 'Booking confirmed',
               description:
-                "Status updated successfully, but notification failed",
-              variant: "default",
+                'Status updated successfully, but notification failed',
+              variant: 'default',
             });
           }
         }
       } else {
         toast({
-          title: "Status updated",
+          title: 'Status updated',
           description: `Booking status has been updated to ${newStatus}`,
         });
       }
     } catch (error) {
-      console.error("Error updating booking status:", error);
+      console.error('Error updating booking status:', error);
       toast({
-        title: "Error",
-        description: "Failed to update booking status",
-        variant: "destructive",
+        title: 'Error',
+        description: 'Failed to update booking status',
+        variant: 'destructive',
       });
     } finally {
       setUpdatingStatus(null);
@@ -266,14 +266,14 @@ export function UpcomingBookings() {
   // Get status badge color
   const getStatusColor = (status: string) => {
     switch (status) {
-      case "confirmed":
-        return "default";
-      case "cancelled":
-        return "destructive";
-      case "pending":
-        return "secondary";
+      case 'confirmed':
+        return 'default';
+      case 'cancelled':
+        return 'destructive';
+      case 'pending':
+        return 'secondary';
       default:
-        return "outline";
+        return 'outline';
     }
   };
 
@@ -283,45 +283,45 @@ export function UpcomingBookings() {
         <CardTitle>Upcoming Bookings</CardTitle>
         <CardDescription>
           {isLoading
-            ? "Loading upcoming bookings..."
+            ? 'Loading upcoming bookings...'
             : bookings.length > 0
               ? `You have ${bookings.length} upcoming bookings`
-              : "No upcoming bookings"}
+              : 'No upcoming bookings'}
         </CardDescription>
       </CardHeader>
       <CardContent>
         {isLoading ? (
-          <div className="flex justify-center items-center py-4">
-            <p className="text-sm text-muted-foreground">Loading bookings...</p>
+          <div className='flex items-center justify-center py-4'>
+            <p className='text-sm text-muted-foreground'>Loading bookings...</p>
           </div>
         ) : bookings.length > 0 ? (
-          <div className="space-y-4">
+          <div className='space-y-4'>
             {bookings.map((booking) => (
               <div
                 key={booking.id}
-                className="flex items-center justify-between"
+                className='flex items-center justify-between'
               >
-                <div className="space-y-1">
-                  <p className="font-medium leading-none">
+                <div className='space-y-1'>
+                  <p className='font-medium leading-none'>
                     {booking.customer_name}
                   </p>
-                  <p className="text-sm text-muted-foreground">
+                  <p className='text-sm text-muted-foreground'>
                     {getServiceDescription(booking)}
                   </p>
-                  <div className="text-sm">
+                  <div className='text-sm'>
                     {formatBookingTime(
                       booking.booking_date,
                       booking.booking_time
                     )}
                   </div>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className='flex items-center gap-2'>
                   <Badge
                     variant={
-                      booking.booking_type === "spa" ? "secondary" : "outline"
+                      booking.booking_type === 'spa' ? 'secondary' : 'outline'
                     }
                   >
-                    {booking.booking_type === "spa" ? "Spa" : "Restaurant"}
+                    {booking.booking_type === 'spa' ? 'Spa' : 'Restaurant'}
                   </Badge>
                   <Select
                     value={booking.status}
@@ -330,7 +330,7 @@ export function UpcomingBookings() {
                     }
                     disabled={updatingStatus === booking.id}
                   >
-                    <SelectTrigger className="w-[110px] h-8">
+                    <SelectTrigger className='h-8 w-[110px]'>
                       <SelectValue>
                         <Badge variant={getStatusColor(booking.status) as any}>
                           {booking.status}
@@ -338,9 +338,9 @@ export function UpcomingBookings() {
                       </SelectValue>
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="pending">Pending</SelectItem>
-                      <SelectItem value="confirmed">Confirmed</SelectItem>
-                      <SelectItem value="cancelled">Cancelled</SelectItem>
+                      <SelectItem value='pending'>Pending</SelectItem>
+                      <SelectItem value='confirmed'>Confirmed</SelectItem>
+                      <SelectItem value='cancelled'>Cancelled</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -348,8 +348,8 @@ export function UpcomingBookings() {
             ))}
           </div>
         ) : (
-          <div className="flex justify-center items-center py-4">
-            <p className="text-sm text-muted-foreground">
+          <div className='flex items-center justify-center py-4'>
+            <p className='text-sm text-muted-foreground'>
               No upcoming bookings scheduled
             </p>
           </div>

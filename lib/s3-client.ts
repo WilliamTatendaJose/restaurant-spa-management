@@ -1,16 +1,16 @@
-import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
-import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
+import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
+import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 
 // Initialize S3 client
 const s3Client = new S3Client({
-  region: process.env.AWS_REGION || "us-east-1",
+  region: process.env.AWS_REGION || 'us-east-1',
   credentials: {
-    accessKeyId: process.env.AWS_ACCESS_KEY_ID || "",
-    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY || "",
+    accessKeyId: process.env.AWS_ACCESS_KEY_ID || '',
+    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY || '',
   },
 });
 
-const bucketName = process.env.AWS_S3_BUCKET_NAME || "restaurant-spa-receipts";
+const bucketName = process.env.AWS_S3_BUCKET_NAME || 'restaurant-spa-receipts';
 
 /**
  * Upload a file to S3
@@ -25,17 +25,17 @@ export async function uploadToS3(
   contentType: string
 ): Promise<string> {
   const key = `receipts/${fileName}`;
-  
+
   const command = new PutObjectCommand({
     Bucket: bucketName,
     Key: key,
     Body: fileBuffer,
     ContentType: contentType,
-    ACL: "public-read", // Make the file publicly accessible
+    ACL: 'public-read', // Make the file publicly accessible
   });
 
   await s3Client.send(command);
-  
+
   // Return the S3 URL
   return `https://${bucketName}.s3.amazonaws.com/${key}`;
 }
@@ -55,5 +55,7 @@ export async function getSignedFileUrl(
     Key: key,
   });
 
-  return await getSignedUrl(s3Client, command, { expiresIn: expirationSeconds });
+  return await getSignedUrl(s3Client, command, {
+    expiresIn: expirationSeconds,
+  });
 }

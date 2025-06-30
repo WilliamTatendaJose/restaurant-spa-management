@@ -1,15 +1,15 @@
-"use client";
+'use client';
 
-import { useState, useEffect } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Calendar, DollarSign, Users, Utensils } from "lucide-react";
+import { useState, useEffect } from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Calendar, DollarSign, Users, Utensils } from 'lucide-react';
 import {
   bookingsApi,
   customersApi,
   spaServicesApi,
   transactionsApi,
-} from "@/lib/db";
-import { useAuth } from "@/lib/auth-context";
+} from '@/lib/db';
+import { useAuth } from '@/lib/auth-context';
 
 interface Transaction {
   status: string;
@@ -30,7 +30,7 @@ export function DashboardStats() {
   const { hasPermission } = useAuth();
 
   // Only managers and admins can see revenue data
-  const canViewRevenue = hasPermission("manager") || hasPermission("admin");
+  const canViewRevenue = hasPermission('manager') || hasPermission('admin');
 
   const [stats, setStats] = useState({
     totalRevenue: 0,
@@ -52,7 +52,7 @@ export function DashboardStats() {
         // Get all transactions
         const allTransactions = (await transactionsApi.list()) as Transaction[];
         const completedTransactions = allTransactions.filter(
-          (tx: Transaction) => tx.status === "completed" || tx.status === "paid"
+          (tx: Transaction) => tx.status === 'completed' || tx.status === 'paid'
         );
 
         // Calculate total revenue
@@ -63,11 +63,11 @@ export function DashboardStats() {
 
         // Get restaurant orders count
         const restaurantOrders = completedTransactions.filter(
-          (tx: Transaction) => tx.transaction_type === "restaurant"
+          (tx: Transaction) => tx.transaction_type === 'restaurant'
         );
 
         const spaOrders = completedTransactions.filter(
-          (tx: Transaction) => tx.transaction_type === "spa"
+          (tx: Transaction) => tx.transaction_type === 'spa'
         );
 
         // Get all bookings
@@ -88,19 +88,23 @@ export function DashboardStats() {
         yesterdayDate.setDate(yesterdayDate.getDate() - 1);
 
         // Filter transactions for current and previous periods
-        const thisMonthTransactions = completedTransactions.filter((tx: Transaction) => {
-          const txDate = new Date(tx.transaction_date);
-          return txDate >= lastMonthDate;
-        });
+        const thisMonthTransactions = completedTransactions.filter(
+          (tx: Transaction) => {
+            const txDate = new Date(tx.transaction_date);
+            return txDate >= lastMonthDate;
+          }
+        );
 
-        const prevMonthTransactions = completedTransactions.filter((tx: Transaction) => {
-          const txDate = new Date(tx.transaction_date);
-          return (
-            txDate < lastMonthDate &&
-            txDate >=
-              new Date(lastMonthDate.getTime() - 30 * 24 * 60 * 60 * 1000)
-          );
-        });
+        const prevMonthTransactions = completedTransactions.filter(
+          (tx: Transaction) => {
+            const txDate = new Date(tx.transaction_date);
+            return (
+              txDate < lastMonthDate &&
+              txDate >=
+                new Date(lastMonthDate.getTime() - 30 * 24 * 60 * 60 * 1000)
+            );
+          }
+        );
 
         // Calculate revenue for current and previous month
         const thisMonthRevenue = thisMonthTransactions.reduce(
@@ -200,7 +204,7 @@ export function DashboardStats() {
           customersChange: newCustomersThisMonth.length,
         });
       } catch (error) {
-        console.error("Error fetching dashboard stats:", error);
+        console.error('Error fetching dashboard stats:', error);
       } finally {
         setIsLoading(false);
       }
@@ -211,9 +215,9 @@ export function DashboardStats() {
 
   // Format currency
   const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency: "USD",
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
       minimumFractionDigits: 2,
     }).format(amount);
   };
@@ -224,24 +228,24 @@ export function DashboardStats() {
   };
 
   return (
-    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+    <div className='grid gap-4 md:grid-cols-2 lg:grid-cols-3'>
       {canViewRevenue && (
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Revenue</CardTitle>
-            <DollarSign className="h-4 w-4 text-muted-foreground" />
+          <CardHeader className='flex flex-row items-center justify-between space-y-0 pb-2'>
+            <CardTitle className='text-sm font-medium'>Total Revenue</CardTitle>
+            <DollarSign className='h-4 w-4 text-muted-foreground' />
           </CardHeader>
           <CardContent>
             {isLoading ? (
-              <div className="text-2xl font-bold">Loading...</div>
+              <div className='text-2xl font-bold'>Loading...</div>
             ) : (
               <>
-                <div className="text-2xl font-bold">
+                <div className='text-2xl font-bold'>
                   {formatCurrency(stats.totalRevenue)}
                 </div>
                 <p
                   className={`text-xs ${
-                    stats.revenueChange >= 0 ? "text-green-500" : "text-red-500"
+                    stats.revenueChange >= 0 ? 'text-green-500' : 'text-red-500'
                   }`}
                 >
                   {formatChange(stats.revenueChange)} from last month
@@ -252,19 +256,19 @@ export function DashboardStats() {
         </Card>
       )}
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Bookings</CardTitle>
-          <Calendar className="h-4 w-4 text-muted-foreground" />
+        <CardHeader className='flex flex-row items-center justify-between space-y-0 pb-2'>
+          <CardTitle className='text-sm font-medium'>Bookings</CardTitle>
+          <Calendar className='h-4 w-4 text-muted-foreground' />
         </CardHeader>
         <CardContent>
           {isLoading ? (
-            <div className="text-2xl font-bold">Loading...</div>
+            <div className='text-2xl font-bold'>Loading...</div>
           ) : (
             <>
-              <div className="text-2xl font-bold">+{stats.bookingsCount}</div>
+              <div className='text-2xl font-bold'>+{stats.bookingsCount}</div>
               <p
                 className={`text-xs ${
-                  stats.bookingsChange >= 0 ? "text-green-500" : "text-red-500"
+                  stats.bookingsChange >= 0 ? 'text-green-500' : 'text-red-500'
                 }`}
               >
                 {formatChange(stats.bookingsChange)} from last week
@@ -274,23 +278,23 @@ export function DashboardStats() {
         </CardContent>
       </Card>
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">
+        <CardHeader className='flex flex-row items-center justify-between space-y-0 pb-2'>
+          <CardTitle className='text-sm font-medium'>
             Restaurant Orders
           </CardTitle>
-          <Utensils className="h-4 w-4 text-muted-foreground" />
+          <Utensils className='h-4 w-4 text-muted-foreground' />
         </CardHeader>
         <CardContent>
           {isLoading ? (
-            <div className="text-2xl font-bold">Loading...</div>
+            <div className='text-2xl font-bold'>Loading...</div>
           ) : (
             <>
-              <div className="text-2xl font-bold">
+              <div className='text-2xl font-bold'>
                 +{stats.restaurantOrdersCount}
               </div>
               <p
                 className={`text-xs ${
-                  stats.ordersChange >= 0 ? "text-green-500" : "text-red-500"
+                  stats.ordersChange >= 0 ? 'text-green-500' : 'text-red-500'
                 }`}
               >
                 {formatChange(stats.ordersChange)} from yesterday
@@ -300,19 +304,19 @@ export function DashboardStats() {
         </CardContent>
       </Card>
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Spar Orders</CardTitle>
-          <Utensils className="h-4 w-4 text-muted-foreground" />
+        <CardHeader className='flex flex-row items-center justify-between space-y-0 pb-2'>
+          <CardTitle className='text-sm font-medium'>Spar Orders</CardTitle>
+          <Utensils className='h-4 w-4 text-muted-foreground' />
         </CardHeader>
         <CardContent>
           {isLoading ? (
-            <div className="text-2xl font-bold">Loading...</div>
+            <div className='text-2xl font-bold'>Loading...</div>
           ) : (
             <>
-              <div className="text-2xl font-bold">+{stats.spaOrdersCount}</div>
+              <div className='text-2xl font-bold'>+{stats.spaOrdersCount}</div>
               <p
                 className={`text-xs ${
-                  stats.spaOrdersChange >= 0 ? "text-green-500" : "text-red-500"
+                  stats.spaOrdersChange >= 0 ? 'text-green-500' : 'text-red-500'
                 }`}
               >
                 {formatChange(stats.ordersChange)} from yesterday
@@ -322,19 +326,19 @@ export function DashboardStats() {
         </CardContent>
       </Card>
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">
+        <CardHeader className='flex flex-row items-center justify-between space-y-0 pb-2'>
+          <CardTitle className='text-sm font-medium'>
             Active Customers
           </CardTitle>
-          <Users className="h-4 w-4 text-muted-foreground" />
+          <Users className='h-4 w-4 text-muted-foreground' />
         </CardHeader>
         <CardContent>
           {isLoading ? (
-            <div className="text-2xl font-bold">Loading...</div>
+            <div className='text-2xl font-bold'>Loading...</div>
           ) : (
             <>
-              <div className="text-2xl font-bold">+{stats.activeCustomers}</div>
-              <p className="text-xs text-muted-foreground">
+              <div className='text-2xl font-bold'>+{stats.activeCustomers}</div>
+              <p className='text-xs text-muted-foreground'>
                 +{stats.customersChange} new this month
               </p>
             </>

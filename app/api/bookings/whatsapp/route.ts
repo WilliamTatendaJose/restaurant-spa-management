@@ -1,31 +1,43 @@
-import { NextRequest, NextResponse } from "next/server"
+import { NextRequest, NextResponse } from 'next/server';
 
 export async function POST(request: NextRequest) {
   try {
-    const { 
-      phoneNumber, 
-      customerName, 
-      serviceName, 
-      bookingDate, 
-      bookingTime, 
+    const {
+      phoneNumber,
+      customerName,
+      serviceName,
+      bookingDate,
+      bookingTime,
       businessSettings,
-      bookingId 
+      bookingId,
     } = await request.json();
 
-    if (!phoneNumber || !customerName || !serviceName || !bookingDate || !bookingTime) {
+    if (
+      !phoneNumber ||
+      !customerName ||
+      !serviceName ||
+      !bookingDate ||
+      !bookingTime
+    ) {
       return new NextResponse(
-        JSON.stringify({ success: false, message: "Missing required parameters" }),
-        { status: 400, headers: { "content-type": "application/json" } }
+        JSON.stringify({
+          success: false,
+          message: 'Missing required parameters',
+        }),
+        { status: 400, headers: { 'content-type': 'application/json' } }
       );
     }
 
     const businessName = businessSettings?.businessName || 'LEWA HOSPITALITY';
     const businessPhone = businessSettings?.phone || '';
-    const businessAddress = businessSettings?.address || '29 Montgomery Road, Highlands, Harare, Zimbabwe';
+    const businessAddress =
+      businessSettings?.address ||
+      '29 Montgomery Road, Highlands, Harare, Zimbabwe';
 
     // Format phone number (ensure it starts with +)
     let formattedNumber = phoneNumber.replace(/\D/g, '');
-    if (!formattedNumber.startsWith('263')) { // Zimbabwe country code
+    if (!formattedNumber.startsWith('263')) {
+      // Zimbabwe country code
       formattedNumber = '263' + formattedNumber;
     }
     formattedNumber = '+' + formattedNumber;
@@ -52,94 +64,116 @@ ${businessPhone || businessAddress ? `📞 *Contact Us:*` : ''}${businessPhone ?
 Looking forward to serving you! 🌟`;
 
     // Method 1: WhatsApp Business API (Free tier - 1000 messages/month)
-    if (process.env.WHATSAPP_ACCESS_TOKEN && process.env.WHATSAPP_PHONE_NUMBER_ID) {
+    if (
+      process.env.WHATSAPP_ACCESS_TOKEN &&
+      process.env.WHATSAPP_PHONE_NUMBER_ID
+    ) {
       try {
-        const whatsappResponse = await fetch(`https://graph.facebook.com/v18.0/${process.env.WHATSAPP_PHONE_NUMBER_ID}/messages`, {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${process.env.WHATSAPP_ACCESS_TOKEN}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            messaging_product: 'whatsapp',
-            to: formattedNumber,
-            type: 'text',
-            text: {
-              body: messageContent
-            }
-          })
-        });
+        const whatsappResponse = await fetch(
+          `https://graph.facebook.com/v18.0/${process.env.WHATSAPP_PHONE_NUMBER_ID}/messages`,
+          {
+            method: 'POST',
+            headers: {
+              Authorization: `Bearer ${process.env.WHATSAPP_ACCESS_TOKEN}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              messaging_product: 'whatsapp',
+              to: formattedNumber,
+              type: 'text',
+              text: {
+                body: messageContent,
+              },
+            }),
+          }
+        );
 
         if (whatsappResponse.ok) {
           const result = await whatsappResponse.json();
           return new NextResponse(
-            JSON.stringify({ 
-              success: true, 
-              message: "Booking confirmation sent via WhatsApp Business API",
+            JSON.stringify({
+              success: true,
+              message: 'Booking confirmation sent via WhatsApp Business API',
               messageId: result.messages?.[0]?.id,
-              method: "whatsapp_business_api"
+              method: 'whatsapp_business_api',
             }),
-            { status: 200, headers: { "content-type": "application/json" } }
+            { status: 200, headers: { 'content-type': 'application/json' } }
           );
         } else {
-          console.error("WhatsApp Business API error:", await whatsappResponse.text());
+          console.error(
+            'WhatsApp Business API error:',
+            await whatsappResponse.text()
+          );
         }
       } catch (error) {
-        console.error("WhatsApp Business API error:", error);
+        console.error('WhatsApp Business API error:', error);
       }
     }
 
     // Method 2: Twilio (fallback)
-    if (process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN && process.env.TWILIO_WHATSAPP_NUMBER) {
+    if (
+      process.env.TWILIO_ACCOUNT_SID &&
+      process.env.TWILIO_AUTH_TOKEN &&
+      process.env.TWILIO_WHATSAPP_NUMBER
+    ) {
       try {
         const twilio = require('twilio');
-        const twilioClient = twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
-        
+        const twilioClient = twilio(
+          process.env.TWILIO_ACCOUNT_SID,
+          process.env.TWILIO_AUTH_TOKEN
+        );
+
         await twilioClient.messages.create({
           body: messageContent,
           from: `whatsapp:${process.env.TWILIO_WHATSAPP_NUMBER}`,
           to: `whatsapp:${formattedNumber}`,
         });
-        
+
         return new NextResponse(
-          JSON.stringify({ 
-            success: true, 
-            message: "Booking confirmation sent via Twilio WhatsApp",
-            method: "twilio"
+          JSON.stringify({
+            success: true,
+            message: 'Booking confirmation sent via Twilio WhatsApp',
+            method: 'twilio',
           }),
-          { status: 200, headers: { "content-type": "application/json" } }
+          { status: 200, headers: { 'content-type': 'application/json' } }
         );
       } catch (twilioError) {
-        console.error("Twilio WhatsApp error:", twilioError);
+        console.error('Twilio WhatsApp error:', twilioError);
       }
     }
 
     // Method 3: Green API (Free tier - 3000 messages/month)
-    if (process.env.GREEN_API_INSTANCE_ID && process.env.GREEN_API_ACCESS_TOKEN) {
+    if (
+      process.env.GREEN_API_INSTANCE_ID &&
+      process.env.GREEN_API_ACCESS_TOKEN
+    ) {
       try {
-        const greenApiResponse = await fetch(`https://api.green-api.com/waInstance${process.env.GREEN_API_INSTANCE_ID}/sendMessage/${process.env.GREEN_API_ACCESS_TOKEN}`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            chatId: `${formattedNumber}@c.us`,
-            message: messageContent
-          })
-        });
+        const greenApiResponse = await fetch(
+          `https://api.green-api.com/waInstance${process.env.GREEN_API_INSTANCE_ID}/sendMessage/${process.env.GREEN_API_ACCESS_TOKEN}`,
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              chatId: `${formattedNumber}@c.us`,
+              message: messageContent,
+            }),
+          }
+        );
 
         if (greenApiResponse.ok) {
           return new NextResponse(
-            JSON.stringify({ 
-              success: true, 
-              message: "Booking confirmation sent via Green API",
-              method: "green_api"
+            JSON.stringify({
+              success: true,
+              message: 'Booking confirmation sent via Green API',
+              method: 'green_api',
             }),
-            { status: 200, headers: { "content-type": "application/json" } }
+            { status: 200, headers: { 'content-type': 'application/json' } }
           );
         }
       } catch (error) {
-        console.error("Green API error:", error);
+        console.error('Green API error:', error);
       }
     }
 
@@ -147,27 +181,30 @@ Looking forward to serving you! 🌟`;
     if (process.env.ENABLE_WHATSAPP_WEB_AUTOMATION === 'true') {
       try {
         // This would require a separate service running puppeteer
-        const automationResponse = await fetch(`${process.env.WHATSAPP_AUTOMATION_SERVICE_URL}/send`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            phone: formattedNumber,
-            message: messageContent
-          })
-        });
+        const automationResponse = await fetch(
+          `${process.env.WHATSAPP_AUTOMATION_SERVICE_URL}/send`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              phone: formattedNumber,
+              message: messageContent,
+            }),
+          }
+        );
 
         if (automationResponse.ok) {
           return new NextResponse(
-            JSON.stringify({ 
-              success: true, 
-              message: "Booking confirmation sent via WhatsApp Web automation",
-              method: "web_automation"
+            JSON.stringify({
+              success: true,
+              message: 'Booking confirmation sent via WhatsApp Web automation',
+              method: 'web_automation',
             }),
-            { status: 200, headers: { "content-type": "application/json" } }
+            { status: 200, headers: { 'content-type': 'application/json' } }
           );
         }
       } catch (error) {
-        console.error("WhatsApp Web automation error:", error);
+        console.error('WhatsApp Web automation error:', error);
       }
     }
 
@@ -176,26 +213,25 @@ Looking forward to serving you! 🌟`;
     const whatsappLink = `https://wa.me/${formattedNumber}?text=${encodedMessage}`;
 
     return new NextResponse(
-      JSON.stringify({ 
-        success: true, 
-        message: "WhatsApp link generated - please click to send manually",
+      JSON.stringify({
+        success: true,
+        message: 'WhatsApp link generated - please click to send manually',
         whatsappLink,
         directLink: true,
-        method: "deep_link",
-        note: "This opens WhatsApp with pre-filled message. User needs to click send."
+        method: 'deep_link',
+        note: 'This opens WhatsApp with pre-filled message. User needs to click send.',
       }),
-      { status: 200, headers: { "content-type": "application/json" } }
+      { status: 200, headers: { 'content-type': 'application/json' } }
     );
-
   } catch (error) {
-    console.error("Error sending booking confirmation via WhatsApp:", error);
+    console.error('Error sending booking confirmation via WhatsApp:', error);
     return new NextResponse(
-      JSON.stringify({ 
-        success: false, 
-        message: "Failed to send booking confirmation via WhatsApp", 
-        error: (error as Error).message 
+      JSON.stringify({
+        success: false,
+        message: 'Failed to send booking confirmation via WhatsApp',
+        error: (error as Error).message,
       }),
-      { status: 500, headers: { "content-type": "application/json" } }
+      { status: 500, headers: { 'content-type': 'application/json' } }
     );
   }
 }

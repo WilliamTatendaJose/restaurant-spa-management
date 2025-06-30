@@ -1,18 +1,18 @@
-"use client";
+'use client';
 
-import { useState, useEffect } from "react";
-import { Button } from "@/components/ui/button";
+import { useState, useEffect } from 'react';
+import { Button } from '@/components/ui/button';
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
-import { useToast } from "@/components/ui/use-toast";
+} from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Badge } from '@/components/ui/badge';
+import { useToast } from '@/components/ui/use-toast';
 import {
   Calendar,
   FileText,
@@ -22,8 +22,8 @@ import {
   Eye,
   Receipt,
   Upload,
-} from "lucide-react";
-import { formatZWLCurrency } from "@/lib/zimra-api";
+} from 'lucide-react';
+import { formatZWLCurrency } from '@/lib/zimra-api';
 import {
   Dialog,
   DialogContent,
@@ -31,7 +31,7 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog";
+} from '@/components/ui/dialog';
 import {
   Table,
   TableBody,
@@ -39,7 +39,7 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table";
+} from '@/components/ui/table';
 
 interface DailyReturnPreview {
   date: string;
@@ -76,21 +76,21 @@ interface DailyReturnPreview {
 interface SubmissionRecord {
   date: string;
   referenceNumber: string;
-  status: "pending" | "processed" | "failed";
+  status: 'pending' | 'processed' | 'failed';
   submittedAt: string;
 }
 
 export function ZIMRASettings() {
   const { toast } = useToast();
   const [selectedDate, setSelectedDate] = useState(
-    new Date().toISOString().split("T")[0]
+    new Date().toISOString().split('T')[0]
   );
   const [isLoading, setIsLoading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSubmittingReceipts, setIsSubmittingReceipts] = useState(false);
   const [receiptSubmissionType, setReceiptSubmissionType] = useState<
-    "individual" | "batch"
-  >("batch");
+    'individual' | 'batch'
+  >('batch');
   const [preview, setPreview] = useState<DailyReturnPreview | null>(null);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [submissions, setSubmissions] = useState<SubmissionRecord[]>([]);
@@ -98,7 +98,7 @@ export function ZIMRASettings() {
 
   // Load recent submissions from localStorage (in production, this would come from a database)
   useEffect(() => {
-    const savedSubmissions = localStorage.getItem("zimra_submissions");
+    const savedSubmissions = localStorage.getItem('zimra_submissions');
     if (savedSubmissions) {
       setSubmissions(JSON.parse(savedSubmissions));
     }
@@ -107,7 +107,7 @@ export function ZIMRASettings() {
   // Save submissions to localStorage
   const saveSubmissions = (newSubmissions: SubmissionRecord[]) => {
     setSubmissions(newSubmissions);
-    localStorage.setItem("zimra_submissions", JSON.stringify(newSubmissions));
+    localStorage.setItem('zimra_submissions', JSON.stringify(newSubmissions));
   };
 
   const loadDailyReturnPreview = async () => {
@@ -119,20 +119,20 @@ export function ZIMRASettings() {
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || "Failed to load daily return preview");
+        throw new Error(data.error || 'Failed to load daily return preview');
       }
 
       setPreview(data);
       setIsPreviewOpen(true);
     } catch (error) {
-      console.error("Error loading preview:", error);
+      console.error('Error loading preview:', error);
       toast({
-        title: "Error",
+        title: 'Error',
         description:
           error instanceof Error
             ? error.message
-            : "Failed to load daily return preview",
-        variant: "destructive",
+            : 'Failed to load daily return preview',
+        variant: 'destructive',
       });
     } finally {
       setIsLoading(false);
@@ -142,10 +142,10 @@ export function ZIMRASettings() {
   const submitDailyReturn = async () => {
     setIsSubmitting(true);
     try {
-      const response = await fetch("/api/zimra/daily-return", {
-        method: "POST",
+      const response = await fetch('/api/zimra/daily-return', {
+        method: 'POST',
         headers: {
-          "Content-Type": "application/json",
+          'Content-Type': 'application/json',
         },
         body: JSON.stringify({ date: selectedDate }),
       });
@@ -157,7 +157,7 @@ export function ZIMRASettings() {
         const newSubmission: SubmissionRecord = {
           date: selectedDate,
           referenceNumber: data.referenceNumber,
-          status: "pending",
+          status: 'pending',
           submittedAt: new Date().toISOString(),
         };
 
@@ -165,24 +165,24 @@ export function ZIMRASettings() {
         saveSubmissions(updatedSubmissions);
 
         toast({
-          title: "Success",
+          title: 'Success',
           description: `Daily return submitted successfully. Reference: ${data.referenceNumber}`,
         });
 
         setIsPreviewOpen(false);
       } else {
         toast({
-          title: "Submission Failed",
-          description: data.message || "Failed to submit daily return to ZIMRA",
-          variant: "destructive",
+          title: 'Submission Failed',
+          description: data.message || 'Failed to submit daily return to ZIMRA',
+          variant: 'destructive',
         });
       }
     } catch (error) {
-      console.error("Error submitting daily return:", error);
+      console.error('Error submitting daily return:', error);
       toast({
-        title: "Error",
-        description: "Failed to submit daily return. Please try again.",
-        variant: "destructive",
+        title: 'Error',
+        description: 'Failed to submit daily return. Please try again.',
+        variant: 'destructive',
       });
     } finally {
       setIsSubmitting(false);
@@ -192,16 +192,16 @@ export function ZIMRASettings() {
   const submitReceipts = async () => {
     setIsSubmittingReceipts(true);
     try {
-      if (receiptSubmissionType === "batch") {
+      if (receiptSubmissionType === 'batch') {
         // Submit all receipts for the selected date
-        const response = await fetch("/api/zimra/receipts/batch", {
-          method: "POST",
+        const response = await fetch('/api/zimra/receipts/batch', {
+          method: 'POST',
           headers: {
-            "Content-Type": "application/json",
+            'Content-Type': 'application/json',
           },
           body: JSON.stringify({
             date: selectedDate,
-            operatorId: "system", // You might want to get this from user context
+            operatorId: 'system', // You might want to get this from user context
           }),
         });
 
@@ -211,7 +211,7 @@ export function ZIMRASettings() {
           const newSubmission: SubmissionRecord = {
             date: selectedDate,
             referenceNumber: data.referenceNumber,
-            status: "pending",
+            status: 'pending',
             submittedAt: new Date().toISOString(),
           };
 
@@ -219,31 +219,31 @@ export function ZIMRASettings() {
           saveSubmissions(updatedSubmissions);
 
           toast({
-            title: "Receipts Submitted",
+            title: 'Receipts Submitted',
             description: `${data.receiptsSubmitted} receipts submitted successfully. Reference: ${data.referenceNumber}`,
           });
 
           if (data.validationErrors && data.validationErrors.length > 0) {
             toast({
-              title: "Warning",
+              title: 'Warning',
               description: `${data.validationErrors.length} transactions had validation errors and were skipped.`,
-              variant: "destructive",
+              variant: 'destructive',
             });
           }
         } else {
           toast({
-            title: "Submission Failed",
-            description: data.message || "Failed to submit receipts to ZIMRA",
-            variant: "destructive",
+            title: 'Submission Failed',
+            description: data.message || 'Failed to submit receipts to ZIMRA',
+            variant: 'destructive',
           });
         }
       }
     } catch (error) {
-      console.error("Error submitting receipts:", error);
+      console.error('Error submitting receipts:', error);
       toast({
-        title: "Error",
-        description: "Failed to submit receipts. Please try again.",
-        variant: "destructive",
+        title: 'Error',
+        description: 'Failed to submit receipts. Please try again.',
+        variant: 'destructive',
       });
     } finally {
       setIsSubmittingReceipts(false);
@@ -266,18 +266,18 @@ export function ZIMRASettings() {
         saveSubmissions(updatedSubmissions);
 
         toast({
-          title: "Status Updated",
+          title: 'Status Updated',
           description: `Submission ${referenceNumber}: ${data.status}`,
         });
       } else {
-        throw new Error(data.error || "Failed to check status");
+        throw new Error(data.error || 'Failed to check status');
       }
     } catch (error) {
-      console.error("Error checking status:", error);
+      console.error('Error checking status:', error);
       toast({
-        title: "Error",
-        description: "Failed to check submission status",
-        variant: "destructive",
+        title: 'Error',
+        description: 'Failed to check submission status',
+        variant: 'destructive',
       });
     } finally {
       setStatusChecking(null);
@@ -286,54 +286,54 @@ export function ZIMRASettings() {
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case "processed":
-        return "bg-green-100 text-green-800";
-      case "pending":
-        return "bg-yellow-100 text-yellow-800";
-      case "failed":
-        return "bg-red-100 text-red-800";
+      case 'processed':
+        return 'bg-green-100 text-green-800';
+      case 'pending':
+        return 'bg-yellow-100 text-yellow-800';
+      case 'failed':
+        return 'bg-red-100 text-red-800';
       default:
-        return "bg-gray-100 text-gray-800";
+        return 'bg-gray-100 text-gray-800';
     }
   };
 
   return (
-    <div className="space-y-6">
+    <div className='space-y-6'>
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <FileText className="h-5 w-5" />
+          <CardTitle className='flex items-center gap-2'>
+            <FileText className='h-5 w-5' />
             ZIMRA Daily Returns
           </CardTitle>
           <CardDescription>
             Submit daily tax returns to Zimbabwe Revenue Authority (ZIMRA)
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex flex-col sm:flex-row gap-4">
-            <div className="flex-1">
-              <Label htmlFor="date">Select Date</Label>
+        <CardContent className='space-y-4'>
+          <div className='flex flex-col gap-4 sm:flex-row'>
+            <div className='flex-1'>
+              <Label htmlFor='date'>Select Date</Label>
               <Input
-                id="date"
-                type="date"
+                id='date'
+                type='date'
                 value={selectedDate}
                 onChange={(e) => setSelectedDate(e.target.value)}
-                max={new Date().toISOString().split("T")[0]}
+                max={new Date().toISOString().split('T')[0]}
               />
             </div>
-            <div className="flex gap-2 items-end">
+            <div className='flex items-end gap-2'>
               <Button
                 onClick={loadDailyReturnPreview}
                 disabled={isLoading}
-                variant="outline"
+                variant='outline'
               >
-                <Eye className="mr-2 h-4 w-4" />
-                {isLoading ? "Loading..." : "Preview"}
+                <Eye className='mr-2 h-4 w-4' />
+                {isLoading ? 'Loading...' : 'Preview'}
               </Button>
             </div>
           </div>
 
-          <div className="text-sm text-muted-foreground">
+          <div className='text-sm text-muted-foreground'>
             <p>• VAT Rate: 14% (Zimbabwe standard rate)</p>
             <p>• Currency: USD (commonly used in Zimbabwe)</p>
             <p>• Submission deadline: Daily by end of business day</p>
@@ -344,39 +344,39 @@ export function ZIMRASettings() {
       {/* New Receipt Submission Card */}
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Receipt className="h-5 w-5" />
+          <CardTitle className='flex items-center gap-2'>
+            <Receipt className='h-5 w-5' />
             ZIMRA Receipt Submission
           </CardTitle>
           <CardDescription>
             Submit individual transaction receipts to ZIMRA for compliance
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex flex-col sm:flex-row gap-4">
-            <div className="flex-1">
-              <Label htmlFor="receipt-date">Date for Receipt Submission</Label>
+        <CardContent className='space-y-4'>
+          <div className='flex flex-col gap-4 sm:flex-row'>
+            <div className='flex-1'>
+              <Label htmlFor='receipt-date'>Date for Receipt Submission</Label>
               <Input
-                id="receipt-date"
-                type="date"
+                id='receipt-date'
+                type='date'
                 value={selectedDate}
                 onChange={(e) => setSelectedDate(e.target.value)}
-                max={new Date().toISOString().split("T")[0]}
+                max={new Date().toISOString().split('T')[0]}
               />
             </div>
-            <div className="flex gap-2 items-end">
+            <div className='flex items-end gap-2'>
               <Button
                 onClick={submitReceipts}
                 disabled={isSubmittingReceipts}
-                className="bg-blue-600 hover:bg-blue-700"
+                className='bg-blue-600 hover:bg-blue-700'
               >
-                <Upload className="mr-2 h-4 w-4" />
-                {isSubmittingReceipts ? "Submitting..." : "Submit Receipts"}
+                <Upload className='mr-2 h-4 w-4' />
+                {isSubmittingReceipts ? 'Submitting...' : 'Submit Receipts'}
               </Button>
             </div>
           </div>
 
-          <div className="text-sm text-muted-foreground">
+          <div className='text-sm text-muted-foreground'>
             <p>
               • Individual receipts are required for each completed transaction
             </p>
@@ -391,8 +391,8 @@ export function ZIMRASettings() {
 
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Send className="h-5 w-5" />
+          <CardTitle className='flex items-center gap-2'>
+            <Send className='h-5 w-5' />
             Recent Submissions
           </CardTitle>
           <CardDescription>
@@ -401,7 +401,7 @@ export function ZIMRASettings() {
         </CardHeader>
         <CardContent>
           {submissions.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground">
+            <div className='py-8 text-center text-muted-foreground'>
               No submissions yet. Submit your first daily return or receipts
               above.
             </div>
@@ -423,14 +423,14 @@ export function ZIMRASettings() {
                     <TableCell>
                       {new Date(submission.date).toLocaleDateString()}
                     </TableCell>
-                    <TableCell className="font-mono text-sm">
+                    <TableCell className='font-mono text-sm'>
                       {submission.referenceNumber}
                     </TableCell>
                     <TableCell>
-                      <Badge variant="outline">
-                        {submission.referenceNumber.includes("BATCH")
-                          ? "Receipts"
-                          : "Daily Return"}
+                      <Badge variant='outline'>
+                        {submission.referenceNumber.includes('BATCH')
+                          ? 'Receipts'
+                          : 'Daily Return'}
                       </Badge>
                     </TableCell>
                     <TableCell>
@@ -443,18 +443,18 @@ export function ZIMRASettings() {
                     </TableCell>
                     <TableCell>
                       <Button
-                        size="sm"
-                        variant="ghost"
+                        size='sm'
+                        variant='ghost'
                         onClick={() =>
                           checkSubmissionStatus(submission.referenceNumber)
                         }
                         disabled={statusChecking === submission.referenceNumber}
                       >
                         {statusChecking === submission.referenceNumber ? (
-                          "Checking..."
+                          'Checking...'
                         ) : (
                           <>
-                            <CheckCircle className="mr-1 h-3 w-3" />
+                            <CheckCircle className='mr-1 h-3 w-3' />
                             Check Status
                           </>
                         )}
@@ -470,7 +470,7 @@ export function ZIMRASettings() {
 
       {/* Preview Dialog - same as before but with additional info */}
       <Dialog open={isPreviewOpen} onOpenChange={setIsPreviewOpen}>
-        <DialogContent className="max-w-3xl max-h-[80vh] overflow-auto">
+        <DialogContent className='max-h-[80vh] max-w-3xl overflow-auto'>
           <DialogHeader>
             <DialogTitle>Daily Return Preview</DialogTitle>
             <DialogDescription>
@@ -481,41 +481,41 @@ export function ZIMRASettings() {
           </DialogHeader>
 
           {preview && (
-            <div className="space-y-4">
+            <div className='space-y-4'>
               {/* Summary */}
               <Card>
                 <CardHeader>
-                  <CardTitle className="text-lg">Summary</CardTitle>
+                  <CardTitle className='text-lg'>Summary</CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-2">
-                  <div className="grid grid-cols-2 gap-4">
+                <CardContent className='space-y-2'>
+                  <div className='grid grid-cols-2 gap-4'>
                     <div>
-                      <p className="text-sm text-muted-foreground">
+                      <p className='text-sm text-muted-foreground'>
                         Total Transactions
                       </p>
-                      <p className="text-lg font-semibold">
+                      <p className='text-lg font-semibold'>
                         {preview.summary.totalTransactions}
                       </p>
                     </div>
                     <div>
-                      <p className="text-sm text-muted-foreground">
+                      <p className='text-sm text-muted-foreground'>
                         Gross Sales
                       </p>
-                      <p className="text-lg font-semibold">
+                      <p className='text-lg font-semibold'>
                         {formatZWLCurrency(preview.summary.grossSales)}
                       </p>
                     </div>
                     <div>
-                      <p className="text-sm text-muted-foreground">
+                      <p className='text-sm text-muted-foreground'>
                         VAT Amount (14%)
                       </p>
-                      <p className="text-lg font-semibold">
+                      <p className='text-lg font-semibold'>
                         {formatZWLCurrency(preview.summary.vatAmount)}
                       </p>
                     </div>
                     <div>
-                      <p className="text-sm text-muted-foreground">Net Sales</p>
-                      <p className="text-lg font-semibold">
+                      <p className='text-sm text-muted-foreground'>Net Sales</p>
+                      <p className='text-lg font-semibold'>
                         {formatZWLCurrency(preview.summary.netSales)}
                       </p>
                     </div>
@@ -526,44 +526,44 @@ export function ZIMRASettings() {
               {/* Breakdown */}
               <Card>
                 <CardHeader>
-                  <CardTitle className="text-lg">Service Breakdown</CardTitle>
+                  <CardTitle className='text-lg'>Service Breakdown</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <h4 className="font-medium">Spa Services</h4>
-                      <div className="text-sm space-y-1">
+                  <div className='grid grid-cols-2 gap-4'>
+                    <div className='space-y-2'>
+                      <h4 className='font-medium'>Spa Services</h4>
+                      <div className='space-y-1 text-sm'>
                         <p>
-                          Transactions:{" "}
+                          Transactions:{' '}
                           {preview.summary.breakdown.spa.transactions}
                         </p>
                         <p>
-                          Sales:{" "}
+                          Sales:{' '}
                           {formatZWLCurrency(
                             preview.summary.breakdown.spa.sales
                           )}
                         </p>
                         <p>
-                          VAT:{" "}
+                          VAT:{' '}
                           {formatZWLCurrency(preview.summary.breakdown.spa.vat)}
                         </p>
                       </div>
                     </div>
-                    <div className="space-y-2">
-                      <h4 className="font-medium">Restaurant</h4>
-                      <div className="text-sm space-y-1">
+                    <div className='space-y-2'>
+                      <h4 className='font-medium'>Restaurant</h4>
+                      <div className='space-y-1 text-sm'>
                         <p>
-                          Transactions:{" "}
+                          Transactions:{' '}
                           {preview.summary.breakdown.restaurant.transactions}
                         </p>
                         <p>
-                          Sales:{" "}
+                          Sales:{' '}
                           {formatZWLCurrency(
                             preview.summary.breakdown.restaurant.sales
                           )}
                         </p>
                         <p>
-                          VAT:{" "}
+                          VAT:{' '}
                           {formatZWLCurrency(
                             preview.summary.breakdown.restaurant.vat
                           )}
@@ -578,7 +578,7 @@ export function ZIMRASettings() {
               {preview.transactions.length > 0 && (
                 <Card>
                   <CardHeader>
-                    <CardTitle className="text-lg">
+                    <CardTitle className='text-lg'>
                       Transaction Details
                     </CardTitle>
                     <CardDescription>
@@ -587,7 +587,7 @@ export function ZIMRASettings() {
                     </CardDescription>
                   </CardHeader>
                   <CardContent>
-                    <div className="max-h-48 overflow-auto">
+                    <div className='max-h-48 overflow-auto'>
                       <Table>
                         <TableHeader>
                           <TableRow>
@@ -602,7 +602,7 @@ export function ZIMRASettings() {
                             <TableRow key={tx.id}>
                               <TableCell>{tx.time}</TableCell>
                               <TableCell>{tx.customer}</TableCell>
-                              <TableCell className="capitalize">
+                              <TableCell className='capitalize'>
                                 {tx.type}
                               </TableCell>
                               <TableCell>
@@ -619,8 +619,8 @@ export function ZIMRASettings() {
             </div>
           )}
 
-          <DialogFooter className="gap-2">
-            <Button variant="outline" onClick={() => setIsPreviewOpen(false)}>
+          <DialogFooter className='gap-2'>
+            <Button variant='outline' onClick={() => setIsPreviewOpen(false)}>
               Cancel
             </Button>
             <Button
@@ -630,13 +630,13 @@ export function ZIMRASettings() {
                 !preview ||
                 preview.summary.totalTransactions === 0
               }
-              variant="outline"
+              variant='outline'
             >
               {isSubmittingReceipts ? (
-                "Submitting Receipts..."
+                'Submitting Receipts...'
               ) : (
                 <>
-                  <Receipt className="mr-2 h-4 w-4" />
+                  <Receipt className='mr-2 h-4 w-4' />
                   Submit Receipts
                 </>
               )}
@@ -650,10 +650,10 @@ export function ZIMRASettings() {
               }
             >
               {isSubmitting ? (
-                "Submitting Return..."
+                'Submitting Return...'
               ) : (
                 <>
-                  <Send className="mr-2 h-4 w-4" />
+                  <Send className='mr-2 h-4 w-4' />
                   Submit Daily Return
                 </>
               )}

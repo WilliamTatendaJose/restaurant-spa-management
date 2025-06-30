@@ -1,6 +1,6 @@
-"use client";
+'use client';
 
-import { useState, useEffect } from "react";
+import { useState, useEffect } from 'react';
 import {
   Table,
   TableBody,
@@ -8,13 +8,13 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Search } from "lucide-react";
-import Link from "next/link";
-import { customersApi } from "@/lib/db";
+} from '@/components/ui/table';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Search } from 'lucide-react';
+import Link from 'next/link';
+import { customersApi } from '@/lib/db';
 
 // Define the type for customers
 interface Customer {
@@ -32,7 +32,7 @@ interface Customer {
 }
 
 export function CustomerList() {
-  const [searchQuery, setSearchQuery] = useState("");
+  const [searchQuery, setSearchQuery] = useState('');
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -77,7 +77,7 @@ export function CustomerList() {
 
         setCustomers(deduplicatedCustomers);
       } catch (error) {
-        console.error("Error fetching customers:", error);
+        console.error('Error fetching customers:', error);
       } finally {
         setIsLoading(false);
       }
@@ -94,23 +94,23 @@ export function CustomerList() {
   );
 
   return (
-    <div className="space-y-4">
-      <div className="flex gap-2">
-        <div className="relative flex-1">
-          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+    <div className='space-y-4'>
+      <div className='flex gap-2'>
+        <div className='relative flex-1'>
+          <Search className='absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground' />
           <Input
-            placeholder="Search customers..."
-            className="pl-8"
+            placeholder='Search customers...'
+            className='pl-8'
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
           />
         </div>
-        <Button variant="outline">Filter</Button>
+        <Button variant='outline'>Filter</Button>
       </div>
 
-      <div className="rounded-md border">
+      <div className='rounded-md border'>
         {isLoading ? (
-          <div className="flex justify-center items-center p-8">
+          <div className='flex items-center justify-center p-8'>
             <p>Loading customers...</p>
           </div>
         ) : (
@@ -122,26 +122,26 @@ export function CustomerList() {
                 <TableHead>Visits</TableHead>
                 <TableHead>Last Visit</TableHead>
                 <TableHead>Customer Type</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
+                <TableHead className='text-right'>Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {filteredCustomers.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center py-4">
+                  <TableCell colSpan={6} className='py-4 text-center'>
                     No customers found
                   </TableCell>
                 </TableRow>
               ) : (
                 filteredCustomers.map((customer) => (
                   <TableRow key={customer.id}>
-                    <TableCell className="font-medium">
+                    <TableCell className='font-medium'>
                       {customer.name}
                     </TableCell>
                     <TableCell>
-                      <div className="space-y-1">
-                        <p className="text-sm">{customer.email}</p>
-                        <p className="text-sm text-muted-foreground">
+                      <div className='space-y-1'>
+                        <p className='text-sm'>{customer.email}</p>
+                        <p className='text-sm text-muted-foreground'>
                           {customer.phone}
                         </p>
                       </div>
@@ -150,27 +150,27 @@ export function CustomerList() {
                     <TableCell>
                       {customer.last_visit
                         ? new Date(customer.last_visit).toLocaleDateString()
-                        : "N/A"}
+                        : 'N/A'}
                     </TableCell>
                     <TableCell>
-                      {customer.customer_type === "both" ? (
+                      {customer.customer_type === 'both' ? (
                         <Badge>Spa & Restaurant</Badge>
                       ) : (
                         <Badge
                           variant={
-                            customer.customer_type === "spa"
-                              ? "secondary"
-                              : "outline"
+                            customer.customer_type === 'spa'
+                              ? 'secondary'
+                              : 'outline'
                           }
                         >
-                          {customer.customer_type === "spa"
-                            ? "Spa"
-                            : "Restaurant"}
+                          {customer.customer_type === 'spa'
+                            ? 'Spa'
+                            : 'Restaurant'}
                         </Badge>
                       )}
                     </TableCell>
-                    <TableCell className="text-right">
-                      <Button variant="ghost" size="sm" asChild>
+                    <TableCell className='text-right'>
+                      <Button variant='ghost' size='sm' asChild>
                         <Link href={`/customers/edit/${customer.id}`}>
                           Edit
                         </Link>

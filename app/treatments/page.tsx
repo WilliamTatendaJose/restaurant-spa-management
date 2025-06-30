@@ -1,15 +1,22 @@
-"use client";
+'use client';
 
-import { useState, useEffect } from "react";
-import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Clock, Tag, DollarSign, Search, Calendar, Flower2 } from "lucide-react";
-import { Input } from "@/components/ui/input";
-import Image from "next/image";
-import { HeroBookingModal } from "@/components/bookings/hero-booking-modal";
-import { useToast } from "@/components/ui/use-toast";
-import { getSupabaseBrowserClient } from "@/lib/supabase";
+import { useState, useEffect } from 'react';
+import { Card, CardContent } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import {
+  Clock,
+  Tag,
+  DollarSign,
+  Search,
+  Calendar,
+  Flower2,
+} from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import Image from 'next/image';
+import { HeroBookingModal } from '@/components/bookings/hero-booking-modal';
+import { useToast } from '@/components/ui/use-toast';
+import { getSupabaseBrowserClient } from '@/lib/supabase';
 
 interface SpaService {
   id: string;
@@ -25,15 +32,17 @@ interface SpaService {
   updated_at?: string;
 }
 
-const placeholderImage = "/placeholder.svg";
+const placeholderImage = '/placeholder.svg';
 
 export default function TreatmentsPage() {
   const [services, setServices] = useState<SpaService[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [searchQuery, setSearchQuery] = useState("");
+  const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [showBookingModal, setShowBookingModal] = useState(false);
-  const [selectedService, setSelectedService] = useState<SpaService | null>(null);
+  const [selectedService, setSelectedService] = useState<SpaService | null>(
+    null
+  );
   const { toast } = useToast();
 
   useEffect(() => {
@@ -42,9 +51,9 @@ export default function TreatmentsPage() {
         setIsLoading(true);
         const supabase = getSupabaseBrowserClient();
         const { data, error } = await supabase
-          .from("spa_services")
-          .select("*")
-          .eq("status", "active");
+          .from('spa_services')
+          .select('*')
+          .eq('status', 'active');
 
         if (error) {
           throw error;
@@ -53,11 +62,11 @@ export default function TreatmentsPage() {
         console.log('[TREATMENTS] Loaded active services:', data);
         setServices(data || []);
       } catch (error) {
-        console.error("Failed to load active spa services:", error);
+        console.error('Failed to load active spa services:', error);
         toast({
-          title: "Error",
-          description: "Could not load treatments. Please try again later.",
-          variant: "destructive",
+          title: 'Error',
+          description: 'Could not load treatments. Please try again later.',
+          variant: 'destructive',
         });
       } finally {
         setIsLoading(false);
@@ -74,8 +83,9 @@ export default function TreatmentsPage() {
   const handleBookingSuccess = () => {
     setShowBookingModal(false);
     toast({
-      title: "Booking Submitted! 🎉",
-      description: "Your request has been sent. We will contact you shortly to confirm.",
+      title: 'Booking Submitted! 🎉',
+      description:
+        'Your request has been sent. We will contact you shortly to confirm.',
     });
   };
 
@@ -92,38 +102,39 @@ export default function TreatmentsPage() {
   return (
     <>
       {/* Hero Section */}
-      <section className="relative py-16 md:py-24 bg-gradient-to-br from-emerald-50 via-white to-amber-50 mb-8">
-        <div className="max-w-4xl mx-auto text-center px-4">
-          <div className="flex justify-center mb-6">
-            <span className="inline-flex items-center bg-emerald-100 text-emerald-700 px-4 py-2 rounded-full font-medium text-sm">
-              <Flower2 className="h-5 w-5 mr-2" />
+      <section className='relative mb-8 bg-gradient-to-br from-emerald-50 via-white to-amber-50 py-16 md:py-24'>
+        <div className='mx-auto max-w-4xl px-4 text-center'>
+          <div className='mb-6 flex justify-center'>
+            <span className='inline-flex items-center rounded-full bg-emerald-100 px-4 py-2 text-sm font-medium text-emerald-700'>
+              <Flower2 className='mr-2 h-5 w-5' />
               Discover Our Treatments
             </span>
           </div>
-          <h1 className="text-4xl md:text-5xl font-bold tracking-tight text-gray-900 mb-4">
+          <h1 className='mb-4 text-4xl font-bold tracking-tight text-gray-900 md:text-5xl'>
             Spa Treatments Menu
           </h1>
-          <p className="text-lg md:text-xl text-gray-600 max-w-2xl mx-auto">
-            Indulge in our curated selection of treatments designed to rejuvenate your body and soul. Book your experience today.
+          <p className='mx-auto max-w-2xl text-lg text-gray-600 md:text-xl'>
+            Indulge in our curated selection of treatments designed to
+            rejuvenate your body and soul. Book your experience today.
           </p>
         </div>
       </section>
 
       {/* Search & Filter */}
-      <div className="container mx-auto px-4 mb-10">
-        <div className="flex flex-col md:flex-row gap-4 items-center mb-8">
-          <div className="relative flex-1 w-full">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+      <div className='container mx-auto mb-10 px-4'>
+        <div className='mb-8 flex flex-col items-center gap-4 md:flex-row'>
+          <div className='relative w-full flex-1'>
+            <Search className='absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400' />
             <Input
-              placeholder="Search treatments..."
-              className="pl-10"
+              placeholder='Search treatments...'
+              className='pl-10'
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             />
           </div>
-          <div className="flex gap-2 overflow-x-auto pb-2 w-full md:w-auto">
+          <div className='flex w-full gap-2 overflow-x-auto pb-2 md:w-auto'>
             <Button
-              variant={!selectedCategory ? "default" : "outline"}
+              variant={!selectedCategory ? 'default' : 'outline'}
               onClick={() => setSelectedCategory(null)}
             >
               All
@@ -131,9 +142,9 @@ export default function TreatmentsPage() {
             {categories.map((category) => (
               <Button
                 key={category}
-                variant={selectedCategory === category ? "default" : "outline"}
+                variant={selectedCategory === category ? 'default' : 'outline'}
                 onClick={() => setSelectedCategory(category || null)}
-                className="capitalize"
+                className='capitalize'
               >
                 {category}
               </Button>
@@ -143,56 +154,59 @@ export default function TreatmentsPage() {
 
         {/* Treatments Grid */}
         {isLoading ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+          <div className='grid grid-cols-1 gap-8 md:grid-cols-2 lg:grid-cols-3'>
             {[...Array(6)].map((_, i) => (
-              <Card key={i} className="overflow-hidden shadow-lg animate-pulse bg-white border border-emerald-100">
-                <div className="w-full h-48 bg-gray-200"></div>
-                <CardContent className="p-6">
-                  <div className="h-6 w-3/4 bg-gray-200 rounded mb-2"></div>
-                  <div className="h-4 w-1/2 bg-gray-200 rounded mb-4"></div>
-                  <div className="h-4 w-full bg-gray-200 rounded"></div>
-                  <div className="h-4 w-full bg-gray-200 rounded mt-2"></div>
+              <Card
+                key={i}
+                className='animate-pulse overflow-hidden border border-emerald-100 bg-white shadow-lg'
+              >
+                <div className='h-48 w-full bg-gray-200'></div>
+                <CardContent className='p-6'>
+                  <div className='mb-2 h-6 w-3/4 rounded bg-gray-200'></div>
+                  <div className='mb-4 h-4 w-1/2 rounded bg-gray-200'></div>
+                  <div className='h-4 w-full rounded bg-gray-200'></div>
+                  <div className='mt-2 h-4 w-full rounded bg-gray-200'></div>
                 </CardContent>
               </Card>
             ))}
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+          <div className='grid grid-cols-1 gap-8 md:grid-cols-2 lg:grid-cols-3'>
             {filteredServices.length > 0 ? (
               filteredServices.map((service) => (
                 <Card
                   key={service.id}
-                  className="overflow-hidden shadow-lg hover:shadow-xl transition-shadow duration-300 flex flex-col group bg-white border border-emerald-100"
+                  className='group flex flex-col overflow-hidden border border-emerald-100 bg-white shadow-lg transition-shadow duration-300 hover:shadow-xl'
                 >
-                  <div className="relative w-full h-48 bg-emerald-50">
+                  <div className='relative h-48 w-full bg-emerald-50'>
                     <Image
                       src={service.image_url || placeholderImage}
                       alt={service.name}
                       fill
-                      sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-                      className="object-cover"
+                      sizes='(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw'
+                      className='object-cover'
                     />
                   </div>
-                  <CardContent className="p-6 flex-grow flex flex-col">
-                    <h2 className="text-2xl font-semibold mb-2 text-gray-800">
+                  <CardContent className='flex flex-grow flex-col p-6'>
+                    <h2 className='mb-2 text-2xl font-semibold text-gray-800'>
                       {service.name}
                     </h2>
-                    <p className="text-gray-600 mb-4 text-sm flex-grow">
+                    <p className='mb-4 flex-grow text-sm text-gray-600'>
                       {service.description}
                     </p>
-                    <div className="flex flex-wrap gap-4 text-sm text-gray-700 mt-auto pt-4 border-t">
-                      <div className="flex items-center">
-                        <Clock className="mr-2 h-4 w-4 text-emerald-600" />
+                    <div className='mt-auto flex flex-wrap gap-4 border-t pt-4 text-sm text-gray-700'>
+                      <div className='flex items-center'>
+                        <Clock className='mr-2 h-4 w-4 text-emerald-600' />
                         <span>{service.duration} min</span>
                       </div>
-                      <div className="flex items-center">
-                        <DollarSign className="mr-2 h-4 w-4 text-emerald-600" />
+                      <div className='flex items-center'>
+                        <DollarSign className='mr-2 h-4 w-4 text-emerald-600' />
                         <span>{Number(service.price).toFixed(2)}</span>
                       </div>
                       {service.category && (
-                        <div className="flex items-center">
-                          <Tag className="mr-2 h-4 w-4 text-emerald-600" />
-                          <Badge variant="secondary" className="capitalize">
+                        <div className='flex items-center'>
+                          <Tag className='mr-2 h-4 w-4 text-emerald-600' />
+                          <Badge variant='secondary' className='capitalize'>
                             {service.category}
                           </Badge>
                         </div>
@@ -200,16 +214,16 @@ export default function TreatmentsPage() {
                     </div>
                     <Button
                       onClick={() => handleBookNow(service)}
-                      className="w-full mt-4 bg-gradient-to-r from-emerald-600 to-emerald-700 text-white"
+                      className='mt-4 w-full bg-gradient-to-r from-emerald-600 to-emerald-700 text-white'
                     >
-                      <Calendar className="mr-2 h-4 w-4" /> Book Now
+                      <Calendar className='mr-2 h-4 w-4' /> Book Now
                     </Button>
                   </CardContent>
                 </Card>
               ))
             ) : (
-              <p className="col-span-full text-center text-gray-500 py-16">
-                <Flower2 className="h-16 w-16 mx-auto text-gray-300 mb-4" />
+              <p className='col-span-full py-16 text-center text-gray-500'>
+                <Flower2 className='mx-auto mb-4 h-16 w-16 text-gray-300' />
                 No treatments match your search criteria.
               </p>
             )}

@@ -1,10 +1,10 @@
-"use client";
+'use client';
 
-import { createContext, useContext, useEffect, useState } from "react";
-import { getSupabaseBrowserClient } from "@/lib/supabase";
-import type { User, Session } from "@supabase/supabase-js";
+import { createContext, useContext, useEffect, useState } from 'react';
+import { getSupabaseBrowserClient } from '@/lib/supabase';
+import type { User, Session } from '@supabase/supabase-js';
 
-type UserRole = "admin" | "manager" | "staff";
+type UserRole = 'admin' | 'manager' | 'staff';
 
 interface UserDetails {
   id: string;
@@ -30,7 +30,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function useAuth() {
   const context = useContext(AuthContext);
   if (context === undefined) {
-    throw new Error("useAuth must be used within an AuthProvider");
+    throw new Error('useAuth must be used within an AuthProvider');
   }
   return context;
 }
@@ -64,47 +64,51 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       // Fetch user profile from database
       const { data: profile, error } = await supabase
-        .from("user_profiles")
-        .select("name, role, department, id")
-        .eq("id", user.id)
+        .from('user_profiles')
+        .select('name, role, department, id')
+        .eq('id', user.id)
         .single();
-      console.log("Supabase user_profiles query result:", { profile, error, userId: user.id });
+      console.log('Supabase user_profiles query result:', {
+        profile,
+        error,
+        userId: user.id,
+      });
 
       // If there was an error or the profile doesn't exist, use fallback
       if (error || !profile) {
-        console.error("Error or no profile fetching user profile:", error);
+        console.error('Error or no profile fetching user profile:', error);
         // Fallback to basic user info with staff role if profile not found
         const fallback = {
           id: user.id,
-          email: user.email || "",
-          name: user.user_metadata?.full_name || user.email?.split("@")[0],
-          role: "staff" as UserRole,
+          email: user.email || '',
+          name: user.user_metadata?.full_name || user.email?.split('@')[0],
+          role: 'staff' as UserRole,
         };
-        console.log("Using fallback userDetails:", fallback);
+        console.log('Using fallback userDetails:', fallback);
         return fallback;
       }
 
       const details = {
         id: user.id,
-        email: user.email || "",
+        email: user.email || '',
         name:
           profile.name ||
           user.user_metadata?.full_name ||
-          user.email?.split("@")[0],
+          user.email?.split('@')[0],
         role: profile.role as UserRole,
       };
-      console.log("Fetched userDetails from profile:", details);
+      console.log('Fetched userDetails from profile:', details);
       return details;
     } catch (error) {
-      console.error("Error creating user details:", error);
+      console.error('Error creating user details:', error);
       // Fallback to basic user info with staff role
       const fallback = {
         id: user.id,
-        email: user.email || "",
-        name: user.user_metadata?.full_name || user.email?.split("@")[0],
-        role: "staff" as UserRole,
+        email: user.email || '',
+        name: user.user_metadata?.full_name || user.email?.split('@')[0],
+        role: 'staff' as UserRole,
       };
-      console.log("Using fallback userDetails (catch):", fallback);
+      console.log('Using fallback userDetails (catch):', fallback);
       return fallback;
     }
   };
@@ -125,7 +129,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (user) {
         const details = await createUserDetails(user);
         setUserDetails(details);
-        console.log("setUserDetails (initial):", details);
+        console.log('setUserDetails (initial):', details);
       } else {
         setUserDetails(null);
       }
@@ -136,7 +140,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (event, session) => {
-      console.log("Auth state changed:", event, session?.user?.email);
+      console.log('Auth state changed:', event, session?.user?.email);
 
       setSession(session);
       const user = session?.user ?? null;
@@ -145,7 +149,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (user) {
         const details = await createUserDetails(user);
         setUserDetails(details);
-        console.log("setUserDetails (auth change):", details);
+        console.log('setUserDetails (auth change):', details);
       } else {
         setUserDetails(null);
       }
@@ -153,30 +157,30 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setIsLoading(false); // Stop loading after auth state change
 
       // Trigger sync when user signs in
-      if (event === "SIGNED_IN" && session?.user) {
-        console.log("User signed in, triggering initial sync...");
+      if (event === 'SIGNED_IN' && session?.user) {
+        console.log('User signed in, triggering initial sync...');
         // Import and trigger sync after a short delay to allow components to initialize
         setTimeout(async () => {
           try {
-            const { databaseSync } = await import("@/lib/sync-script");
+            const { databaseSync } = await import('@/lib/sync-script');
             await databaseSync.resetAndResync();
           } catch (error) {
-            console.error("Failed to sync after sign in:", error);
+            console.error('Failed to sync after sign in:', error);
           }
         }, 1000);
       }
 
       // Clear local data when user signs out
-      if (event === "SIGNED_OUT") {
-        console.log("User signed out, clearing local data...");
+      if (event === 'SIGNED_OUT') {
+        console.log('User signed out, clearing local data...');
         try {
           // Clear IndexedDB
-          const request = indexedDB.deleteDatabase("RestaurantSpaDB");
-          request.onsuccess = () => console.log("Local database cleared");
+          const request = indexedDB.deleteDatabase('RestaurantSpaDB');
+          request.onsuccess = () => console.log('Local database cleared');
           request.onerror = () =>
-            console.error("Failed to clear local database");
+            console.error('Failed to clear local database');
         } catch (error) {
-          console.error("Error clearing local data:", error);
+          console.error('Error clearing local data:', error);
         }
       }
     });
@@ -185,12 +189,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [supabase.auth]);
 
   useEffect(() => {
-    console.log('[AuthProvider] user:', user, 'isLoading:', isLoading, 'session:', session, 'userDetails:', userDetails);
+    console.log(
+      '[AuthProvider] user:',
+      user,
+      'isLoading:',
+      isLoading,
+      'session:',
+      session,
+      'userDetails:',
+      userDetails
+    );
   }, [user, isLoading, session, userDetails]);
 
   const signIn = async (email: string, password: string) => {
     setIsLoading(true);
-    console.log("[AuthContext] signIn called, isLoading set to true");
+    console.log('[AuthContext] signIn called, isLoading set to true');
     try {
       const { error } = await supabase.auth.signInWithPassword({
         email,
@@ -204,7 +217,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signUp = async (email: string, password: string) => {
     setIsLoading(true);
-    console.log("[AuthContext] signUp called, isLoading set to true");
+    console.log('[AuthContext] signUp called, isLoading set to true');
     try {
       const { error } = await supabase.auth.signUp({
         email,
@@ -218,7 +231,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signOut = async () => {
     setIsLoading(true);
-    console.log("[AuthContext] signOut called, isLoading set to true");
+    console.log('[AuthContext] signOut called, isLoading set to true');
     try {
       await supabase.auth.signOut();
     } finally {

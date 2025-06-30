@@ -1,22 +1,27 @@
-"use client"
+'use client';
 
-import { createUser as offlineCreateUser, listAllUsers, updateUserProfile, deleteUser as offlineDeleteUser } from "@/lib/offline-auth"
+import {
+  createUser as offlineCreateUser,
+  listAllUsers,
+  updateUserProfile,
+  deleteUser as offlineDeleteUser,
+} from '@/lib/offline-auth';
 
 export interface UserCreateInput {
-  name: string
-  email: string
-  password: string
-  role?: 'admin' | 'manager' | 'staff'
-  department?: string
-  phone?: string
+  name: string;
+  email: string;
+  password: string;
+  role?: 'admin' | 'manager' | 'staff';
+  department?: string;
+  phone?: string;
 }
 
 export interface UserUpdateInput {
-  id: string
-  name?: string
-  role?: 'admin' | 'manager' | 'staff'
-  department?: string
-  phone?: string
+  id: string;
+  name?: string;
+  role?: 'admin' | 'manager' | 'staff';
+  department?: string;
+  phone?: string;
 }
 
 // Create a new user

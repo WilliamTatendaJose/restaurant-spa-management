@@ -1,9 +1,9 @@
-"use client";
+'use client';
 
-import { useEffect } from "react";
-import { useRouter } from "next/navigation";
-import { useAuth } from "@/lib/auth-context";
-import { Loader2 } from "lucide-react";
+import { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { useAuth } from '@/lib/auth-context';
+import { Loader2 } from 'lucide-react';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -12,13 +12,13 @@ interface ProtectedRouteProps {
 
 export default function ProtectedRoute({
   children,
-  redirectTo = "/login",
+  redirectTo = '/login',
 }: ProtectedRouteProps) {
   const { user, isLoading } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
-    console.log("[ProtectedRoute] user:", user, "isLoading:", isLoading);
+    console.log('[ProtectedRoute] user:', user, 'isLoading:', isLoading);
     if (!isLoading && !user) {
       router.push(redirectTo);
     }
@@ -26,10 +26,10 @@ export default function ProtectedRoute({
 
   if (isLoading || !user) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center space-y-4">
-          <Loader2 className="h-8 w-8 animate-spin mx-auto" />
-          <p className="text-muted-foreground">Verifying access...</p>
+      <div className='flex min-h-screen items-center justify-center'>
+        <div className='space-y-4 text-center'>
+          <Loader2 className='mx-auto h-8 w-8 animate-spin' />
+          <p className='text-muted-foreground'>Verifying access...</p>
         </div>
       </div>
     );

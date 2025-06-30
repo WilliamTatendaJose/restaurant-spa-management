@@ -1,5 +1,5 @@
-import { NextRequest, NextResponse } from "next/server";
-import { getSupabaseServerClient } from "@/lib/supabase";
+import { NextRequest, NextResponse } from 'next/server';
+import { createSupabaseServerClient } from '@/lib/supabase/server';
 
 // Define the database schema - focusing on the required columns that are missing
 const tableSchemas = {
@@ -146,7 +146,7 @@ const tableSchemas = {
     success BOOLEAN DEFAULT true,
     error_message TEXT,
     created_at TIMESTAMPTZ DEFAULT NOW()
-  `
+  `,
 };
 
 // Add explicit function to add specific missing columns
@@ -156,38 +156,38 @@ async function addMissingColumnsIfNeeded(supabase: any) {
     {
       table: 'bookings',
       column: 'customer_id',
-      dataType: 'UUID'
+      dataType: 'UUID',
     },
     {
       table: 'inventory',
       column: 'is_available',
-      dataType: 'BOOLEAN DEFAULT true'
+      dataType: 'BOOLEAN DEFAULT true',
     },
     // Make sure id columns are properly set up with UUID defaults
     {
       table: 'spa_services',
       column: 'id',
       dataType: 'UUID PRIMARY KEY DEFAULT uuid_generate_v4()',
-      isPrimaryKey: true
+      isPrimaryKey: true,
     },
     {
       table: 'inventory',
       column: 'id',
       dataType: 'UUID PRIMARY KEY DEFAULT uuid_generate_v4()',
-      isPrimaryKey: true
+      isPrimaryKey: true,
     },
     {
       table: 'customers',
       column: 'id',
       dataType: 'UUID PRIMARY KEY DEFAULT uuid_generate_v4()',
-      isPrimaryKey: true
+      isPrimaryKey: true,
     },
     {
       table: 'staff',
       column: 'id',
       dataType: 'UUID PRIMARY KEY DEFAULT uuid_generate_v4()',
-      isPrimaryKey: true
-    }
+      isPrimaryKey: true,
+    },
   ];
 
   const results = [];
@@ -201,11 +201,11 @@ async function addMissingColumnsIfNeeded(supabase: any) {
         .eq('table_name', fix.table)
         .eq('column_name', fix.column)
         .eq('table_schema', 'public');
-      
+
       if (!columns || columns.length === 0) {
         // Column doesn't exist, add it
         let alterQuery;
-        
+
         if (fix.isPrimaryKey) {
           // For primary key columns, we need to handle them differently
           // First check if table exists
@@ -214,7 +214,7 @@ async function addMissingColumnsIfNeeded(supabase: any) {
             .select('table_name')
             .eq('table_name', fix.table)
             .eq('table_schema', 'public');
-            
+
           if (tables && tables.length > 0) {
             // Table exists but ID column might be wrong - try to recreate with proper UUID defaults
             alterQuery = `
@@ -256,15 +256,21 @@ async function addMissingColumnsIfNeeded(supabase: any) {
 
         // Execute the alter query
         const { error } = await supabase.rpc('exec', { query: alterQuery });
-        
+
         if (error) {
-          results.push(`Error adding column ${fix.column} to ${fix.table}: ${error.message}`);
+          results.push(
+            `Error adding column ${fix.column} to ${fix.table}: ${error.message}`
+          );
         } else {
-          results.push(`Successfully added column ${fix.column} to ${fix.table}`);
+          results.push(
+            `Successfully added column ${fix.column} to ${fix.table}`
+          );
         }
       }
     } catch (error) {
-      results.push(`Error processing ${fix.table}.${fix.column}: ${error instanceof Error ? error.message : String(error)}`);
+      results.push(
+        `Error processing ${fix.table}.${fix.column}: ${error instanceof Error ? error.message : String(error)}`
+      );
     }
   }
 
@@ -273,9 +279,10 @@ async function addMissingColumnsIfNeeded(supabase: any) {
 
 export async function POST(request: NextRequest) {
   try {
-    const supabase = getSupabaseServerClient();
-    const createTables = request.nextUrl.searchParams.get("createTables") === "true";
-    
+    const supabase = await createSupabaseServerClient();
+    const createTables =
+      request.nextUrl.searchParams.get('createTables') === 'true';
+
     // First, enable UUID extension if not already enabled
     try {
       const { error } = await supabase.rpc('create_uuid_extension');
@@ -283,7 +290,10 @@ export async function POST(request: NextRequest) {
         console.log('UUID extension may already exist:', error.message);
       }
     } catch (error) {
-      console.log('Error creating UUID extension:', error instanceof Error ? error.message : String(error));
+      console.log(
+        'Error creating UUID extension:',
+        error instanceof Error ? error.message : String(error)
+      );
       // Continue with migration even if this fails
     }
 
@@ -293,7 +303,7 @@ export async function POST(request: NextRequest) {
 
     // First run specific fixes for the reported missing columns
     const specificFixResults = await addMissingColumnsIfNeeded(supabase);
-    
+
     // Process each table
     for (const [tableName, schema] of Object.entries(tableSchemas)) {
       try {
@@ -303,64 +313,82 @@ export async function POST(request: NextRequest) {
           .select('table_name')
           .eq('table_name', tableName)
           .eq('table_schema', 'public');
-        
+
         const tableExists = checkData && checkData.length > 0;
-        
+
         if (!tableExists || createTables) {
           // Table doesn't exist, create it
           const createQuery = `CREATE TABLE IF NOT EXISTS ${tableName} (${schema})`;
           try {
-            const { error: createError } = await supabase.rpc('exec', { query: createQuery });
-            
+            const { error: createError } = await supabase.rpc('exec', {
+              query: createQuery,
+            });
+
             if (createError) {
-              errors.push(`Error creating table ${tableName}: ${createError.message}`);
+              errors.push(
+                `Error creating table ${tableName}: ${createError.message}`
+              );
             } else {
               createdTables.push(tableName);
             }
           } catch (error) {
-            errors.push(`Error creating table ${tableName}: ${error instanceof Error ? error.message : String(error)}`);
+            errors.push(
+              `Error creating table ${tableName}: ${error instanceof Error ? error.message : String(error)}`
+            );
           }
         } else {
           // Table exists, check for missing columns
           for (const columnDef of schema.split(',')) {
             if (columnDef.trim()) {
               const columnName = columnDef.trim().split(' ')[0];
-              
+
               // Skip primary key constraint
               if (columnName === 'PRIMARY') continue;
-              
+
               // Check if column exists
-              const { error: colCheckError, data: colCheckData } = await supabase
-                .from('information_schema.columns')
-                .select('column_name')
-                .eq('table_name', tableName)
-                .eq('column_name', columnName)
-                .eq('table_schema', 'public');
-              
+              const { error: colCheckError, data: colCheckData } =
+                await supabase
+                  .from('information_schema.columns')
+                  .select('column_name')
+                  .eq('table_name', tableName)
+                  .eq('column_name', columnName)
+                  .eq('table_schema', 'public');
+
               if (!colCheckData || colCheckData.length === 0) {
                 // Column doesn't exist, add it
-                const dataType = columnDef.trim().substring(columnName.length).trim();
+                const dataType = columnDef
+                  .trim()
+                  .substring(columnName.length)
+                  .trim();
                 const alterQuery = `ALTER TABLE ${tableName} ADD COLUMN IF NOT EXISTS ${columnName} ${dataType}`;
-                
+
                 try {
-                  const { error: alterError } = await supabase.rpc('exec', { query: alterQuery });
-                  
+                  const { error: alterError } = await supabase.rpc('exec', {
+                    query: alterQuery,
+                  });
+
                   if (alterError) {
-                    errors.push(`Error adding column ${columnName} to ${tableName}: ${alterError.message}`);
+                    errors.push(
+                      `Error adding column ${columnName} to ${tableName}: ${alterError.message}`
+                    );
                   } else {
                     if (!updatedTables.includes(tableName)) {
                       updatedTables.push(tableName);
                     }
                   }
                 } catch (error) {
-                  errors.push(`Error adding column ${columnName} to ${tableName}: ${error instanceof Error ? error.message : String(error)}`);
+                  errors.push(
+                    `Error adding column ${columnName} to ${tableName}: ${error instanceof Error ? error.message : String(error)}`
+                  );
                 }
               }
             }
           }
         }
       } catch (error) {
-        errors.push(`Error processing table ${tableName}: ${error instanceof Error ? error.message : String(error)}`);
+        errors.push(
+          `Error processing table ${tableName}: ${error instanceof Error ? error.message : String(error)}`
+        );
       }
     }
 
@@ -370,8 +398,10 @@ export async function POST(request: NextRequest) {
     } catch (error) {
       // The function doesn't exist, create it
       try {
-        const { error: createFnError } = await supabase.rpc('create_exec_function');
-        
+        const { error: createFnError } = await supabase.rpc(
+          'create_exec_function'
+        );
+
         if (createFnError) {
           // Try to create the function directly
           const createFunctionQuery = `
@@ -381,22 +411,30 @@ export async function POST(request: NextRequest) {
             END;
             $$ LANGUAGE plpgsql SECURITY DEFINER;
           `;
-          
+
           try {
-            const { error: execFnError } = await supabase.rpc('exec', { query: createFunctionQuery });
-            
+            const { error: execFnError } = await supabase.rpc('exec', {
+              query: createFunctionQuery,
+            });
+
             if (execFnError) {
-              errors.push(`Error creating exec function: ${execFnError.message}`);
+              errors.push(
+                `Error creating exec function: ${execFnError.message}`
+              );
             }
           } catch (error) {
-            errors.push(`Error creating exec function: ${error instanceof Error ? error.message : String(error)}`);
+            errors.push(
+              `Error creating exec function: ${error instanceof Error ? error.message : String(error)}`
+            );
           }
         }
       } catch (error) {
-        errors.push(`Error creating exec function: ${error instanceof Error ? error.message : String(error)}`);
+        errors.push(
+          `Error creating exec function: ${error instanceof Error ? error.message : String(error)}`
+        );
       }
     }
-    
+
     // Create RPC function for enabling UUID extension if it doesn't exist
     try {
       await supabase.rpc('create_uuid_extension');
@@ -409,45 +447,90 @@ export async function POST(request: NextRequest) {
         END;
         $$ LANGUAGE plpgsql SECURITY DEFINER;
       `;
-      
+
       try {
-        const { error: uuidFnError } = await supabase.rpc('exec', { query: createUuidFunctionQuery });
-        
+        const { error: uuidFnError } = await supabase.rpc('exec', {
+          query: createUuidFunctionQuery,
+        });
+
         if (uuidFnError) {
-          errors.push(`Error creating UUID extension function: ${uuidFnError.message}`);
+          errors.push(
+            `Error creating UUID extension function: ${uuidFnError.message}`
+          );
         }
       } catch (error) {
-        errors.push(`Error creating UUID extension function: ${error instanceof Error ? error.message : String(error)}`);
+        errors.push(
+          `Error creating UUID extension function: ${error instanceof Error ? error.message : String(error)}`
+        );
       }
     }
 
     // Add reference to specific fixes
-    const specificFixMessages = specificFixResults.filter(msg => msg.includes("Successfully"));
+    const specificFixMessages = specificFixResults.filter((msg) =>
+      msg.includes('Successfully')
+    );
     if (specificFixMessages.length > 0) {
-      updatedTables.push("Applied specific fixes to missing columns");
+      updatedTables.push('Applied specific fixes to missing columns');
     }
 
     return NextResponse.json({
       success: errors.length === 0,
-      message: errors.length === 0 
-        ? `Migration completed: Created ${createdTables.length} tables, updated ${updatedTables.length} tables.`
-        : "Migration completed with errors",
+      message:
+        errors.length === 0
+          ? `Migration completed: Created ${createdTables.length} tables, updated ${updatedTables.length} tables.`
+          : 'Migration completed with errors',
       createdTables,
       updatedTables,
       specificFixes: specificFixResults,
-      errors: errors.length > 0 ? errors : undefined
+      errors: errors.length > 0 ? errors : undefined,
     });
   } catch (error) {
-    console.error("Migration error:", error);
-    return NextResponse.json({
-      success: false,
-      error: error instanceof Error ? error.message : "Unknown error occurred during migration"
-    }, { status: 500 });
+    console.error('Migration error:', error);
+    return NextResponse.json(
+      {
+        success: false,
+        error:
+          error instanceof Error
+            ? error.message
+            : 'Unknown error occurred during migration',
+      },
+      { status: 500 }
+    );
   }
 }
 
 export async function GET() {
-  return NextResponse.json({
-    message: "Use POST method to run migration"
-  });
+  try {
+    const supabase = await createSupabaseServerClient();
+    const results = [];
+
+    for (const tableName of Object.keys(tableSchemas)) {
+      // Check if the table exists
+      const { error: checkError, data: checkData } = await supabase
+        .from('information_schema.tables')
+        .select('table_name')
+        .eq('table_name', tableName)
+        .eq('table_schema', 'public');
+
+      const tableExists = checkData && checkData.length > 0;
+
+      if (!tableExists) {
+        results.push(`Table ${tableName} does not exist`);
+      } else {
+        results.push(`Table ${tableName} exists`);
+      }
+    }
+
+    return NextResponse.json({
+      success: true,
+      message: 'Database schema migration complete',
+      results,
+    });
+  } catch (error) {
+    console.error('Migration error:', error);
+    return NextResponse.json(
+      { success: false, error: (error as Error).message },
+      { status: 500 }
+    );
+  }
 }

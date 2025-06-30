@@ -73,7 +73,9 @@ export async function middleware(request: NextRequest) {
     '/tasks',
   ];
 
-  const isProtectedRoute = protectedRoutes.some(route => pathname.startsWith(route));
+  const isProtectedRoute = protectedRoutes.some((route) =>
+    pathname.startsWith(route)
+  );
 
   if (!user && isProtectedRoute) {
     return NextResponse.redirect(new URL('/login', request.url));
