@@ -1,4 +1,4 @@
-"use client";
+'use client';
 
 import React, {
   createContext,
@@ -6,19 +6,19 @@ import React, {
   useState,
   useEffect,
   useCallback,
-} from "react";
-import { useToast } from "@/components/ui/use-toast";
-import { useAuth } from "@/lib/auth-context";
+} from 'react';
+import { useToast } from '@/components/ui/use-toast';
+import { useAuth } from '@/lib/auth-context';
 import {
   databaseSync,
   resetAndResync,
   manualSync,
   getSyncStatus,
-} from "@/lib/sync-script";
+} from '@/lib/sync-script';
 
 interface ConflictData {
   id: string;
-  type: "transaction" | "customer" | "spa_service" | "menu_item";
+  type: 'transaction' | 'customer' | 'spa_service' | 'menu_item';
   localData: any;
   serverData: any;
   timestamp: Date;
@@ -30,7 +30,7 @@ interface SyncStatusContextType {
   lastSyncTime: Date | null;
   pendingChanges: number;
   syncProgress: number;
-  connectionQuality: "good" | "poor" | "offline";
+  connectionQuality: 'good' | 'poor' | 'offline';
   conflicts: ConflictData[];
   schemaErrors?: string[];
   sync?: () => Promise<{ success: boolean; count?: number; error?: string }>;
@@ -40,10 +40,10 @@ interface SyncStatusContextType {
   getConnectionStatus: () => string;
   resolveConflict: (
     id: string,
-    resolution: "local" | "server" | "merge",
+    resolution: 'local' | 'server' | 'merge',
     mergedData?: any
   ) => Promise<void>;
-  resolveAllConflicts: (resolution: "local" | "server") => Promise<void>;
+  resolveAllConflicts: (resolution: 'local' | 'server') => Promise<void>;
 }
 
 const SyncStatusContext = createContext<SyncStatusContextType | undefined>(
@@ -53,7 +53,7 @@ const SyncStatusContext = createContext<SyncStatusContextType | undefined>(
 export function useSyncStatus() {
   const context = useContext(SyncStatusContext);
   if (context === undefined) {
-    throw new Error("useSyncStatus must be used within a SyncStatusProvider");
+    throw new Error('useSyncStatus must be used within a SyncStatusProvider');
   }
   return context;
 }
@@ -69,8 +69,8 @@ export function SyncStatusProvider({ children }: SyncStatusProviderProps) {
   const [pendingChanges, setPendingChanges] = useState(0);
   const [syncProgress, setSyncProgress] = useState(0);
   const [connectionQuality, setConnectionQuality] = useState<
-    "good" | "poor" | "offline"
-  >("good");
+    'good' | 'poor' | 'offline'
+  >('good');
   const [conflicts, setConflicts] = useState<ConflictData[]>([]);
   const [schemaErrors, setSchemaErrors] = useState<string[]>([]);
 
@@ -82,15 +82,15 @@ export function SyncStatusProvider({ children }: SyncStatusProviderProps) {
     if (!user) return 0; // No user, no pending changes
 
     try {
-      const { listRecords } = await import("@/lib/db");
+      const { listRecords } = await import('@/lib/db');
       const tables = [
-        "menu_items",
-        "spa_services",
-        "transactions",
-        "customers",
-        "bookings",
-        "inventory",
-        "staff",
+        'menu_items',
+        'spa_services',
+        'transactions',
+        'customers',
+        'bookings',
+        'inventory',
+        'staff',
       ];
 
       let total = 0;
@@ -104,7 +104,7 @@ export function SyncStatusProvider({ children }: SyncStatusProviderProps) {
       }
       return total;
     } catch (error) {
-      console.error("Error counting unsynced records:", error);
+      console.error('Error counting unsynced records:', error);
       return 0;
     }
   };
@@ -116,17 +116,17 @@ export function SyncStatusProvider({ children }: SyncStatusProviderProps) {
     error?: string;
   }> => {
     if (!user) {
-      return { success: false, error: "Please sign in to sync data" };
+      return { success: false, error: 'Please sign in to sync data' };
     }
 
     if (!isOnline) {
-      return { success: false, error: "You are currently offline" };
+      return { success: false, error: 'You are currently offline' };
     }
 
     if (isSyncing) {
       return {
         success: false,
-        error: "A sync operation is already in progress",
+        error: 'A sync operation is already in progress',
       };
     }
 
@@ -153,14 +153,14 @@ export function SyncStatusProvider({ children }: SyncStatusProviderProps) {
 
         return { success: true, count: result.count };
       } else {
-        console.error("Sync failed:", result.error);
+        console.error('Sync failed:', result.error);
         return { success: false, error: result.error };
       }
     } catch (error) {
-      console.error("Sync error:", error);
+      console.error('Sync error:', error);
       return {
         success: false,
-        error: error instanceof Error ? error.message : "Unknown sync error",
+        error: error instanceof Error ? error.message : 'Unknown sync error',
       };
     } finally {
       setIsSyncing(false);
@@ -175,11 +175,11 @@ export function SyncStatusProvider({ children }: SyncStatusProviderProps) {
     error?: string;
   }> => {
     if (!user) {
-      return { success: false, error: "Please sign in to reset and sync data" };
+      return { success: false, error: 'Please sign in to reset and sync data' };
     }
 
     if (isSyncing) {
-      return { success: false, error: "Sync already in progress" };
+      return { success: false, error: 'Sync already in progress' };
     }
 
     setIsSyncing(true);
@@ -203,10 +203,10 @@ export function SyncStatusProvider({ children }: SyncStatusProviderProps) {
         return { success: false, error: result.error };
       }
     } catch (error) {
-      console.error("Reset and resync error:", error);
+      console.error('Reset and resync error:', error);
       return {
         success: false,
-        error: error instanceof Error ? error.message : "Reset failed",
+        error: error instanceof Error ? error.message : 'Reset failed',
       };
     } finally {
       setIsSyncing(false);
@@ -218,24 +218,24 @@ export function SyncStatusProvider({ children }: SyncStatusProviderProps) {
   useEffect(() => {
     const handleOnline = () => {
       setIsOnline(true);
-      setConnectionQuality("good");
+      setConnectionQuality('good');
     };
 
     const handleOffline = () => {
       setIsOnline(false);
-      setConnectionQuality("offline");
+      setConnectionQuality('offline');
     };
 
     // Set initial state
     setIsOnline(navigator.onLine);
-    setConnectionQuality(navigator.onLine ? "good" : "offline");
+    setConnectionQuality(navigator.onLine ? 'good' : 'offline');
 
-    window.addEventListener("online", handleOnline);
-    window.addEventListener("offline", handleOffline);
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
 
     return () => {
-      window.removeEventListener("online", handleOnline);
-      window.removeEventListener("offline", handleOffline);
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
     };
   }, []);
 
@@ -255,8 +255,8 @@ export function SyncStatusProvider({ children }: SyncStatusProviderProps) {
   useEffect(() => {
     if (user && isOnline && !isSyncing && pendingChanges > 0) {
       const autoSyncTimer = setTimeout(() => {
-        console.log("Auto-syncing after coming online...");
-        sync().catch((error) => console.error("Auto-sync failed:", error));
+        console.log('Auto-syncing after coming online...');
+        sync().catch((error) => console.error('Auto-sync failed:', error));
       }, 2000); // 2 second delay
 
       return () => clearTimeout(autoSyncTimer);
@@ -270,16 +270,16 @@ export function SyncStatusProvider({ children }: SyncStatusProviderProps) {
     if (!getSyncStatus().suppressToasts) {
       if (result.success) {
         toast({
-          title: "Sync completed",
+          title: 'Sync completed',
           description: result.count
             ? `${result.count} items synchronized`
-            : "All data is up to date",
+            : 'All data is up to date',
         });
       } else {
         toast({
-          title: "Sync failed",
-          description: result.error || "Unable to sync with server",
-          variant: "destructive",
+          title: 'Sync failed',
+          description: result.error || 'Unable to sync with server',
+          variant: 'destructive',
         });
       }
     }
@@ -291,14 +291,14 @@ export function SyncStatusProvider({ children }: SyncStatusProviderProps) {
 
     if (result.success) {
       toast({
-        title: "Database reset",
+        title: 'Database reset',
         description: `Database reset and ${result.count} items synchronized`,
       });
     } else {
       toast({
-        title: "Reset failed",
-        description: result.error || "Unable to reset database",
-        variant: "destructive",
+        title: 'Reset failed',
+        description: result.error || 'Unable to reset database',
+        variant: 'destructive',
       });
     }
   }, [fullReset, toast]);
@@ -308,22 +308,22 @@ export function SyncStatusProvider({ children }: SyncStatusProviderProps) {
   }, []);
 
   const getConnectionStatus = () => {
-    if (!user) return "Not signed in";
-    if (!isOnline) return "Offline";
+    if (!user) return 'Not signed in';
+    if (!isOnline) return 'Offline';
     switch (connectionQuality) {
-      case "good":
-        return "Online";
-      case "poor":
-        return "Online (Slow)";
+      case 'good':
+        return 'Online';
+      case 'poor':
+        return 'Online (Slow)';
       default:
-        return "Offline";
+        return 'Offline';
     }
   };
 
   // Simplified conflict resolution (for future enhancement)
   const resolveConflict = async (
     id: string,
-    resolution: "local" | "server" | "merge",
+    resolution: 'local' | 'server' | 'merge',
     mergedData?: any
   ) => {
     console.log(`Resolving conflict ${id} with ${resolution}`, mergedData);
@@ -331,7 +331,7 @@ export function SyncStatusProvider({ children }: SyncStatusProviderProps) {
     setConflicts((prev) => prev.filter((c) => c.id !== id));
   };
 
-  const resolveAllConflicts = async (resolution: "local" | "server") => {
+  const resolveAllConflicts = async (resolution: 'local' | 'server') => {
     console.log(`Resolving all conflicts with ${resolution}`);
     setConflicts([]);
   };

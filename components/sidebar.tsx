@@ -1,11 +1,11 @@
-"use client";
+'use client';
 
-import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { cn } from "@/lib/utils";
-import { useState, useEffect } from "react";
-import { businessSettingsApi } from "@/lib/db";
-import { useAuth } from "@/lib/auth-context";
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
+import { cn } from '@/lib/utils';
+import { useState, useEffect } from 'react';
+import { businessSettingsApi } from '@/lib/db';
+import { useAuth } from '@/lib/auth-context';
 import {
   Calendar,
   ClipboardList,
@@ -19,9 +19,9 @@ import {
   MessageSquare,
   Menu as MenuIcon,
   X as CloseIcon,
-} from "lucide-react";
+} from 'lucide-react';
 
-type UserRole = "admin" | "manager" | "staff";
+type UserRole = 'admin' | 'manager' | 'staff';
 
 interface Route {
   label: string;
@@ -33,79 +33,79 @@ interface Route {
 
 const allRoutes: Route[] = [
   {
-    label: "Dashboard",
+    label: 'Dashboard',
     icon: LayoutDashboard,
-    href: "/dashboard",
-    color: "text-sky-500",
-    requiredRole: "staff", // All roles can access dashboard
+    href: '/dashboard',
+    color: 'text-sky-500',
+    requiredRole: 'staff', // All roles can access dashboard
   },
   {
-    label: "Bookings",
+    label: 'Bookings',
     icon: Calendar,
-    href: "/bookings",
-    color: "text-violet-500",
-    requiredRole: "manager", // Manager and admin only
+    href: '/bookings',
+    color: 'text-violet-500',
+    requiredRole: 'manager', // Manager and admin only
   },
   {
-    label: "Point of Sale",
+    label: 'Point of Sale',
     icon: ShoppingCart,
-    href: "/pos",
-    color: "text-pink-700",
-    requiredRole: "staff", // All roles can access POS
+    href: '/pos',
+    color: 'text-pink-700',
+    requiredRole: 'staff', // All roles can access POS
   },
   {
-    label: "Spa Services",
+    label: 'Spa Services',
     icon: ClipboardList,
-    href: "/services/spa",
-    color: "text-orange-500",
-    requiredRole: "manager", // Manager and admin only
+    href: '/services/spa',
+    color: 'text-orange-500',
+    requiredRole: 'manager', // Manager and admin only
   },
   {
-    label: "Restaurant Menu",
+    label: 'Restaurant Menu',
     icon: Utensils,
-    href: "/services/restaurant",
-    color: "text-emerald-500",
-    requiredRole: "manager", // Manager and admin only
+    href: '/services/restaurant',
+    color: 'text-emerald-500',
+    requiredRole: 'manager', // Manager and admin only
   },
   {
-    label: "Inventory",
+    label: 'Inventory',
     icon: Package,
-    href: "/inventory",
-    color: "text-green-500",
-    requiredRole: "manager", // Manager and admin only
+    href: '/inventory',
+    color: 'text-green-500',
+    requiredRole: 'manager', // Manager and admin only
   },
   {
-    label: "Customers",
+    label: 'Customers',
     icon: Users,
-    href: "/customers",
-    color: "text-blue-500",
-    requiredRole: "staff", // All roles can access customers
+    href: '/customers',
+    color: 'text-blue-500',
+    requiredRole: 'staff', // All roles can access customers
   },
   {
-    label: "Staff",
+    label: 'Staff',
     icon: Users,
-    href: "/staff",
-    color: "text-yellow-500",
-    requiredRole: "admin", // Admin only
+    href: '/staff',
+    color: 'text-yellow-500',
+    requiredRole: 'admin', // Admin only
   },
   {
-    label: "Feedback",
+    label: 'Feedback',
     icon: MessageSquare,
-    href: "/feedback",
-    color: "text-amber-500",
-    requiredRole: "manager", // Manager and admin only
+    href: '/feedback',
+    color: 'text-amber-500',
+    requiredRole: 'manager', // Manager and admin only
   },
   {
-    label: "Settings",
+    label: 'Settings',
     icon: Settings,
-    href: "/settings",
-    requiredRole: "admin", // All roles can access settings
+    href: '/settings',
+    requiredRole: 'admin', // All roles can access settings
   },
 ];
 
-export function Sidebar() {
+function Sidebar() {
   const pathname = usePathname();
-  const [businessName, setBusinessName] = useState("LEWA HOSPITALITY");
+  const [businessName, setBusinessName] = useState('LEWA HOSPITALITY');
   const { hasPermission } = useAuth();
   const [mobileOpen, setMobileOpen] = useState(false);
 
@@ -119,19 +119,19 @@ export function Sidebar() {
     async function loadBusinessName() {
       try {
         const defaultSettings = {
-          businessName: "LEWA HOSPITALITY",
-          address: "29 Montgomery Road, Highlands, Harare, Zimbabwe",
-          phone: "(555) 123-4567",
-          email: "info@lewa.co.zw",
-          website: "www.lewa.co.zw",
-          taxRate: "14%",
-          openingHours: "Sunday-Friday: 9am-9pm\nSaturday:Closed",
+          businessName: 'LEWA HOSPITALITY',
+          address: '29 Montgomery Road, Highlands, Harare, Zimbabwe',
+          phone: '(555) 123-4567',
+          email: 'info@lewa.co.zw',
+          website: 'www.lewa.co.zw',
+          taxRate: '14%',
+          openingHours: 'Sunday-Friday: 9am-9pm\nSaturday:Closed',
         };
 
         const settings = await businessSettingsApi.getSettings(defaultSettings);
-        setBusinessName(settings.businessName || "LEWA HOSPITALITY");
+        setBusinessName(settings.businessName || 'LEWA HOSPITALITY');
       } catch (error) {
-        console.error("Error loading business settings:", error);
+        console.error('Error loading business settings:', error);
       }
     }
     loadBusinessName();
@@ -153,13 +153,13 @@ export function Sidebar() {
             href={route.href}
             onClick={() => setMobileOpen(false)}
             className={cn(
-              "flex items-center rounded-lg px-3 py-2 text-sm font-medium transition-all hover:bg-accent hover:text-accent-foreground",
+              'flex items-center rounded-lg px-3 py-2 text-sm font-medium transition-all hover:bg-accent hover:text-accent-foreground',
               pathname === route.href
-                ? "bg-accent text-accent-foreground"
-                : "transparent"
+                ? 'bg-accent text-accent-foreground'
+                : 'transparent'
             )}
           >
-            <route.icon className={cn("mr-3 h-5 w-5", route.color)} />
+            <route.icon className={cn('mr-3 h-5 w-5', route.color)} />
             {route.label}
           </Link>
         ))}
@@ -205,3 +205,6 @@ export function Sidebar() {
     </>
   );
 }
+
+export default Sidebar;
+

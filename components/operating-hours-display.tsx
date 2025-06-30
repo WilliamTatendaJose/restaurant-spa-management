@@ -1,8 +1,8 @@
-"use client";
+'use client';
 
-import { useState, useEffect } from "react";
-import { Card, CardContent } from "@/components/ui/card";
-import { Clock } from "lucide-react";
+import { useState, useEffect } from 'react';
+import { Card, CardContent } from '@/components/ui/card';
+import { Clock } from 'lucide-react';
 
 interface OperatingHour {
   day: string;
@@ -21,35 +21,35 @@ export function OperatingHoursDisplay() {
   }, []);
 
   const formatTime = (time: string) => {
-    if (!time) return "";
+    if (!time) return '';
     try {
-      const [hours, minutes] = time.split(":");
+      const [hours, minutes] = time.split(':');
       const timeValue = new Date();
       timeValue.setHours(parseInt(hours), parseInt(minutes));
       return timeValue
-        .toLocaleTimeString("en-US", {
-          hour: "numeric",
+        .toLocaleTimeString('en-US', {
+          hour: 'numeric',
           hour12: true,
         })
         .toUpperCase();
     } catch (error) {
-      console.error("Error formatting time:", error);
+      console.error('Error formatting time:', error);
       return time;
     }
   };
 
   if (loading) {
     return (
-      <Card className="group text-center border-0 shadow-xl hover:shadow-2xl transition-all duration-500 bg-gradient-to-br from-white to-amber-50/30 overflow-hidden">
-        <CardContent className="p-10">
-          <div className="animate-pulse">
-            <div className="w-20 h-20 mx-auto mb-8 bg-amber-200 rounded-full"></div>
-            <div className="h-6 bg-amber-100 rounded mb-6 w-1/2 mx-auto"></div>
-            <div className="space-y-3">
+      <Card className='group overflow-hidden border-0 bg-gradient-to-br from-white to-amber-50/30 text-center shadow-xl transition-all duration-500 hover:shadow-2xl'>
+        <CardContent className='p-10'>
+          <div className='animate-pulse'>
+            <div className='mx-auto mb-8 h-20 w-20 rounded-full bg-amber-200'></div>
+            <div className='mx-auto mb-6 h-6 w-1/2 rounded bg-amber-100'></div>
+            <div className='space-y-3'>
               {[1, 2].map((i) => (
                 <div
                   key={i}
-                  className="h-4 bg-amber-50 rounded w-2/3 mx-auto"
+                  className='mx-auto h-4 w-2/3 rounded bg-amber-50'
                 ></div>
               ))}
             </div>
@@ -61,15 +61,15 @@ export function OperatingHoursDisplay() {
 
   if (error) {
     return (
-      <Card className="group text-center border-0 shadow-xl hover:shadow-2xl transition-all duration-500 bg-gradient-to-br from-white to-amber-50/30 overflow-hidden">
-        <CardContent className="p-10">
-          <div className="w-20 h-20 mx-auto mb-8 bg-gradient-to-br from-amber-500 to-amber-600 rounded-full flex items-center justify-center shadow-xl">
-            <Clock className="h-10 w-10 text-white" />
+      <Card className='group overflow-hidden border-0 bg-gradient-to-br from-white to-amber-50/30 text-center shadow-xl transition-all duration-500 hover:shadow-2xl'>
+        <CardContent className='p-10'>
+          <div className='mx-auto mb-8 flex h-20 w-20 items-center justify-center rounded-full bg-gradient-to-br from-amber-500 to-amber-600 shadow-xl'>
+            <Clock className='h-10 w-10 text-white' />
           </div>
-          <h3 className="text-2xl font-light text-gray-800 mb-6">
+          <h3 className='mb-6 text-2xl font-light text-gray-800'>
             Opening Hours
           </h3>
-          <p className="text-gray-600 leading-relaxed">
+          <p className='leading-relaxed text-gray-600'>
             Temporarily unavailable. Please contact us for current operating
             hours.
           </p>
@@ -79,22 +79,22 @@ export function OperatingHoursDisplay() {
   }
 
   return (
-    <Card className="group text-center border-0 shadow-xl hover:shadow-2xl transition-all duration-500 bg-gradient-to-br from-white to-amber-50/30 overflow-hidden">
-      <CardContent className="p-10">
-        <div className="w-20 h-20 mx-auto mb-8 bg-gradient-to-br from-amber-500 to-amber-600 rounded-full flex items-center justify-center shadow-xl group-hover:scale-110 transition-transform duration-300">
-          <Clock className="h-10 w-10 text-white" />
+    <Card className='group overflow-hidden border-0 bg-gradient-to-br from-white to-amber-50/30 text-center shadow-xl transition-all duration-500 hover:shadow-2xl'>
+      <CardContent className='p-10'>
+        <div className='mx-auto mb-8 flex h-20 w-20 items-center justify-center rounded-full bg-gradient-to-br from-amber-500 to-amber-600 shadow-xl transition-transform duration-300 group-hover:scale-110'>
+          <Clock className='h-10 w-10 text-white' />
         </div>
-        <h3 className="text-2xl font-light text-gray-800 mb-6 group-hover:text-amber-600 transition-colors">
+        <h3 className='mb-6 text-2xl font-light text-gray-800 transition-colors group-hover:text-amber-600'>
           Opening Hours
         </h3>
-        <div className="space-y-4 text-gray-600 leading-relaxed text-lg">
-          <div className="flex justify-between items-center py-1">
-            <span className="font-medium">Sunday-Friday</span>
+        <div className='space-y-4 text-lg leading-relaxed text-gray-600'>
+          <div className='flex items-center justify-between py-1'>
+            <span className='font-medium'>Sunday-Friday</span>
             <span>9AM - 9PM</span>
           </div>
-          <div className="flex justify-between items-center py-1">
-            <span className="font-medium">Saturday</span>
-            <span className="text-red-500">Closed</span>
+          <div className='flex items-center justify-between py-1'>
+            <span className='font-medium'>Saturday</span>
+            <span className='text-red-500'>Closed</span>
           </div>
         </div>
       </CardContent>

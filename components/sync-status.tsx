@@ -1,15 +1,15 @@
-"use client";
+'use client';
 
-import React from "react";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Progress } from "@/components/ui/progress";
+import React from 'react';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Progress } from '@/components/ui/progress';
 import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
-} from "@/components/ui/tooltip";
+} from '@/components/ui/tooltip';
 import {
   Wifi,
   WifiOff,
@@ -18,9 +18,9 @@ import {
   AlertCircle,
   Clock,
   Activity,
-} from "lucide-react";
-import { useSyncStatus } from "./sync-status-provider";
-import { cn } from "@/lib/utils";
+} from 'lucide-react';
+import { useSyncStatus } from './sync-status-provider';
+import { cn } from '@/lib/utils';
 
 export function SyncStatus() {
   const {
@@ -36,45 +36,49 @@ export function SyncStatus() {
 
   const getStatusIcon = () => {
     if (!isOnline) {
-      return <WifiOff className="h-4 w-4 text-destructive" />;
+      return <WifiOff className='h-4 w-4 text-destructive' />;
     }
 
     if (isSyncing) {
-      return <RefreshCw className="h-4 w-4 animate-spin text-blue-500" />;
+      return <RefreshCw className='h-4 w-4 animate-spin text-blue-500' />;
     }
 
     if (pendingChanges > 0) {
-      return <AlertCircle className="h-4 w-4 text-orange-500" />;
+      return <AlertCircle className='h-4 w-4 text-orange-500' />;
     }
 
     switch (connectionQuality) {
-      case "good":
-        return <CheckCircle className="h-4 w-4 text-green-500" />;
-      case "poor":
-        return <Activity className="h-4 w-4 text-yellow-500" />;
+      case 'good':
+        return <CheckCircle className='h-4 w-4 text-green-500' />;
+      case 'poor':
+        return <Activity className='h-4 w-4 text-yellow-500' />;
       default:
-        return <Wifi className="h-4 w-4 text-muted-foreground" />;
+        return <Wifi className='h-4 w-4 text-muted-foreground' />;
     }
   };
 
-  const getStatusVariant = (): "default" | "secondary" | "destructive" | "outline" => {
-    if (!isOnline) return "destructive";
-    if (isSyncing) return "default";
-    if (pendingChanges > 0) return "secondary";
-    return "outline";
+  const getStatusVariant = ():
+    | 'default'
+    | 'secondary'
+    | 'destructive'
+    | 'outline' => {
+    if (!isOnline) return 'destructive';
+    if (isSyncing) return 'default';
+    if (pendingChanges > 0) return 'secondary';
+    return 'outline';
   };
 
   const getStatusColor = () => {
-    if (!isOnline) return "text-destructive";
-    if (isSyncing) return "text-blue-500";
-    if (pendingChanges > 0) return "text-orange-500";
-    if (connectionQuality === "good") return "text-green-500";
-    if (connectionQuality === "poor") return "text-yellow-500";
-    return "text-muted-foreground";
+    if (!isOnline) return 'text-destructive';
+    if (isSyncing) return 'text-blue-500';
+    if (pendingChanges > 0) return 'text-orange-500';
+    if (connectionQuality === 'good') return 'text-green-500';
+    if (connectionQuality === 'poor') return 'text-yellow-500';
+    return 'text-muted-foreground';
   };
 
   const formatLastSync = () => {
-    if (!lastSyncTime) return "Never synced";
+    if (!lastSyncTime) return 'Never synced';
 
     const now = new Date();
     const diffMs = now.getTime() - lastSyncTime.getTime();
@@ -82,7 +86,7 @@ export function SyncStatus() {
     const diffHours = Math.floor(diffMins / 60);
     const diffDays = Math.floor(diffHours / 24);
 
-    if (diffMins < 1) return "Just now";
+    if (diffMins < 1) return 'Just now';
     if (diffMins < 60) return `${diffMins}m ago`;
     if (diffHours < 24) return `${diffHours}h ago`;
     return `${diffDays}d ago`;
@@ -105,54 +109,54 @@ export function SyncStatus() {
 
   return (
     <TooltipProvider>
-      <div className="flex items-center gap-2">
+      <div className='flex items-center gap-2'>
         <Tooltip>
           <TooltipTrigger asChild>
             <Badge
               variant={getStatusVariant()}
               className={cn(
-                "flex items-center gap-1.5 px-2 py-1 text-xs font-medium cursor-help",
+                'flex cursor-help items-center gap-1.5 px-2 py-1 text-xs font-medium',
                 getStatusColor()
               )}
             >
               {getStatusIcon()}
-              <span className="hidden sm:inline">{getConnectionStatus()}</span>
+              <span className='hidden sm:inline'>{getConnectionStatus()}</span>
             </Badge>
           </TooltipTrigger>
-          <TooltipContent side="bottom" className="max-w-xs">
-            <div className="space-y-2">
-              <div className="font-medium">{getDetailedStatus()}</div>
+          <TooltipContent side='bottom' className='max-w-xs'>
+            <div className='space-y-2'>
+              <div className='font-medium'>{getDetailedStatus()}</div>
 
               {isSyncing && (
-                <div className="space-y-1">
-                  <div className="text-xs text-muted-foreground">
+                <div className='space-y-1'>
+                  <div className='text-xs text-muted-foreground'>
                     Sync Progress: {Math.round(syncProgress)}%
                   </div>
-                  <Progress value={syncProgress} className="h-1" />
+                  <Progress value={syncProgress} className='h-1' />
                 </div>
               )}
 
-              <div className="text-xs text-muted-foreground space-y-1">
-                <div className="flex items-center gap-1">
-                  <Wifi className="h-3 w-3" />
-                  Connection:{" "}
-                  {connectionQuality === "good"
-                    ? "Excellent"
-                    : connectionQuality === "poor"
-                    ? "Slow"
-                    : "Offline"}
+              <div className='space-y-1 text-xs text-muted-foreground'>
+                <div className='flex items-center gap-1'>
+                  <Wifi className='h-3 w-3' />
+                  Connection:{' '}
+                  {connectionQuality === 'good'
+                    ? 'Excellent'
+                    : connectionQuality === 'poor'
+                      ? 'Slow'
+                      : 'Offline'}
                 </div>
 
                 {lastSyncTime && (
-                  <div className="flex items-center gap-1">
-                    <Clock className="h-3 w-3" />
+                  <div className='flex items-center gap-1'>
+                    <Clock className='h-3 w-3' />
                     Last sync: {lastSyncTime.toLocaleString()}
                   </div>
                 )}
 
                 {pendingChanges > 0 && (
-                  <div className="flex items-center gap-1">
-                    <AlertCircle className="h-3 w-3" />
+                  <div className='flex items-center gap-1'>
+                    <AlertCircle className='h-3 w-3' />
                     {pendingChanges} items pending sync
                   </div>
                 )}
@@ -166,12 +170,12 @@ export function SyncStatus() {
           <Tooltip>
             <TooltipTrigger asChild>
               <Button
-                variant="ghost"
-                size="sm"
+                variant='ghost'
+                size='sm'
                 onClick={triggerSync}
-                className="h-8 w-8 p-0"
+                className='h-8 w-8 p-0'
               >
-                <RefreshCw className="h-4 w-4" />
+                <RefreshCw className='h-4 w-4' />
               </Button>
             </TooltipTrigger>
             <TooltipContent>
@@ -185,12 +189,12 @@ export function SyncStatus() {
           <Tooltip>
             <TooltipTrigger asChild>
               <Button
-                variant="ghost"
-                size="sm"
+                variant='ghost'
+                size='sm'
                 onClick={() => window.location.reload()}
-                className="h-8 w-8 p-0 text-destructive"
+                className='h-8 w-8 p-0 text-destructive'
               >
-                <WifiOff className="h-4 w-4" />
+                <WifiOff className='h-4 w-4' />
               </Button>
             </TooltipTrigger>
             <TooltipContent>

@@ -1,15 +1,15 @@
-import React, { useState, useEffect } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import React, { useState, useEffect } from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import {
   CheckCircle,
   XCircle,
   Clock,
   RefreshCw,
   AlertTriangle,
-} from "lucide-react";
-import { useToast } from "@/components/ui/use-toast";
+} from 'lucide-react';
+import { useToast } from '@/components/ui/use-toast';
 
 interface ZIMRAComplianceStatusProps {
   transactionId?: string;
@@ -22,7 +22,7 @@ interface ComplianceStatus {
   zimraSubmitted: boolean;
   zimraReference?: string;
   lastSubmissionAttempt?: string;
-  submissionStatus: "pending" | "success" | "failed" | "not_attempted";
+  submissionStatus: 'pending' | 'success' | 'failed' | 'not_attempted';
   errors?: string[];
 }
 
@@ -34,12 +34,12 @@ export const ZIMRAComplianceStatus: React.FC<ZIMRAComplianceStatusProps> = ({
     isCompliant: false,
     fiscalCodeGenerated: false,
     zimraSubmitted: false,
-    submissionStatus: "not_attempted",
+    submissionStatus: 'not_attempted',
   });
   const [isChecking, setIsChecking] = useState(false);
   const { toast } = useToast();
   const [lastKnownStatus, setLastKnownStatus] =
-    useState<string>("not_attempted");
+    useState<string>('not_attempted');
 
   useEffect(() => {
     if (transactionId) {
@@ -50,12 +50,12 @@ export const ZIMRAComplianceStatus: React.FC<ZIMRAComplianceStatusProps> = ({
   useEffect(() => {
     if (
       status.submissionStatus !== lastKnownStatus &&
-      lastKnownStatus !== "not_attempted"
+      lastKnownStatus !== 'not_attempted'
     ) {
       switch (status.submissionStatus) {
-        case "success":
+        case 'success':
           toast({
-            title: "✅ ZIMRA Submission Successful",
+            title: '✅ ZIMRA Submission Successful',
             description: `Transaction successfully submitted to ZIMRA. Reference: ${status.zimraReference?.substring(
               0,
               12
@@ -63,21 +63,21 @@ export const ZIMRAComplianceStatus: React.FC<ZIMRAComplianceStatusProps> = ({
             duration: 5000,
           });
           break;
-        case "failed":
+        case 'failed':
           toast({
-            title: "❌ ZIMRA Submission Failed",
+            title: '❌ ZIMRA Submission Failed',
             description:
               status.errors?.[0] ||
-              "Failed to submit transaction to ZIMRA. Please retry.",
-            variant: "destructive",
+              'Failed to submit transaction to ZIMRA. Please retry.',
+            variant: 'destructive',
             duration: 7000,
           });
           break;
-        case "pending":
+        case 'pending':
           toast({
-            title: "⏳ Submitting to ZIMRA",
+            title: '⏳ Submitting to ZIMRA',
             description:
-              "Transaction is being submitted to ZIMRA for compliance...",
+              'Transaction is being submitted to ZIMRA for compliance...',
             duration: 3000,
           });
           break;
@@ -106,16 +106,16 @@ export const ZIMRAComplianceStatus: React.FC<ZIMRAComplianceStatusProps> = ({
         zimraSubmitted: data.zimraSubmitted || false,
         zimraReference: data.zimraReference,
         lastSubmissionAttempt: data.lastSubmissionAttempt,
-        submissionStatus: data.submissionStatus || "not_attempted",
+        submissionStatus: data.submissionStatus || 'not_attempted',
         errors: data.errors,
       });
     } catch (error) {
-      console.error("Error checking ZIMRA compliance status:", error);
+      console.error('Error checking ZIMRA compliance status:', error);
       toast({
-        title: "⚠️ Status Check Failed",
+        title: '⚠️ Status Check Failed',
         description:
-          "Unable to check ZIMRA compliance status. Please try again.",
-        variant: "destructive",
+          'Unable to check ZIMRA compliance status. Please try again.',
+        variant: 'destructive',
         duration: 4000,
       });
     } finally {
@@ -126,8 +126,8 @@ export const ZIMRAComplianceStatus: React.FC<ZIMRAComplianceStatusProps> = ({
   const handleRetrySubmission = async () => {
     if (onRetrySubmission) {
       toast({
-        title: "🔄 Retrying ZIMRA Submission",
-        description: "Attempting to resubmit transaction to ZIMRA...",
+        title: '🔄 Retrying ZIMRA Submission',
+        description: 'Attempting to resubmit transaction to ZIMRA...',
         duration: 3000,
       });
       onRetrySubmission();
@@ -135,41 +135,41 @@ export const ZIMRAComplianceStatus: React.FC<ZIMRAComplianceStatusProps> = ({
   };
 
   const getStatusIcon = (success: boolean, pending: boolean = false) => {
-    if (pending) return <Clock className="h-4 w-4 text-yellow-500" />;
+    if (pending) return <Clock className='h-4 w-4 text-yellow-500' />;
     return success ? (
-      <CheckCircle className="h-4 w-4 text-green-500" />
+      <CheckCircle className='h-4 w-4 text-green-500' />
     ) : (
-      <XCircle className="h-4 w-4 text-red-500" />
+      <XCircle className='h-4 w-4 text-red-500' />
     );
   };
 
   const getStatusBadge = (status: string) => {
     switch (status) {
-      case "success":
+      case 'success':
         return (
-          <Badge variant="default" className="bg-green-500">
-            <CheckCircle className="h-3 w-3 mr-1" />
+          <Badge variant='default' className='bg-green-500'>
+            <CheckCircle className='mr-1 h-3 w-3' />
             Submitted
           </Badge>
         );
-      case "pending":
+      case 'pending':
         return (
-          <Badge variant="secondary">
-            <Clock className="h-3 w-3 mr-1" />
+          <Badge variant='secondary'>
+            <Clock className='mr-1 h-3 w-3' />
             Pending
           </Badge>
         );
-      case "failed":
+      case 'failed':
         return (
-          <Badge variant="destructive">
-            <XCircle className="h-3 w-3 mr-1" />
+          <Badge variant='destructive'>
+            <XCircle className='mr-1 h-3 w-3' />
             Failed
           </Badge>
         );
       default:
         return (
-          <Badge variant="outline">
-            <AlertTriangle className="h-3 w-3 mr-1" />
+          <Badge variant='outline'>
+            <AlertTriangle className='mr-1 h-3 w-3' />
             Not Attempted
           </Badge>
         );
@@ -177,64 +177,73 @@ export const ZIMRAComplianceStatus: React.FC<ZIMRAComplianceStatusProps> = ({
   };
 
   return (
-    <Card className="w-full max-w-md">
+    <Card className='w-full max-w-md'>
       <CardHeader>
-        <CardTitle className="flex items-center justify-between">
+        <CardTitle className='flex items-center justify-between'>
           ZIMRA Compliance Status
           <Button
-            variant="ghost"
-            size="sm"
+            variant='ghost'
+            size='sm'
             onClick={checkComplianceStatus}
             disabled={isChecking}
           >
-            <RefreshCw className={`h-4 w-4 ${isChecking ? "animate-spin" : ""}`} />
+            <RefreshCw
+              className={`h-4 w-4 ${isChecking ? 'animate-spin' : ''}`}
+            />
           </Button>
         </CardTitle>
       </CardHeader>
-      
-      <CardContent className="space-y-4">
-        <div className="flex items-center justify-between">
-          <span className="text-sm font-medium">Fiscal Code Generated</span>
+
+      <CardContent className='space-y-4'>
+        <div className='flex items-center justify-between'>
+          <span className='text-sm font-medium'>Fiscal Code Generated</span>
           {getStatusIcon(status.fiscalCodeGenerated)}
         </div>
-        
-        <div className="flex items-center justify-between">
-          <span className="text-sm font-medium">ZIMRA Submission</span>
+
+        <div className='flex items-center justify-between'>
+          <span className='text-sm font-medium'>ZIMRA Submission</span>
           {getStatusBadge(status.submissionStatus)}
         </div>
-        
+
         {status.zimraReference && (
-          <div className="p-3 bg-green-50 rounded-md">
-            <p className="text-sm font-medium text-green-800">ZIMRA Reference</p>
-            <p className="text-xs text-green-600 font-mono">{status.zimraReference}</p>
+          <div className='rounded-md bg-green-50 p-3'>
+            <p className='text-sm font-medium text-green-800'>
+              ZIMRA Reference
+            </p>
+            <p className='font-mono text-xs text-green-600'>
+              {status.zimraReference}
+            </p>
           </div>
         )}
-        
+
         {status.lastSubmissionAttempt && (
-          <div className="text-xs text-muted-foreground">
-            Last attempt: {new Date(status.lastSubmissionAttempt).toLocaleString()}
+          <div className='text-xs text-muted-foreground'>
+            Last attempt:{' '}
+            {new Date(status.lastSubmissionAttempt).toLocaleString()}
           </div>
         )}
-        
+
         {status.errors && status.errors.length > 0 && (
-          <div className="p-3 bg-red-50 rounded-md">
-            <p className="text-sm font-medium text-red-800 mb-2">Submission Errors</p>
-            <ul className="text-xs text-red-600 space-y-1">
+          <div className='rounded-md bg-red-50 p-3'>
+            <p className='mb-2 text-sm font-medium text-red-800'>
+              Submission Errors
+            </p>
+            <ul className='space-y-1 text-xs text-red-600'>
               {status.errors.map((error, index) => (
                 <li key={index}>• {error}</li>
               ))}
             </ul>
           </div>
         )}
-        
-        {status.submissionStatus === "failed" && onRetrySubmission && (
+
+        {status.submissionStatus === 'failed' && onRetrySubmission && (
           <Button
-            variant="outline"
-            size="sm"
+            variant='outline'
+            size='sm'
             onClick={handleRetrySubmission}
-            className="w-full"
+            className='w-full'
           >
-            <RefreshCw className="h-4 w-4 mr-2" />
+            <RefreshCw className='mr-2 h-4 w-4' />
             Retry ZIMRA Submission
           </Button>
         )}

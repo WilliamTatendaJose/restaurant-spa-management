@@ -1,5 +1,5 @@
-import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
+import { NextRequest, NextResponse } from 'next/server';
+import { createClient } from '@supabase/supabase-js';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -14,7 +14,7 @@ export async function PATCH(
     const id = params.id;
     if (!id) {
       return NextResponse.json(
-        { error: "Feedback ID is required" },
+        { error: 'Feedback ID is required' },
         { status: 400 }
       );
     }
@@ -22,31 +22,31 @@ export async function PATCH(
     const body = await request.json();
     const { status } = body;
 
-    if (!status || !["pending", "published", "rejected"].includes(status)) {
+    if (!status || !['pending', 'published', 'rejected'].includes(status)) {
       return NextResponse.json(
-        { error: "Valid status (pending, published, or rejected) is required" },
+        { error: 'Valid status (pending, published, or rejected) is required' },
         { status: 400 }
       );
     }
 
     const { data, error } = await supabase
-      .from("feedback")
+      .from('feedback')
       .update({ status, updated_at: new Date().toISOString() })
-      .eq("id", id)
+      .eq('id', id)
       .select()
       .single();
 
     if (error) {
-      console.error("Supabase error:", error);
+      console.error('Supabase error:', error);
       return NextResponse.json(
-        { error: "Failed to update feedback status" },
+        { error: 'Failed to update feedback status' },
         { status: 500 }
       );
     }
 
     if (!data) {
       return NextResponse.json(
-        { error: "Feedback not found" },
+        { error: 'Feedback not found' },
         { status: 404 }
       );
     }
@@ -57,9 +57,9 @@ export async function PATCH(
       message: `Feedback status updated to ${status}`,
     });
   } catch (error) {
-    console.error("API error:", error);
+    console.error('API error:', error);
     return NextResponse.json(
-      { error: "Internal server error" },
+      { error: 'Internal server error' },
       { status: 500 }
     );
   }
@@ -73,28 +73,28 @@ export async function GET(
     const id = params.id;
     if (!id) {
       return NextResponse.json(
-        { error: "Feedback ID is required" },
+        { error: 'Feedback ID is required' },
         { status: 400 }
       );
     }
 
     const { data, error } = await supabase
-      .from("feedback")
-      .select("*")
-      .eq("id", id)
+      .from('feedback')
+      .select('*')
+      .eq('id', id)
       .single();
 
     if (error) {
-      console.error("Supabase error:", error);
+      console.error('Supabase error:', error);
       return NextResponse.json(
-        { error: "Failed to fetch feedback" },
+        { error: 'Failed to fetch feedback' },
         { status: 500 }
       );
     }
 
     if (!data) {
       return NextResponse.json(
-        { error: "Feedback not found" },
+        { error: 'Feedback not found' },
         { status: 404 }
       );
     }
@@ -104,9 +104,9 @@ export async function GET(
       data,
     });
   } catch (error) {
-    console.error("API error:", error);
+    console.error('API error:', error);
     return NextResponse.json(
-      { error: "Internal server error" },
+      { error: 'Internal server error' },
       { status: 500 }
     );
   }

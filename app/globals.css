@@ -10,7 +10,7 @@ body {
   .text-balance {
     text-wrap: balance;
   }
-  
+
   /* Custom cream colors */
   .bg-cream-50 {
     background-color: #fefdf8;
@@ -118,7 +118,8 @@ body {
 
 /* Custom animations */
 @keyframes float {
-  0%, 100% {
+  0%,
+  100% {
     transform: translateY(0px);
   }
   50% {

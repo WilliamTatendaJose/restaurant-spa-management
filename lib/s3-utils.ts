@@ -1,19 +1,20 @@
-import { 
-  S3Client, 
+import {
+  S3Client,
   PutObjectCommand,
-  GetObjectCommand 
-} from "@aws-sdk/client-s3";
-import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
+  GetObjectCommand,
+} from '@aws-sdk/client-s3';
+import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 
 // Initialize S3 client with environment variables
 const s3Client = new S3Client({
-  region: process.env.AWS_REGION || "us-east-1",
-  credentials: process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY
-    ? {
-        accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-        secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
-      }
-    : undefined,
+  region: process.env.AWS_REGION || 'us-east-1',
+  credentials:
+    process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY
+      ? {
+          accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+          secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+        }
+      : undefined,
 });
 
 /**
@@ -30,12 +31,12 @@ export async function uploadFileToS3(
 ): Promise<{ success: boolean; url?: string; error?: string }> {
   try {
     if (!process.env.S3_BUCKET_NAME) {
-      throw new Error("S3 bucket name not configured");
+      throw new Error('S3 bucket name not configured');
     }
 
     // Ensure file name is URL safe
-    const safeName = encodeURIComponent(fileName).replace(/%20/g, "_");
-    
+    const safeName = encodeURIComponent(fileName).replace(/%20/g, '_');
+
     // Create a unique file path with timestamp to prevent overwriting
     const timestamp = new Date().getTime();
     const key = `receipts/${timestamp}-${safeName}`;
@@ -46,14 +47,14 @@ export async function uploadFileToS3(
       Key: key,
       Body: fileBuffer,
       ContentType: contentType,
-      ACL: "public-read", // Make the file publicly accessible (or use private and generate signed URLs)
+      ACL: 'public-read', // Make the file publicly accessible (or use private and generate signed URLs)
     });
 
     await s3Client.send(command);
 
     // Generate the URL to the uploaded file
     let fileUrl = `https://${process.env.S3_BUCKET_NAME}.s3.${
-      process.env.AWS_REGION || "us-east-1"
+      process.env.AWS_REGION || 'us-east-1'
     }.amazonaws.com/${key}`;
 
     // If custom domain is configured for S3, use that instead
@@ -66,7 +67,7 @@ export async function uploadFileToS3(
       url: fileUrl,
     };
   } catch (error) {
-    console.error("Error uploading file to S3:", error);
+    console.error('Error uploading file to S3:', error);
     return {
       success: false,
       error: (error as Error).message,
@@ -86,7 +87,7 @@ export async function generateSignedUrl(
 ): Promise<string | Error> {
   try {
     if (!process.env.S3_BUCKET_NAME) {
-      throw new Error("S3 bucket name not configured");
+      throw new Error('S3 bucket name not configured');
     }
 
     const command = new GetObjectCommand({
@@ -97,7 +98,7 @@ export async function generateSignedUrl(
     const signedUrl = await getSignedUrl(s3Client, command, { expiresIn });
     return signedUrl;
   } catch (error) {
-    console.error("Error generating signed URL:", error);
+    console.error('Error generating signed URL:', error);
     return error as Error;
   }
 }

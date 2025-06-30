@@ -1,10 +1,10 @@
-"use client";
+'use client';
 
-import { useState, useEffect } from "react";
-import { PageHeader } from "@/components/page-header";
-import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useState, useEffect } from 'react';
+import { PageHeader } from '@/components/page-header';
+import { Card, CardContent } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   Table,
   TableBody,
@@ -12,16 +12,16 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table";
+} from '@/components/ui/table';
 import {
   Dialog,
   DialogContent,
   DialogDescription,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog";
-import { Badge } from "@/components/ui/badge";
-import { useToast } from "@/components/ui/use-toast";
+} from '@/components/ui/dialog';
+import { Badge } from '@/components/ui/badge';
+import { useToast } from '@/components/ui/use-toast';
 import {
   Star,
   ThumbsUp,
@@ -32,7 +32,7 @@ import {
   MessageSquare,
   Calendar,
   User,
-} from "lucide-react";
+} from 'lucide-react';
 
 interface Feedback {
   id: string;
@@ -48,7 +48,7 @@ interface Feedback {
   recommend: string;
   visit_date: string;
   improvements: string;
-  status: "pending" | "published" | "rejected";
+  status: 'pending' | 'published' | 'rejected';
   created_at: string;
 }
 
@@ -65,17 +65,17 @@ export default function FeedbackPage() {
   const fetchFeedbacks = async () => {
     setLoading(true);
     try {
-      const response = await fetch("/api/feedback");
+      const response = await fetch('/api/feedback');
       const result = await response.json();
 
       if (result.success) {
         setFeedbacks(result.data);
       } else {
-        setError(result.error || "Failed to fetch feedback");
+        setError(result.error || 'Failed to fetch feedback');
       }
     } catch (error) {
-      console.error("Error fetching feedback:", error);
-      setError("Failed to load feedback data");
+      console.error('Error fetching feedback:', error);
+      setError('Failed to load feedback data');
     } finally {
       setLoading(false);
     }
@@ -87,13 +87,13 @@ export default function FeedbackPage() {
 
   const updateFeedbackStatus = async (
     id: string,
-    status: "published" | "rejected"
+    status: 'published' | 'rejected'
   ) => {
     try {
       const response = await fetch(`/api/feedback/${id}`, {
-        method: "PATCH",
+        method: 'PATCH',
         headers: {
-          "Content-Type": "application/json",
+          'Content-Type': 'application/json',
         },
         body: JSON.stringify({ status }),
       });
@@ -108,8 +108,8 @@ export default function FeedbackPage() {
         );
 
         toast({
-          title: `Feedback ${status === "published" ? "Published" : "Rejected"}`,
-          description: `The feedback has been successfully ${status === "published" ? "published" : "rejected"}.`,
+          title: `Feedback ${status === 'published' ? 'Published' : 'Rejected'}`,
+          description: `The feedback has been successfully ${status === 'published' ? 'published' : 'rejected'}.`,
         });
 
         if (selectedFeedback?.id === id) {
@@ -117,81 +117,81 @@ export default function FeedbackPage() {
         }
       } else {
         toast({
-          title: "Action Failed",
+          title: 'Action Failed',
           description: result.error || `Failed to ${status} feedback.`,
-          variant: "destructive",
+          variant: 'destructive',
         });
       }
     } catch (error) {
       console.error(`Error updating feedback status:`, error);
       toast({
-        title: "Error",
+        title: 'Error',
         description: `Failed to update feedback status.`,
-        variant: "destructive",
+        variant: 'destructive',
       });
     }
   };
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case "published":
-        return "bg-green-100 text-green-800";
-      case "rejected":
-        return "bg-red-100 text-red-800";
+      case 'published':
+        return 'bg-green-100 text-green-800';
+      case 'rejected':
+        return 'bg-red-100 text-red-800';
       default:
-        return "bg-yellow-100 text-yellow-800";
+        return 'bg-yellow-100 text-yellow-800';
     }
   };
 
   const formatDate = (dateString: string) => {
-    if (!dateString) return "N/A";
-    return new Date(dateString).toLocaleDateString("en-US", {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
+    if (!dateString) return 'N/A';
+    return new Date(dateString).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
     });
   };
 
   const getRecommendText = (recommend: string) => {
     switch (recommend) {
-      case "definitely":
-        return "Definitely";
-      case "probably":
-        return "Probably";
-      case "maybe":
-        return "Maybe";
-      case "probably_not":
-        return "Probably Not";
-      case "definitely_not":
-        return "Definitely Not";
+      case 'definitely':
+        return 'Definitely';
+      case 'probably':
+        return 'Probably';
+      case 'maybe':
+        return 'Maybe';
+      case 'probably_not':
+        return 'Probably Not';
+      case 'definitely_not':
+        return 'Definitely Not';
       default:
-        return "N/A";
+        return 'N/A';
     }
   };
 
   const getServiceTypeText = (type: string) => {
     switch (type) {
-      case "spa":
-        return "Spa Treatment";
-      case "restaurant":
-        return "Restaurant Dining";
-      case "both":
-        return "Spa & Restaurant";
-      case "other":
-        return "Other Services";
+      case 'spa':
+        return 'Spa Treatment';
+      case 'restaurant':
+        return 'Restaurant Dining';
+      case 'both':
+        return 'Spa & Restaurant';
+      case 'other':
+        return 'Other Services';
       default:
-        return type || "N/A";
+        return type || 'N/A';
     }
   };
 
   const renderStars = (rating: number) => {
     return (
-      <div className="flex">
+      <div className='flex'>
         {[1, 2, 3, 4, 5].map((star) => (
           <Star
             key={star}
             className={`h-4 w-4 ${
-              star <= rating ? "text-amber-500 fill-amber-500" : "text-gray-300"
+              star <= rating ? 'fill-amber-500 text-amber-500' : 'text-gray-300'
             }`}
           />
         ))}
@@ -199,34 +199,34 @@ export default function FeedbackPage() {
     );
   };
 
-  const pendingFeedbacks = feedbacks.filter((f) => f.status === "pending");
-  const publishedFeedbacks = feedbacks.filter((f) => f.status === "published");
-  const rejectedFeedbacks = feedbacks.filter((f) => f.status === "rejected");
+  const pendingFeedbacks = feedbacks.filter((f) => f.status === 'pending');
+  const publishedFeedbacks = feedbacks.filter((f) => f.status === 'published');
+  const rejectedFeedbacks = feedbacks.filter((f) => f.status === 'rejected');
 
   return (
-    <div className="container mx-auto px-4 py-6">
+    <div className='container mx-auto px-4 py-6'>
       <PageHeader
-        heading="Customer Feedback"
-        subheading="Review and manage customer feedback submissions"
+        heading='Customer Feedback'
+        subheading='Review and manage customer feedback submissions'
       />
 
-      <Tabs defaultValue="pending" className="mt-6">
-        <TabsList className="mb-4">
-          <TabsTrigger value="pending">
-            Pending{" "}
-            <Badge variant="outline" className="ml-2">
+      <Tabs defaultValue='pending' className='mt-6'>
+        <TabsList className='mb-4'>
+          <TabsTrigger value='pending'>
+            Pending{' '}
+            <Badge variant='outline' className='ml-2'>
               {pendingFeedbacks.length}
             </Badge>
           </TabsTrigger>
-          <TabsTrigger value="published">
-            Published{" "}
-            <Badge variant="outline" className="ml-2">
+          <TabsTrigger value='published'>
+            Published{' '}
+            <Badge variant='outline' className='ml-2'>
               {publishedFeedbacks.length}
             </Badge>
           </TabsTrigger>
-          <TabsTrigger value="rejected">
-            Rejected{" "}
-            <Badge variant="outline" className="ml-2">
+          <TabsTrigger value='rejected'>
+            Rejected{' '}
+            <Badge variant='outline' className='ml-2'>
               {rejectedFeedbacks.length}
             </Badge>
           </TabsTrigger>
@@ -234,10 +234,10 @@ export default function FeedbackPage() {
 
         {loading ? (
           <Card>
-            <CardContent className="flex justify-center items-center h-64">
-              <div className="flex flex-col items-center space-y-4">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-700"></div>
-                <p className="text-muted-foreground">
+            <CardContent className='flex h-64 items-center justify-center'>
+              <div className='flex flex-col items-center space-y-4'>
+                <div className='h-12 w-12 animate-spin rounded-full border-b-2 border-emerald-700'></div>
+                <p className='text-muted-foreground'>
                   Loading feedback data...
                 </p>
               </div>
@@ -245,12 +245,12 @@ export default function FeedbackPage() {
           </Card>
         ) : error ? (
           <Card>
-            <CardContent className="flex justify-center items-center h-64">
-              <div className="text-center text-destructive">
-                <p className="text-lg font-semibold">{error}</p>
+            <CardContent className='flex h-64 items-center justify-center'>
+              <div className='text-center text-destructive'>
+                <p className='text-lg font-semibold'>{error}</p>
                 <Button
-                  variant="outline"
-                  className="mt-4"
+                  variant='outline'
+                  className='mt-4'
                   onClick={() => fetchFeedbacks()}
                 >
                   Try Again
@@ -260,15 +260,15 @@ export default function FeedbackPage() {
           </Card>
         ) : (
           <>
-            <TabsContent value="pending">
+            <TabsContent value='pending'>
               <FeedbackTable
                 feedbacks={pendingFeedbacks}
                 onView={(feedback) => {
                   setSelectedFeedback(feedback);
                   setViewDialogOpen(true);
                 }}
-                onApprove={(id) => updateFeedbackStatus(id, "published")}
-                onReject={(id) => updateFeedbackStatus(id, "rejected")}
+                onApprove={(id) => updateFeedbackStatus(id, 'published')}
+                onReject={(id) => updateFeedbackStatus(id, 'rejected')}
                 showActions={true}
                 getStatusColor={getStatusColor}
                 formatDate={formatDate}
@@ -276,7 +276,7 @@ export default function FeedbackPage() {
               />
             </TabsContent>
 
-            <TabsContent value="published">
+            <TabsContent value='published'>
               <FeedbackTable
                 feedbacks={publishedFeedbacks}
                 onView={(feedback) => {
@@ -284,7 +284,7 @@ export default function FeedbackPage() {
                   setViewDialogOpen(true);
                 }}
                 onApprove={(id) => {}}
-                onReject={(id) => updateFeedbackStatus(id, "rejected")}
+                onReject={(id) => updateFeedbackStatus(id, 'rejected')}
                 showActions={false}
                 getStatusColor={getStatusColor}
                 formatDate={formatDate}
@@ -292,14 +292,14 @@ export default function FeedbackPage() {
               />
             </TabsContent>
 
-            <TabsContent value="rejected">
+            <TabsContent value='rejected'>
               <FeedbackTable
                 feedbacks={rejectedFeedbacks}
                 onView={(feedback) => {
                   setSelectedFeedback(feedback);
                   setViewDialogOpen(true);
                 }}
-                onApprove={(id) => updateFeedbackStatus(id, "published")}
+                onApprove={(id) => updateFeedbackStatus(id, 'published')}
                 onReject={(id) => {}}
                 showActions={false}
                 getStatusColor={getStatusColor}
@@ -313,11 +313,11 @@ export default function FeedbackPage() {
 
       {/* Feedback View Dialog */}
       <Dialog open={viewDialogOpen} onOpenChange={setViewDialogOpen}>
-        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className='max-h-[90vh] max-w-3xl overflow-y-auto'>
           {selectedFeedback && (
             <>
               <DialogHeader>
-                <DialogTitle className="flex items-center justify-between">
+                <DialogTitle className='flex items-center justify-between'>
                   <span>Feedback from {selectedFeedback.customer_name}</span>
                   <Badge className={getStatusColor(selectedFeedback.status)}>
                     {selectedFeedback.status.charAt(0).toUpperCase() +
@@ -325,16 +325,16 @@ export default function FeedbackPage() {
                   </Badge>
                 </DialogTitle>
                 <DialogDescription>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-                    <div className="flex items-center gap-2">
-                      <User className="h-4 w-4 text-muted-foreground" />
-                      <span className="text-sm text-muted-foreground">
+                  <div className='mt-4 grid grid-cols-1 gap-4 md:grid-cols-2'>
+                    <div className='flex items-center gap-2'>
+                      <User className='h-4 w-4 text-muted-foreground' />
+                      <span className='text-sm text-muted-foreground'>
                         {selectedFeedback.customer_email}
                       </span>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <Calendar className="h-4 w-4 text-muted-foreground" />
-                      <span className="text-sm text-muted-foreground">
+                    <div className='flex items-center gap-2'>
+                      <Calendar className='h-4 w-4 text-muted-foreground' />
+                      <span className='text-sm text-muted-foreground'>
                         {selectedFeedback.visit_date
                           ? formatDate(selectedFeedback.visit_date)
                           : formatDate(selectedFeedback.created_at)}
@@ -344,32 +344,32 @@ export default function FeedbackPage() {
                 </DialogDescription>
               </DialogHeader>
 
-              <div className="space-y-6 my-4">
+              <div className='my-4 space-y-6'>
                 {/* Service Type and Recommendation */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="bg-gray-50 p-4 rounded-md">
-                    <h4 className="text-sm font-medium text-gray-500 mb-1">
+                <div className='grid grid-cols-1 gap-4 md:grid-cols-2'>
+                  <div className='rounded-md bg-gray-50 p-4'>
+                    <h4 className='mb-1 text-sm font-medium text-gray-500'>
                       Service Type
                     </h4>
-                    <p className="font-medium text-gray-900">
+                    <p className='font-medium text-gray-900'>
                       {getServiceTypeText(selectedFeedback.service_type)}
                     </p>
                   </div>
-                  <div className="bg-gray-50 p-4 rounded-md">
-                    <h4 className="text-sm font-medium text-gray-500 mb-1">
+                  <div className='rounded-md bg-gray-50 p-4'>
+                    <h4 className='mb-1 text-sm font-medium text-gray-500'>
                       Would Recommend
                     </h4>
-                    <div className="flex items-center gap-2">
-                      {selectedFeedback.recommend === "definitely" ||
-                      selectedFeedback.recommend === "probably" ? (
-                        <ThumbsUp className="h-4 w-4 text-green-600" />
-                      ) : selectedFeedback.recommend === "definitely_not" ||
-                        selectedFeedback.recommend === "probably_not" ? (
-                        <ThumbsDown className="h-4 w-4 text-red-600" />
+                    <div className='flex items-center gap-2'>
+                      {selectedFeedback.recommend === 'definitely' ||
+                      selectedFeedback.recommend === 'probably' ? (
+                        <ThumbsUp className='h-4 w-4 text-green-600' />
+                      ) : selectedFeedback.recommend === 'definitely_not' ||
+                        selectedFeedback.recommend === 'probably_not' ? (
+                        <ThumbsDown className='h-4 w-4 text-red-600' />
                       ) : (
-                        <div className="h-4 w-4" />
+                        <div className='h-4 w-4' />
                       )}
-                      <p className="font-medium">
+                      <p className='font-medium'>
                         {getRecommendText(selectedFeedback.recommend)}
                       </p>
                     </div>
@@ -377,35 +377,35 @@ export default function FeedbackPage() {
                 </div>
 
                 {/* Ratings */}
-                <div className="bg-gray-50 p-4 rounded-md">
-                  <h4 className="text-sm font-medium text-gray-500 mb-3">
+                <div className='rounded-md bg-gray-50 p-4'>
+                  <h4 className='mb-3 text-sm font-medium text-gray-500'>
                     Ratings
                   </h4>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className='grid grid-cols-1 gap-4 md:grid-cols-2'>
                     <div>
-                      <p className="text-sm text-gray-500 mb-1">
+                      <p className='mb-1 text-sm text-gray-500'>
                         Overall Rating
                       </p>
                       {renderStars(selectedFeedback.overall_rating)}
                     </div>
                     <div>
-                      <p className="text-sm text-gray-500 mb-1">
+                      <p className='mb-1 text-sm text-gray-500'>
                         Service Quality
                       </p>
                       {renderStars(selectedFeedback.service_quality)}
                     </div>
                     <div>
-                      <p className="text-sm text-gray-500 mb-1">
+                      <p className='mb-1 text-sm text-gray-500'>
                         Staff Friendliness
                       </p>
                       {renderStars(selectedFeedback.staff_friendliness)}
                     </div>
                     <div>
-                      <p className="text-sm text-gray-500 mb-1">Cleanliness</p>
+                      <p className='mb-1 text-sm text-gray-500'>Cleanliness</p>
                       {renderStars(selectedFeedback.cleanliness)}
                     </div>
                     <div>
-                      <p className="text-sm text-gray-500 mb-1">
+                      <p className='mb-1 text-sm text-gray-500'>
                         Value for Money
                       </p>
                       {renderStars(selectedFeedback.value_for_money)}
@@ -414,24 +414,24 @@ export default function FeedbackPage() {
                 </div>
 
                 {/* Comments and Improvements */}
-                <div className="space-y-4">
+                <div className='space-y-4'>
                   {selectedFeedback.comments && (
-                    <div className="bg-gray-50 p-4 rounded-md">
-                      <h4 className="text-sm font-medium text-gray-500 mb-1">
+                    <div className='rounded-md bg-gray-50 p-4'>
+                      <h4 className='mb-1 text-sm font-medium text-gray-500'>
                         Comments
                       </h4>
-                      <p className="text-gray-700 whitespace-pre-line">
+                      <p className='whitespace-pre-line text-gray-700'>
                         {selectedFeedback.comments}
                       </p>
                     </div>
                   )}
 
                   {selectedFeedback.improvements && (
-                    <div className="bg-gray-50 p-4 rounded-md">
-                      <h4 className="text-sm font-medium text-gray-500 mb-1">
+                    <div className='rounded-md bg-gray-50 p-4'>
+                      <h4 className='mb-1 text-sm font-medium text-gray-500'>
                         Suggested Improvements
                       </h4>
-                      <p className="text-gray-700 whitespace-pre-line">
+                      <p className='whitespace-pre-line text-gray-700'>
                         {selectedFeedback.improvements}
                       </p>
                     </div>
@@ -439,27 +439,27 @@ export default function FeedbackPage() {
                 </div>
 
                 {/* Action Buttons */}
-                {selectedFeedback.status === "pending" && (
-                  <div className="flex justify-end space-x-2">
+                {selectedFeedback.status === 'pending' && (
+                  <div className='flex justify-end space-x-2'>
                     <Button
-                      variant="outline"
-                      className="bg-red-50 border-red-200 text-red-700 hover:bg-red-100"
+                      variant='outline'
+                      className='border-red-200 bg-red-50 text-red-700 hover:bg-red-100'
                       onClick={() => {
-                        updateFeedbackStatus(selectedFeedback.id, "rejected");
+                        updateFeedbackStatus(selectedFeedback.id, 'rejected');
                         setViewDialogOpen(false);
                       }}
                     >
-                      <XCircle className="mr-2 h-4 w-4" />
+                      <XCircle className='mr-2 h-4 w-4' />
                       Reject
                     </Button>
                     <Button
-                      className="bg-green-600 hover:bg-green-700"
+                      className='bg-green-600 hover:bg-green-700'
                       onClick={() => {
-                        updateFeedbackStatus(selectedFeedback.id, "published");
+                        updateFeedbackStatus(selectedFeedback.id, 'published');
                         setViewDialogOpen(false);
                       }}
                     >
-                      <CheckCircle className="mr-2 h-4 w-4" />
+                      <CheckCircle className='mr-2 h-4 w-4' />
                       Publish
                     </Button>
                   </div>
@@ -497,11 +497,11 @@ function FeedbackTable({
   if (feedbacks.length === 0) {
     return (
       <Card>
-        <CardContent className="flex justify-center items-center h-64">
-          <div className="text-center text-muted-foreground">
-            <MessageSquare className="h-12 w-12 mx-auto mb-4 opacity-20" />
-            <p className="text-lg font-medium">No feedback entries found</p>
-            <p className="text-sm">
+        <CardContent className='flex h-64 items-center justify-center'>
+          <div className='text-center text-muted-foreground'>
+            <MessageSquare className='mx-auto mb-4 h-12 w-12 opacity-20' />
+            <p className='text-lg font-medium'>No feedback entries found</p>
+            <p className='text-sm'>
               When customers submit feedback, it will appear here
             </p>
           </div>
@@ -512,7 +512,7 @@ function FeedbackTable({
 
   return (
     <Card>
-      <CardContent className="p-0">
+      <CardContent className='p-0'>
         <Table>
           <TableHeader>
             <TableRow>
@@ -527,15 +527,15 @@ function FeedbackTable({
           <TableBody>
             {feedbacks.map((feedback) => (
               <TableRow key={feedback.id}>
-                <TableCell className="font-medium">
+                <TableCell className='font-medium'>
                   {feedback.customer_name}
                 </TableCell>
                 <TableCell>
-                  {feedback.service_type === "spa" && "Spa Treatment"}
-                  {feedback.service_type === "restaurant" && "Restaurant"}
-                  {feedback.service_type === "both" && "Spa & Restaurant"}
-                  {feedback.service_type === "other" && "Other"}
-                  {!feedback.service_type && "N/A"}
+                  {feedback.service_type === 'spa' && 'Spa Treatment'}
+                  {feedback.service_type === 'restaurant' && 'Restaurant'}
+                  {feedback.service_type === 'both' && 'Spa & Restaurant'}
+                  {feedback.service_type === 'other' && 'Other'}
+                  {!feedback.service_type && 'N/A'}
                 </TableCell>
                 <TableCell>{renderStars(feedback.overall_rating)}</TableCell>
                 <TableCell>{formatDate(feedback.created_at)}</TableCell>
@@ -546,36 +546,36 @@ function FeedbackTable({
                   </Badge>
                 </TableCell>
                 <TableCell>
-                  <div className="flex space-x-2">
+                  <div className='flex space-x-2'>
                     <Button
-                      variant="ghost"
-                      size="icon"
+                      variant='ghost'
+                      size='icon'
                       onClick={() => onView(feedback)}
-                      title="View Details"
+                      title='View Details'
                     >
-                      <Eye className="h-4 w-4" />
+                      <Eye className='h-4 w-4' />
                     </Button>
 
-                    {showActions && feedback.status === "pending" && (
+                    {showActions && feedback.status === 'pending' && (
                       <>
                         <Button
-                          variant="ghost"
-                          size="icon"
+                          variant='ghost'
+                          size='icon'
                           onClick={() => onApprove(feedback.id)}
-                          className="text-green-600 hover:text-green-800 hover:bg-green-50"
-                          title="Publish Feedback"
+                          className='text-green-600 hover:bg-green-50 hover:text-green-800'
+                          title='Publish Feedback'
                         >
-                          <CheckCircle className="h-4 w-4" />
+                          <CheckCircle className='h-4 w-4' />
                         </Button>
 
                         <Button
-                          variant="ghost"
-                          size="icon"
+                          variant='ghost'
+                          size='icon'
                           onClick={() => onReject(feedback.id)}
-                          className="text-red-600 hover:text-red-800 hover:bg-red-50"
-                          title="Reject Feedback"
+                          className='text-red-600 hover:bg-red-50 hover:text-red-800'
+                          title='Reject Feedback'
                         >
-                          <XCircle className="h-4 w-4" />
+                          <XCircle className='h-4 w-4' />
                         </Button>
                       </>
                     )}

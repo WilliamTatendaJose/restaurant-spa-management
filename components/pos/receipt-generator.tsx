@@ -1,16 +1,16 @@
-"use client";
+'use client';
 
-import React, { forwardRef, useState, useEffect } from "react";
-import QRCode from "qrcode";
-import { Button } from "@/components/ui/button";
-import { Mail, Share2, Eye, Download, Printer } from "lucide-react";
-import { jsPDF } from "jspdf";
-import html2canvas from "html2canvas";
-import { ComponentToPrint } from "@/components/pos/component-to-print";
-import { PrintPreviewModal } from "@/components/pos/print-preview-modal";
-import { ZIMRAApiClient } from "@/lib/zimra-api";
-import { useToast } from "@/components/ui/use-toast";
-import { businessSettingsApi } from "@/lib/db";
+import React, { forwardRef, useState, useEffect } from 'react';
+import QRCode from 'qrcode';
+import { Button } from '@/components/ui/button';
+import { Mail, Share2, Eye, Download, Printer } from 'lucide-react';
+import { jsPDF } from 'jspdf';
+import html2canvas from 'html2canvas';
+import { ComponentToPrint } from '@/components/pos/component-to-print';
+import { PrintPreviewModal } from '@/components/pos/print-preview-modal';
+import { ZIMRAApiClient } from '@/lib/zimra-api';
+import { useToast } from '@/components/ui/use-toast';
+import { businessSettingsApi } from '@/lib/db';
 
 interface BusinessSettings {
   businessName: string;
@@ -27,7 +27,7 @@ interface CartItem {
   name: string;
   price: number;
   quantity: number;
-  category?: "spa" | "restaurant";
+  category?: 'spa' | 'restaurant';
 }
 
 interface ReceiptGeneratorProps {
@@ -36,7 +36,7 @@ interface ReceiptGeneratorProps {
   items: CartItem[];
   total: number;
   paymentMethod: string;
-  transactionType?: "spa" | "restaurant";
+  transactionType?: 'spa' | 'restaurant';
   onShare: () => void;
   onEmail: () => void;
   onZimraSubmission?: (success: boolean, reference?: string) => void;
@@ -66,24 +66,24 @@ const generateQRCodes = async (
     });
 
     const verificationQR = await QRCode.toDataURL(verificationData, {
-      errorCorrectionLevel: "M",
-      type: "image/png",
+      errorCorrectionLevel: 'M',
+      type: 'image/png',
       margin: 1,
       color: {
-        dark: "#000000",
-        light: "#FFFFFF",
+        dark: '#000000',
+        light: '#FFFFFF',
       },
     });
 
     // Generate payment link QR code
     const paymentLinkData = `https://pay.zimra.co.zw/verify/${receipt.fiscalCode}`;
     const paymentLinkQR = await QRCode.toDataURL(paymentLinkData, {
-      errorCorrectionLevel: "M",
-      type: "image/png",
+      errorCorrectionLevel: 'M',
+      type: 'image/png',
       margin: 1,
       color: {
-        dark: "#000000",
-        light: "#FFFFFF",
+        dark: '#000000',
+        light: '#FFFFFF',
       },
     });
 
@@ -92,10 +92,10 @@ const generateQRCodes = async (
       paymentLink: paymentLinkQR,
     };
   } catch (error) {
-    console.error("Error generating QR codes:", error);
+    console.error('Error generating QR codes:', error);
     return {
-      verification: "",
-      paymentLink: "",
+      verification: '',
+      paymentLink: '',
     };
   }
 };
@@ -111,7 +111,7 @@ export const ReceiptGenerator = forwardRef<
       items,
       total,
       paymentMethod,
-      transactionType = "restaurant",
+      transactionType = 'restaurant',
       onShare,
       onEmail,
       onZimraSubmission,
@@ -120,26 +120,26 @@ export const ReceiptGenerator = forwardRef<
     ref
   ) => {
     const [date] = useState(new Date());
-    const [fiscalCode, setFiscalCode] = useState<string>("");
-    const [zimraReference, setZimraReference] = useState<string>("");
+    const [fiscalCode, setFiscalCode] = useState<string>('');
+    const [zimraReference, setZimraReference] = useState<string>('');
     const [isSubmittingToZimra, setIsSubmittingToZimra] = useState(false);
     const [isPrintPreviewOpen, setIsPrintPreviewOpen] = useState(false);
     const [isDownloading, setIsDownloading] = useState(false);
     const [businessSettings, setBusinessSettings] = useState<BusinessSettings>({
-      businessName: "Spa & Bistro",
-      address: "123 Relaxation Ave, Serenity, CA 90210",
-      phone: "(555) 123-4567",
-      email: "info@spaandbistro.com",
-      website: "www.spaandbistro.com",
-      taxRate: "8.5",
-      openingHours: "Monday-Friday: 9am-9pm\nSaturday-Sunday: 10am-8pm",
+      businessName: 'Spa & Bistro',
+      address: '123 Relaxation Ave, Serenity, CA 90210',
+      phone: '(555) 123-4567',
+      email: 'info@spaandbistro.com',
+      website: 'www.spaandbistro.com',
+      taxRate: '8.5',
+      openingHours: 'Monday-Friday: 9am-9pm\nSaturday-Sunday: 10am-8pm',
     });
     const [qrCodes, setQrCodes] = useState<{
       verification: string;
       paymentLink: string;
     }>({
-      verification: "",
-      paymentLink: "",
+      verification: '',
+      paymentLink: '',
     });
     const { toast } = useToast();
 
@@ -153,25 +153,24 @@ export const ReceiptGenerator = forwardRef<
 
         try {
           const defaultSettings = {
-            businessName: "Spa & Bistro",
-            address: "123 Relaxation Ave, Harare, Zimbabwe",
-            phone: "+263 4 123-4567",
-            email: "info@spaandbistro.com",
-            website: "www.spaandbistro.com",
-            taxRate: "14", // Zimbabwe VAT rate
-            openingHours: "Monday-Friday: 9am-9pm\nSaturday-Sunday: 10am-8pm",
+            businessName: 'Spa & Bistro',
+            address: '123 Relaxation Ave, Harare, Zimbabwe',
+            phone: '+263 4 123-4567',
+            email: 'info@spaandbistro.com',
+            website: 'www.spaandbistro.com',
+            taxRate: '14', // Zimbabwe VAT rate
+            openingHours: 'Monday-Friday: 9am-9pm\nSaturday-Sunday: 10am-8pm',
           };
 
-          const settings = await businessSettingsApi.getSettings(
-            defaultSettings
-          );
+          const settings =
+            await businessSettingsApi.getSettings(defaultSettings);
           setBusinessSettings(settings as BusinessSettings);
         } catch (error) {
-          console.error("Error loading business settings:", error);
+          console.error('Error loading business settings:', error);
           toast({
-            title: "Settings Load Error",
-            description: "Failed to load business settings. Using defaults.",
-            variant: "destructive",
+            title: 'Settings Load Error',
+            description: 'Failed to load business settings. Using defaults.',
+            variant: 'destructive',
           });
         }
       }
@@ -182,7 +181,7 @@ export const ReceiptGenerator = forwardRef<
     // Generate fiscal code on component mount
     useEffect(() => {
       const taxNumber =
-        process.env.NEXT_PUBLIC_ZIMRA_TAX_NUMBER || "1234567890";
+        process.env.NEXT_PUBLIC_ZIMRA_TAX_NUMBER || '1234567890';
       const generated = ZIMRAApiClient.generateFiscalCode(
         taxNumber,
         transactionId,
@@ -194,7 +193,7 @@ export const ReceiptGenerator = forwardRef<
     // Auto-submit to ZIMRA when receipt is generated (optional)
     useEffect(() => {
       const autoSubmitToZimra = async () => {
-        if (process.env.NEXT_PUBLIC_AUTO_SUBMIT_ZIMRA === "true") {
+        if (process.env.NEXT_PUBLIC_AUTO_SUBMIT_ZIMRA === 'true') {
           await submitToZimra();
         }
       };
@@ -208,9 +207,9 @@ export const ReceiptGenerator = forwardRef<
     useEffect(() => {
       const receipt = {
         fiscalCode,
-        deviceId: "POS123",
+        deviceId: 'POS123',
         receiptNumber: transactionId,
-        hash: "hash_placeholder",
+        hash: 'hash_placeholder',
       };
       generateQRCodes(receipt).then(setQrCodes);
     }, [transactionId, items, total, fiscalCode, zimraReference]);
@@ -221,14 +220,14 @@ export const ReceiptGenerator = forwardRef<
 
       setIsSubmittingToZimra(true);
       try {
-        const response = await fetch("/api/zimra/receipts", {
-          method: "POST",
+        const response = await fetch('/api/zimra/receipts', {
+          method: 'POST',
           headers: {
-            "Content-Type": "application/json",
+            'Content-Type': 'application/json',
           },
           body: JSON.stringify({
             transactionId: transactionId,
-            operatorId: "pos_system",
+            operatorId: 'pos_system',
           }),
         });
 
@@ -253,7 +252,7 @@ export const ReceiptGenerator = forwardRef<
             return;
           }
 
-          console.error("ZIMRA submission failed:", data.message);
+          console.error('ZIMRA submission failed:', data.message);
           onZimraSubmission?.(false);
         }
       } catch (error) {
@@ -269,7 +268,7 @@ export const ReceiptGenerator = forwardRef<
           return;
         }
 
-        console.error("Error submitting to ZIMRA:", error);
+        console.error('Error submitting to ZIMRA:', error);
         onZimraSubmission?.(false);
       } finally {
         setIsSubmittingToZimra(false);
@@ -279,60 +278,60 @@ export const ReceiptGenerator = forwardRef<
     // Improved print function with better debugging
     const handlePrintReceipt = () => {
       // Add debugging to understand what's happening
-      console.log("Print function called");
-      console.log("Ref object:", ref);
+      console.log('Print function called');
+      console.log('Ref object:', ref);
       console.log(
-        "Ref current:",
-        ref && "current" in ref ? ref.current : "No current property"
+        'Ref current:',
+        ref && 'current' in ref ? ref.current : 'No current property'
       );
 
       // Try multiple approaches to get the receipt content
       let receiptElement = null;
 
       // First, try the passed ref
-      if (ref && "current" in ref && ref.current) {
+      if (ref && 'current' in ref && ref.current) {
         receiptElement = ref.current;
-        console.log("Using passed ref");
+        console.log('Using passed ref');
       }
 
       // If that fails, try to find the element by ID
       if (!receiptElement) {
-        receiptElement = document.getElementById("receipt-to-print");
-        console.log("Using getElementById, found:", receiptElement);
+        receiptElement = document.getElementById('receipt-to-print');
+        console.log('Using getElementById, found:', receiptElement);
       }
 
       // If still no element, try querySelector
       if (!receiptElement) {
         receiptElement = document.querySelector('[data-receipt="true"]');
-        console.log("Using querySelector, found:", receiptElement);
+        console.log('Using querySelector, found:', receiptElement);
       }
 
       if (!receiptElement) {
-        console.error("No receipt element found");
+        console.error('No receipt element found');
         toast({
-          title: "Print Error",
-          description: "Receipt content not found. Please try again.",
-          variant: "destructive",
+          title: 'Print Error',
+          description: 'Receipt content not found. Please try again.',
+          variant: 'destructive',
         });
         return;
       }
 
       try {
         const printContent = receiptElement.innerHTML;
-        console.log("Receipt content length:", printContent.length);
+        console.log('Receipt content length:', printContent.length);
 
         if (!printContent || printContent.trim().length === 0) {
-          throw new Error("Receipt content is empty");
+          throw new Error('Receipt content is empty');
         }
 
-        const printWindow = window.open("", "_blank");
+        const printWindow = window.open('', '_blank');
 
         if (!printWindow) {
           toast({
-            title: "Print Error",
+            title: 'Print Error',
             description:
               "Unable to open print window. Please check your browser's popup settings.",
-            variant: "destructive",
+            variant: 'destructive',
           });
           return;
         }
@@ -519,15 +518,15 @@ export const ReceiptGenerator = forwardRef<
         printWindow.focus();
 
         toast({
-          title: "Print Started",
-          description: "Receipt has been sent to printer.",
+          title: 'Print Started',
+          description: 'Receipt has been sent to printer.',
         });
       } catch (error) {
-        console.error("Print error:", error);
+        console.error('Print error:', error);
         toast({
-          title: "Print Error",
-          description: "Failed to print receipt. Please try again.",
-          variant: "destructive",
+          title: 'Print Error',
+          description: 'Failed to print receipt. Please try again.',
+          variant: 'destructive',
         });
       }
     };
@@ -538,27 +537,29 @@ export const ReceiptGenerator = forwardRef<
       let receiptElement: HTMLElement | null = null;
 
       // First, try the passed ref
-      if (ref && "current" in ref && ref.current) {
+      if (ref && 'current' in ref && ref.current) {
         receiptElement = ref.current;
       }
 
       // If that fails, try to find the element by ID
       if (!receiptElement) {
-        receiptElement = document.getElementById("receipt-to-print");
+        receiptElement = document.getElementById('receipt-to-print');
       }
 
       // If still no element, try querySelector
       if (!receiptElement) {
-        const element = document.querySelector('[data-receipt="true"] #receipt-to-print');
+        const element = document.querySelector(
+          '[data-receipt="true"] #receipt-to-print'
+        );
         receiptElement = element as HTMLElement;
       }
 
       if (!receiptElement) {
-        console.error("Receipt element not found for PDF generation");
+        console.error('Receipt element not found for PDF generation');
         toast({
-          title: "Error",
-          description: "Receipt content not found for PDF generation",
-          variant: "destructive",
+          title: 'Error',
+          description: 'Receipt content not found for PDF generation',
+          variant: 'destructive',
         });
         return null;
       }
@@ -566,19 +567,19 @@ export const ReceiptGenerator = forwardRef<
       try {
         // Create a simple text-based PDF as the primary method
         const doc = new jsPDF({
-          orientation: "portrait",
-          unit: "mm",
+          orientation: 'portrait',
+          unit: 'mm',
           format: [80, 200],
         });
 
         // Header
         doc.setFontSize(14);
-        doc.text(businessSettings.businessName, 40, 10, { align: "center" });
+        doc.text(businessSettings.businessName, 40, 10, { align: 'center' });
 
         doc.setFontSize(8);
-        doc.text(businessSettings.address, 40, 16, { align: "center" });
-        doc.text(businessSettings.phone, 40, 20, { align: "center" });
-        doc.text(businessSettings.email, 40, 24, { align: "center" });
+        doc.text(businessSettings.address, 40, 16, { align: 'center' });
+        doc.text(businessSettings.phone, 40, 20, { align: 'center' });
+        doc.text(businessSettings.email, 40, 24, { align: 'center' });
 
         // Receipt details
         doc.setFontSize(10);
@@ -608,10 +609,10 @@ export const ReceiptGenerator = forwardRef<
         yPos += 5;
         doc.line(5, yPos, 75, yPos); // Horizontal line
         yPos += 5;
-        doc.text("Item", 5, yPos);
-        doc.text("Qty", 45, yPos);
-        doc.text("Rate", 55, yPos);
-        doc.text("Amount", 65, yPos);
+        doc.text('Item', 5, yPos);
+        doc.text('Qty', 45, yPos);
+        doc.text('Rate', 55, yPos);
+        doc.text('Amount', 65, yPos);
         yPos += 3;
         doc.line(5, yPos, 75, yPos); // Horizontal line
         yPos += 3;
@@ -620,7 +621,7 @@ export const ReceiptGenerator = forwardRef<
         items.forEach((item) => {
           const itemName =
             item.name.length > 25
-              ? item.name.substring(0, 25) + "..."
+              ? item.name.substring(0, 25) + '...'
               : item.name;
           const itemTotal = item.price * item.quantity;
 
@@ -649,27 +650,27 @@ export const ReceiptGenerator = forwardRef<
         yPos += 5;
 
         doc.setFontSize(12);
-        doc.text(`TOTAL: $${total.toFixed(2)}`, 40, yPos, { align: "center" });
+        doc.text(`TOTAL: $${total.toFixed(2)}`, 40, yPos, { align: 'center' });
         yPos += 8;
 
         // Footer
         doc.setFontSize(8);
-        doc.text("Thank you for your business!", 40, yPos, { align: "center" });
+        doc.text('Thank you for your business!', 40, yPos, { align: 'center' });
         yPos += 4;
-        doc.text(businessSettings.website, 40, yPos, { align: "center" });
+        doc.text(businessSettings.website, 40, yPos, { align: 'center' });
         yPos += 4;
-        doc.text("ZIMRA Compliant Tax Invoice", 40, yPos, { align: "center" });
+        doc.text('ZIMRA Compliant Tax Invoice', 40, yPos, { align: 'center' });
 
         return doc;
       } catch (error) {
-        console.error("Error generating text-based PDF:", error);
+        console.error('Error generating text-based PDF:', error);
 
         // Fallback: Try html2canvas approach
         try {
-          console.log("Attempting html2canvas fallback...");
+          console.log('Attempting html2canvas fallback...');
 
           // Wait for images to load
-          const images = receiptElement.getElementsByTagName("img");
+          const images = receiptElement.getElementsByTagName('img');
           const imagePromises = Array.from(images).map((img) => {
             return new Promise<void>((resolve) => {
               if (img.complete) {
@@ -690,25 +691,25 @@ export const ReceiptGenerator = forwardRef<
             logging: false,
             useCORS: true,
             allowTaint: true,
-            backgroundColor: "#ffffff",
+            backgroundColor: '#ffffff',
             width: receiptElement.offsetWidth,
             height: receiptElement.offsetHeight,
           });
 
-          const imgData = canvas.toDataURL("image/jpeg", 0.8);
+          const imgData = canvas.toDataURL('image/jpeg', 0.8);
           const imgWidth = 70;
           const imgHeight = (canvas.height * imgWidth) / canvas.width;
 
           const doc = new jsPDF({
-            orientation: "portrait",
-            unit: "mm",
+            orientation: 'portrait',
+            unit: 'mm',
             format: [80, Math.max(120, imgHeight + 20)],
           });
 
-          doc.addImage(imgData, "JPEG", 5, 10, imgWidth, imgHeight);
+          doc.addImage(imgData, 'JPEG', 5, 10, imgWidth, imgHeight);
           return doc;
         } catch (canvasError) {
-          console.error("html2canvas fallback also failed:", canvasError);
+          console.error('html2canvas fallback also failed:', canvasError);
           throw error; // Re-throw original error
         }
       }
@@ -721,18 +722,18 @@ export const ReceiptGenerator = forwardRef<
         if (pdf) {
           pdf.save(`Receipt-${transactionId.substring(0, 8)}.pdf`);
           toast({
-            title: "PDF Downloaded",
-            description: "Receipt has been downloaded successfully.",
+            title: 'PDF Downloaded',
+            description: 'Receipt has been downloaded successfully.',
           });
         } else {
-          throw new Error("Failed to generate PDF");
+          throw new Error('Failed to generate PDF');
         }
       } catch (error) {
-        console.error("Error downloading PDF:", error);
+        console.error('Error downloading PDF:', error);
         toast({
-          title: "Download Error",
-          description: "Failed to download PDF. Please try again.",
-          variant: "destructive",
+          title: 'Download Error',
+          description: 'Failed to download PDF. Please try again.',
+          variant: 'destructive',
         });
       } finally {
         setIsDownloading(false);
@@ -744,8 +745,8 @@ export const ReceiptGenerator = forwardRef<
     };
 
     return (
-      <div className="space-y-4">
-        <div data-receipt="true">
+      <div className='space-y-4'>
+        <div data-receipt='true'>
           <ComponentToPrint
             ref={ref}
             transactionId={transactionId}
@@ -763,97 +764,97 @@ export const ReceiptGenerator = forwardRef<
         </div>
 
         {/* QR Code Section */}
-        <div className="qr-section border-t pt-4 mt-4">
-          <div className="flex justify-between items-start gap-4">
+        <div className='qr-section mt-4 border-t pt-4'>
+          <div className='flex items-start justify-between gap-4'>
             {/* Verification QR Code */}
-            <div className="text-center flex-1">
-              <p className="text-xs font-medium mb-2">Receipt Verification</p>
+            <div className='flex-1 text-center'>
+              <p className='mb-2 text-xs font-medium'>Receipt Verification</p>
               {qrCodes.verification ? (
                 <img
                   src={qrCodes.verification}
-                  alt="Receipt Verification QR"
-                  className="mx-auto mb-1"
-                  style={{ width: "80px", height: "80px" }}
+                  alt='Receipt Verification QR'
+                  className='mx-auto mb-1'
+                  style={{ width: '80px', height: '80px' }}
                 />
               ) : (
-                <div className="w-20 h-20 mx-auto mb-1 bg-gray-100 flex items-center justify-center">
-                  <span className="text-xs text-gray-400">Loading...</span>
+                <div className='mx-auto mb-1 flex h-20 w-20 items-center justify-center bg-gray-100'>
+                  <span className='text-xs text-gray-400'>Loading...</span>
                 </div>
               )}
-              <p className="text-[8px] text-gray-600">Scan to verify receipt</p>
+              <p className='text-[8px] text-gray-600'>Scan to verify receipt</p>
             </div>
 
             {/* Payment/Feedback QR Code */}
-            <div className="text-center flex-1">
-              <p className="text-xs font-medium mb-2">Feedback & Payment</p>
+            <div className='flex-1 text-center'>
+              <p className='mb-2 text-xs font-medium'>Feedback & Payment</p>
               {qrCodes.paymentLink ? (
                 <img
                   src={qrCodes.paymentLink}
-                  alt="Payment Link QR"
-                  className="mx-auto mb-1"
-                  style={{ width: "80px", height: "80px" }}
+                  alt='Payment Link QR'
+                  className='mx-auto mb-1'
+                  style={{ width: '80px', height: '80px' }}
                 />
               ) : (
-                <div className="w-20 h-20 mx-auto mb-1 bg-gray-100 flex items-center justify-center">
-                  <span className="text-xs text-gray-400">Loading...</span>
+                <div className='mx-auto mb-1 flex h-20 w-20 items-center justify-center bg-gray-100'>
+                  <span className='text-xs text-gray-400'>Loading...</span>
                 </div>
               )}
-              <p className="text-[8px] text-gray-600">
+              <p className='text-[8px] text-gray-600'>
                 Scan for online services
               </p>
             </div>
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-2">
+        <div className='grid grid-cols-2 gap-2'>
           <Button
-            className="flex-1"
-            variant="outline"
+            className='flex-1'
+            variant='outline'
             onClick={handlePrintPreview}
           >
-            <Eye className="mr-2 h-4 w-4" />
+            <Eye className='mr-2 h-4 w-4' />
             Print Preview
           </Button>
           <Button
-            className="flex-1"
-            variant="outline"
+            className='flex-1'
+            variant='outline'
             onClick={handlePrintReceipt}
           >
-            <Printer className="mr-2 h-4 w-4" />
+            <Printer className='mr-2 h-4 w-4' />
             Print
           </Button>
           <Button
-            className="flex-1"
-            variant="outline"
+            className='flex-1'
+            variant='outline'
             onClick={handleDownloadPDF}
             disabled={isDownloading}
           >
-            <Download className="mr-2 h-4 w-4" />
-            {isDownloading ? "Downloading..." : "Download PDF"}
+            <Download className='mr-2 h-4 w-4' />
+            {isDownloading ? 'Downloading...' : 'Download PDF'}
           </Button>
-          <Button className="flex-1" variant="outline" onClick={onEmail}>
-            <Mail className="mr-2 h-4 w-4" />
+          <Button className='flex-1' variant='outline' onClick={onEmail}>
+            <Mail className='mr-2 h-4 w-4' />
             Email Receipt
           </Button>
         </div>
 
         {/* ZIMRA Submission Status */}
-        <div className="border-t pt-2">
+        <div className='border-t pt-2'>
           {zimraReference ? (
-            <div className="text-sm text-green-600 text-center">
+            <div className='text-center text-sm text-green-600'>
               ✓ ZIMRA Submitted - Ref: {zimraReference}
             </div>
           ) : (
             <Button
-              variant="outline"
-              size="sm"
+              variant='outline'
+              size='sm'
               onClick={() => submitToZimra()}
               disabled={isSubmittingToZimra}
-              className="w-full"
+              className='w-full'
             >
               {isSubmittingToZimra
-                ? "Submitting to ZIMRA..."
-                : "Submit to ZIMRA"}
+                ? 'Submitting to ZIMRA...'
+                : 'Submit to ZIMRA'}
             </Button>
           )}
         </div>
@@ -869,4 +870,4 @@ export const ReceiptGenerator = forwardRef<
   }
 );
 
-ReceiptGenerator.displayName = "ReceiptGenerator";
+ReceiptGenerator.displayName = 'ReceiptGenerator';

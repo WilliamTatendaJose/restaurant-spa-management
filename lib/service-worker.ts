@@ -2,16 +2,16 @@
 // Here's a simplified version of what it might look like
 
 export function registerServiceWorker() {
-  if ("serviceWorker" in navigator) {
-    window.addEventListener("load", () => {
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
       navigator.serviceWorker
-        .register("/service-worker.js")
+        .register('/service-worker.js')
         .then((registration) => {
-          console.log("Service Worker registered: ", registration)
+          console.log('Service Worker registered: ', registration);
         })
         .catch((error) => {
-          console.log("Service Worker registration failed: ", error)
-        })
-    })
+          console.log('Service Worker registration failed: ', error);
+        });
+    });
   }
 }

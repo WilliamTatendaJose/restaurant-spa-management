@@ -1,0 +1,9 @@
+# *
+User-agent: *
+Allow: /
+
+# Host
+Host: https://restaurant-spa-management.vercel.app
+
+# Sitemaps
+Sitemap: https://restaurant-spa-management.vercel.app/sitemap.xml

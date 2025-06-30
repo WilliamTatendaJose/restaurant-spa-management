@@ -5,16 +5,21 @@ import { cookies } from 'next/headers';
 export async function POST(request: NextRequest) {
   try {
     const supabase = createRouteHandlerClient({ cookies });
-    const { data: { user } } = await supabase.auth.getUser();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
 
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     const { operations, clientTimestamp } = await request.json();
-    
+
     if (!operations || !Array.isArray(operations)) {
-      return NextResponse.json({ error: 'Invalid operations format' }, { status: 400 });
+      return NextResponse.json(
+        { error: 'Invalid operations format' },
+        { status: 400 }
+      );
     }
 
     const results = [];
@@ -27,7 +32,7 @@ export async function POST(request: NextRequest) {
         results.push({
           id: operation.id,
           status: 'success',
-          data: result
+          data: result,
         });
       } catch (error) {
         if (error instanceof ConflictError) {
@@ -36,13 +41,13 @@ export async function POST(request: NextRequest) {
             type: 'conflict',
             clientData: operation.data,
             serverData: error.serverData,
-            lastModified: error.lastModified
+            lastModified: error.lastModified,
           });
         } else {
           results.push({
             id: operation.id,
             status: 'error',
-            error: error instanceof Error ? error.message : 'Unknown error'
+            error: error instanceof Error ? error.message : 'Unknown error',
           });
         }
       }
@@ -53,21 +58,25 @@ export async function POST(request: NextRequest) {
       conflicts,
       serverTimestamp: new Date().toISOString(),
       processed: results.length,
-      conflicted: conflicts.length
+      conflicted: conflicts.length,
     });
-
   } catch (error) {
     console.error('Sync error:', error);
-    return NextResponse.json({
-      error: 'Internal server error'
-    }, { status: 500 });
+    return NextResponse.json(
+      {
+        error: 'Internal server error',
+      },
+      { status: 500 }
+    );
   }
 }
 
 export async function GET(request: NextRequest) {
   try {
     const supabase = createRouteHandlerClient({ cookies });
-    const { data: { user } } = await supabase.auth.getUser();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
 
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -75,22 +84,28 @@ export async function GET(request: NextRequest) {
 
     const url = new URL(request.url);
     const lastSync = url.searchParams.get('lastSync');
-    const tables = url.searchParams.get('tables')?.split(',') || ['transactions', 'customers', 'bookings'];
+    const tables = url.searchParams.get('tables')?.split(',') || [
+      'transactions',
+      'customers',
+      'bookings',
+    ];
 
     const changes = {};
 
     for (const table of tables) {
       try {
         let query = supabase.from(table).select('*');
-        
+
         if (lastSync) {
           query = query.gte('updated_at', lastSync);
         }
 
-        const { data, error } = await query.order('updated_at', { ascending: false });
-        
+        const { data, error } = await query.order('updated_at', {
+          ascending: false,
+        });
+
         if (error) throw error;
-        
+
         changes[table] = data || [];
       } catch (error) {
         console.error(`Error fetching ${table}:`, error);
@@ -101,14 +116,16 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       changes,
       serverTimestamp: new Date().toISOString(),
-      tablesChecked: tables
+      tablesChecked: tables,
     });
-
   } catch (error) {
     console.error('Sync fetch error:', error);
-    return NextResponse.json({
-      error: 'Internal server error'
-    }, { status: 500 });
+    return NextResponse.json(
+      {
+        error: 'Internal server error',
+      },
+      { status: 500 }
+    );
   }
 }
 
@@ -127,7 +144,14 @@ async function processOperation(supabase: any, operation: any, userId: string) {
   const { type, table, data, id, clientTimestamp } = operation;
 
   // Validate table access
-  const allowedTables = ['transactions', 'customers', 'bookings', 'spa_services', 'menu_items', 'inventory'];
+  const allowedTables = [
+    'transactions',
+    'customers',
+    'bookings',
+    'spa_services',
+    'menu_items',
+    'inventory',
+  ];
   if (!allowedTables.includes(table)) {
     throw new Error(`Table ${table} not allowed`);
   }
@@ -135,26 +159,38 @@ async function processOperation(supabase: any, operation: any, userId: string) {
   switch (type) {
     case 'create':
       return await handleCreate(supabase, table, data, userId);
-    
+
     case 'update':
-      return await handleUpdate(supabase, table, data, id, clientTimestamp, userId);
-    
+      return await handleUpdate(
+        supabase,
+        table,
+        data,
+        id,
+        clientTimestamp,
+        userId
+      );
+
     case 'delete':
       return await handleDelete(supabase, table, id, userId);
-    
+
     default:
       throw new Error(`Unknown operation type: ${type}`);
   }
 }
 
-async function handleCreate(supabase: any, table: string, data: any, userId: string) {
+async function handleCreate(
+  supabase: any,
+  table: string,
+  data: any,
+  userId: string
+) {
   // Add audit fields
   const recordData = {
     ...data,
     created_by: userId,
     updated_by: userId,
     created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString()
+    updated_at: new Date().toISOString(),
   };
 
   const { data: result, error } = await supabase
@@ -167,7 +203,14 @@ async function handleCreate(supabase: any, table: string, data: any, userId: str
   return result;
 }
 
-async function handleUpdate(supabase: any, table: string, data: any, id: string, clientTimestamp: string, userId: string) {
+async function handleUpdate(
+  supabase: any,
+  table: string,
+  data: any,
+  id: string,
+  clientTimestamp: string,
+  userId: string
+) {
   // Check for conflicts
   const { data: existing, error: fetchError } = await supabase
     .from(table)
@@ -191,7 +234,7 @@ async function handleUpdate(supabase: any, table: string, data: any, id: string,
   const updateData = {
     ...data,
     updated_by: userId,
-    updated_at: new Date().toISOString()
+    updated_at: new Date().toISOString(),
   };
 
   const { data: result, error } = await supabase
@@ -205,7 +248,12 @@ async function handleUpdate(supabase: any, table: string, data: any, id: string,
   return result;
 }
 
-async function handleDelete(supabase: any, table: string, id: string, userId: string) {
+async function handleDelete(
+  supabase: any,
+  table: string,
+  id: string,
+  userId: string
+) {
   // Soft delete by default
   const { data: result, error } = await supabase
     .from(table)
@@ -213,7 +261,7 @@ async function handleDelete(supabase: any, table: string, id: string, userId: st
       deleted: true,
       deleted_by: userId,
       deleted_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
+      updated_at: new Date().toISOString(),
     })
     .eq('id', id)
     .select()

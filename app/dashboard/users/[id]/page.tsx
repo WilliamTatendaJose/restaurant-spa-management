@@ -1,47 +1,66 @@
-import { notFound, redirect } from "next/navigation"
-import { createServerClient } from "@/lib/supabase/server"
-import { UserForm } from "@/components/users/user-form"
+import { notFound } from 'next/navigation';
+import { createSupabaseServerClient } from '@/lib/supabase/server';
+import { UserForm } from '@/components/users/user-form';
+import type { Metadata } from 'next';
 
 interface EditUserPageProps {
   params: {
-    id: string
+    id: string;
+  };
+}
+
+export async function generateMetadata({
+  params,
+}: {
+  params: { id: string };
+}): Promise<Metadata> {
+  const supabase = await createSupabaseServerClient();
+  const { data: user } = await supabase
+    .from('user_profiles')
+    .select('*')
+    .eq('id', params.id)
+    .single();
+
+  if (!user) {
+    return {
+      title: 'User Not Found',
+      description: 'The requested user could not be found.',
+    };
   }
+
+  return {
+    title: `Edit ${user.name} | Users`,
+    description: `Update the details for user: ${user.name}.`,
+    openGraph: {
+      title: `Edit ${user.name}`,
+      description: `Update the details for ${user.name}`,
+    },
+    twitter: {
+      card: 'summary',
+      title: `Edit ${user.name}`,
+      description: `Update the details for ${user.name}`,
+    },
+  };
 }
 
 export default async function EditUserPage({ params }: EditUserPageProps) {
-  const supabase = createServerClient()
-
-  // Check if user is authenticated and has admin role
-  const {
-    data: { session },
-  } = await supabase.auth.getSession()
-  if (!session) {
-    redirect("/login")
-  }
-
-  // Get user profile to check role
-  const { data: currentUserProfile } = await supabase
-    .from("user_profiles")
-    .select("role")
-    .eq("id", session.user.id)
-    .single()
-
-  // Redirect if not admin
-  if (!currentUserProfile || currentUserProfile.role !== "admin") {
-    redirect("/dashboard")
-  }
+  const supabase = await createSupabaseServerClient();
 
   // Get user to edit
-  const { data: user } = await supabase.from("user_profiles").select("*").eq("id", params.id).single()
+  const { data: user } = await supabase
+    .from('user_profiles')
+    .select('*')
+    .eq('id', params.id)
+    .single();
 
   if (!user) {
-    notFound()
+    notFound();
   }
 
   return (
-    <div className="container py-10">
-      <h1 className="text-3xl font-bold mb-8">Edit User: {user.name}</h1>
+    <div className='container py-10'>
+      <h1 className='mb-8 text-3xl font-bold'>Edit User: {user.name}</h1>
       <UserForm user={user} />
     </div>
-  )
+  );
 }

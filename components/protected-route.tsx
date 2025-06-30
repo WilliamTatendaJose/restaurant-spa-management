@@ -1,48 +1,38 @@
-"use client";
+'use client';
 
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
-import { useAuth } from "@/lib/auth-context";
-import { Loader2 } from "lucide-react";
+import { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { useAuth } from '@/lib/auth-context';
+import { Loader2 } from 'lucide-react';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
   redirectTo?: string;
 }
 
-export function ProtectedRoute({
+export default function ProtectedRoute({
   children,
-  redirectTo = "/login",
+  redirectTo = '/login',
 }: ProtectedRouteProps) {
   const { user, isLoading } = useAuth();
   const router = useRouter();
-  const [isChecking, setIsChecking] = useState(true);
 
   useEffect(() => {
-    if (!isLoading) {
-      if (!user) {
-        console.log("No authenticated user, redirecting to login...");
-        router.push(redirectTo);
-      } else {
-        console.log("User authenticated:", user.email);
-        setIsChecking(false);
-      }
+    console.log('[ProtectedRoute] user:', user, 'isLoading:', isLoading);
+    if (!isLoading && !user) {
+      router.push(redirectTo);
     }
   }, [user, isLoading, router, redirectTo]);
 
-  if (isLoading || isChecking) {
+  if (isLoading || !user) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center space-y-4">
-          <Loader2 className="h-8 w-8 animate-spin mx-auto" />
-          <p className="text-muted-foreground">Checking authentication...</p>
+      <div className='flex min-h-screen items-center justify-center'>
+        <div className='space-y-4 text-center'>
+          <Loader2 className='mx-auto h-8 w-8 animate-spin' />
+          <p className='text-muted-foreground'>Verifying access...</p>
         </div>
       </div>
     );
-  }
-
-  if (!user) {
-    return null; // Will redirect in useEffect
   }
 
   return <>{children}</>;
