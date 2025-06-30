@@ -5,7 +5,7 @@ import { spaServicesApi } from "@/lib/db";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Clock, Tag, DollarSign, Search, Calendar, Sparkles, Flower2 } from "lucide-react";
+import { Clock, Tag, DollarSign, Search, Calendar, Flower2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import Image from "next/image";
 import { HeroBookingModal } from "@/components/bookings/hero-booking-modal";
@@ -41,8 +41,7 @@ export default function TreatmentsPage() {
       try {
         setIsLoading(true);
         const activeServices = await spaServicesApi.listActive() as SpaService[];
-
-        // Deduplicate services
+        // Deduplicate by name+category, keep most recent
         const deduplicated = activeServices.reduce((acc: SpaService[], current) => {
           const existing = acc.find(item => item.name === current.name && item.category === current.category);
           if (!existing) {
@@ -57,7 +56,6 @@ export default function TreatmentsPage() {
           }
           return acc;
         }, []);
-
         setServices(deduplicated);
       } catch (error) {
         console.error("Failed to load active spa services:", error);
@@ -93,19 +91,28 @@ export default function TreatmentsPage() {
 
   return (
     <>
-      <div className="container mx-auto px-4 py-12">
-        <div className="text-center mb-12">
-          <h1 className="text-4xl md:text-5xl font-bold tracking-tight text-gray-900">
-            Our Luxurious Spa Treatments
+      {/* Hero Section */}
+      <section className="relative py-16 md:py-24 bg-gradient-to-br from-emerald-50 via-white to-amber-50 mb-8">
+        <div className="max-w-4xl mx-auto text-center px-4">
+          <div className="flex justify-center mb-6">
+            <span className="inline-flex items-center bg-emerald-100 text-emerald-700 px-4 py-2 rounded-full font-medium text-sm">
+              <Flower2 className="h-5 w-5 mr-2" />
+              Discover Our Treatments
+            </span>
+          </div>
+          <h1 className="text-4xl md:text-5xl font-bold tracking-tight text-gray-900 mb-4">
+            Spa Treatments Menu
           </h1>
-          <p className="mt-4 max-w-2xl mx-auto text-lg text-gray-600">
-            Indulge in our curated selection of treatments designed to rejuvenate
-            your body and soul.
+          <p className="text-lg md:text-xl text-gray-600 max-w-2xl mx-auto">
+            Indulge in our curated selection of treatments designed to rejuvenate your body and soul. Book your experience today.
           </p>
         </div>
+      </section>
 
-        <div className="mb-8 flex flex-col md:flex-row gap-4">
-          <div className="relative flex-1">
+      {/* Search & Filter */}
+      <div className="container mx-auto px-4 mb-10">
+        <div className="flex flex-col md:flex-row gap-4 items-center mb-8">
+          <div className="relative flex-1 w-full">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
             <Input
               placeholder="Search treatments..."
@@ -114,7 +121,7 @@ export default function TreatmentsPage() {
               onChange={(e) => setSearchQuery(e.target.value)}
             />
           </div>
-          <div className="flex gap-2 overflow-x-auto pb-2">
+          <div className="flex gap-2 overflow-x-auto pb-2 w-full md:w-auto">
             <Button
               variant={!selectedCategory ? "default" : "outline"}
               onClick={() => setSelectedCategory(null)}
@@ -134,6 +141,7 @@ export default function TreatmentsPage() {
           </div>
         </div>
 
+        {/* Treatments Grid */}
         {isLoading ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {[...Array(6)].map((_, i) => (
@@ -184,10 +192,7 @@ export default function TreatmentsPage() {
                       {service.category && (
                         <div className="flex items-center">
                           <Tag className="mr-2 h-4 w-4 text-emerald-600" />
-                          <Badge
-                            variant="secondary"
-                            className="capitalize"
-                          >
+                          <Badge variant="secondary" className="capitalize">
                             {service.category}
                           </Badge>
                         </div>
