@@ -8,10 +8,10 @@ const supabase = createClient(
 
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: { id: string } }
 ) {
   try {
-    const id = params.id;
+    const { id } = context.params;
     if (!id) {
       return NextResponse.json(
         { error: 'Feedback ID is required' },
@@ -67,10 +67,10 @@ export async function PATCH(
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: { id: string } }
 ) {
   try {
-    const id = params.id;
+    const { id } = context.params;
     if (!id) {
       return NextResponse.json(
         { error: 'Feedback ID is required' },
@@ -111,3 +111,5 @@ export async function GET(
     );
   }
 }
+
+export { };

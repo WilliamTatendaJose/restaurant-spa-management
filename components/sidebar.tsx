@@ -176,54 +176,59 @@ function Sidebar() {
   }, []);
 
   // Sidebar content as a function for reuse
-  const sidebarContent = (
-    <div className="flex h-full flex-col px-3 py-4">
-      <Link href="/" className="mb-6 flex items-center px-2 py-2" onClick={() => setMobileOpen(false)}>
-        <div className="flex items-center gap-2">
-          <Home className="h-6 w-6 text-primary" />
-          <span className="text-xl font-bold">{businessName}</span>
+  // Move sidebarContent inside the component so it always uses the latest displayRoutes
+  function SidebarContent() {
+    return (
+      <div className="flex h-full flex-col px-3 py-4">
+        <Link href="/" className="mb-6 flex items-center px-2 py-2" onClick={() => setMobileOpen(false)}>
+          <div className="flex items-center gap-2">
+            <Home className="h-6 w-6 text-primary" />
+            <span className="text-xl font-bold">{businessName}</span>
+          </div>
+        </Link>
+        <div className="space-y-1">
+          {displayRoutes.map((route) => (
+            <Link
+              key={route.href}
+              href={route.href}
+              onClick={() => setMobileOpen(false)}
+              className={cn(
+                'flex items-center rounded-lg px-3 py-2 text-sm font-medium transition-all hover:bg-accent hover:text-accent-foreground',
+                pathname === route.href
+                  ? 'bg-accent text-accent-foreground'
+                  : 'transparent'
+              )}
+            >
+              <route.icon className={cn('mr-3 h-5 w-5', route.color)} />
+              {route.label}
+            </Link>
+          ))}
         </div>
-      </Link>
-      <div className="space-y-1">
-        {displayRoutes.map((route) => (
-          <Link
-            key={route.href}
-            href={route.href}
-            onClick={() => setMobileOpen(false)}
-            className={cn(
-              'flex items-center rounded-lg px-3 py-2 text-sm font-medium transition-all hover:bg-accent hover:text-accent-foreground',
-              pathname === route.href
-                ? 'bg-accent text-accent-foreground'
-                : 'transparent'
-            )}
-          >
-            <route.icon className={cn('mr-3 h-5 w-5', route.color)} />
-            {route.label}
-          </Link>
-        ))}
+        {/* Debug info for mobile */}
+        <div className="mt-auto p-2 text-xs text-gray-500 md:hidden">
+          Routes: {displayRoutes.length}
+        </div>
       </div>
-      {/* Debug info for mobile */}
-      <div className="mt-auto p-2 text-xs text-gray-500 md:hidden">
-        Routes: {displayRoutes.length}
-      </div>
-    </div>
-  );
+    );
+  }
 
   return (
     <>
       {/* Hamburger button for mobile */}
-      <button
-        className="fixed top-4 left-4 z-[100] md:hidden bg-card p-2 rounded-lg shadow-lg"
-        onClick={() => setMobileOpen(true)}
-        aria-label="Open sidebar"
-        type="button"
-      >
-        <MenuIcon className="h-6 w-6" />
-      </button>
+      {!mobileOpen && (
+        <button
+          className="fixed top-4 left-4 z-[100] md:hidden bg-card p-2 rounded-lg shadow-lg"
+          onClick={() => setMobileOpen(true)}
+          aria-label="Open sidebar"
+          type="button"
+        >
+          <MenuIcon className="h-6 w-6" />
+        </button>
+      )}
 
       {/* Mobile sidebar overlay */}
       {mobileOpen && (
-        <div className="fixed inset-0 z-[99] bg-black/40 flex w-full h-full pointer-events-auto">
+        <div className="fixed inset-0 z-[200] bg-black/40 flex w-full h-full pointer-events-auto">
           <div className="relative w-64 bg-card h-full shadow-lg transform transition-transform duration-300 ease-in-out translate-x-0 overflow-y-auto">
             <button
               className="absolute top-4 right-4 z-50 bg-muted p-2 rounded-full"
@@ -234,7 +239,7 @@ function Sidebar() {
               <CloseIcon className="h-5 w-5" />
             </button>
             <div className="pt-16">
-              {sidebarContent}
+              <SidebarContent />
             </div>
           </div>
           {/* Click outside to close */}
@@ -244,7 +249,7 @@ function Sidebar() {
 
       {/* Desktop sidebar */}
       <div className="hidden border-r bg-card md:block md:w-64 h-full">
-        {sidebarContent}
+        <SidebarContent />
       </div>
     </>
   );

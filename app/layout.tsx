@@ -4,6 +4,7 @@ import { Inter } from 'next/font/google';
 import './globals.css';
 import { ProvidersWrapper } from '@/components/providers-wrapper';
 import { ConditionalLayout } from '@/components/conditional-layout';
+import Head from 'next/head';
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -69,12 +70,21 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang='en' suppressHydrationWarning>
-      <body className={inter.className}>
-        <ProvidersWrapper>
-          <ConditionalLayout>{children}</ConditionalLayout>
-        </ProvidersWrapper>
-      </body>
-    </html>
+    <>
+      <Head>
+        <link rel="manifest" href="/manifest.json" />
+        <meta name="theme-color" content="#059669" />
+        <link rel="apple-touch-icon" href="/placeholder-logo.png" />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+      </Head>
+      <html lang='en' suppressHydrationWarning>
+        <body className={inter.className}>
+          <ProvidersWrapper>
+            <ConditionalLayout>{children}</ConditionalLayout>
+          </ProvidersWrapper>
+        </body>
+      </html>
+    </>
   );
 }

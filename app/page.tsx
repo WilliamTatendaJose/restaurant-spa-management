@@ -39,7 +39,7 @@ import { FeedbackForm } from '@/components/feedback-form';
 import { FeedbackDisplay } from '@/components/feedback-display';
 import { OperatingHoursDisplay } from '@/components/operating-hours-display';
 import { DeveloperContact } from '@/components/developer-contact';
-import hero from '@/public/candles.jpg';
+import hero from '@/public/candles.gif';
 import facials from '@/public/facial.jpg';
 import massage from '@/public/massage.jpg';
 

@@ -58,7 +58,8 @@ export default function LoginPage() {
         title: 'Welcome back!',
         description: 'You have been successfully signed in.',
       });
-      router.push('/dashboard');
+      // Force a full reload to ensure auth context picks up the new session
+      window.location.href = '/dashboard';
     }
   }
 
