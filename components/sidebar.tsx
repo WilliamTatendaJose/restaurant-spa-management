@@ -99,7 +99,7 @@ const allRoutes: Route[] = [
     label: 'Settings',
     icon: Settings,
     href: '/settings',
-    requiredRole: 'admin', // All roles can access settings
+    requiredRole: 'admin', // Admin only - removed color for consistency
   },
 ];
 
@@ -109,13 +109,36 @@ function Sidebar() {
   const { hasPermission } = useAuth();
   const [mobileOpen, setMobileOpen] = useState(false);
 
-  // Filter routes based on user role
+  // Role hierarchy check function
+  const hasRolePermission = (requiredRole: UserRole): boolean => {
+    if (!requiredRole) return true;
+
+    // Define role hierarchy
+    const roleHierarchy: Record<UserRole, number> = {
+      staff: 1,
+      manager: 2,
+      admin: 3,
+    };
+
+    try {
+      const userRole = hasPermission('admin') ? 'admin'
+        : hasPermission('manager') ? 'manager'
+          : 'staff';
+
+      return roleHierarchy[userRole] >= roleHierarchy[requiredRole];
+    } catch (error) {
+      console.error('Error checking permissions:', error);
+      return false;
+    }
+  };
+
+  // Filter routes based on user role with proper hierarchy
   const routes = allRoutes.filter((route) => {
-    if (!route.requiredRole) return true; // Route available to all
-    return hasPermission(route.requiredRole);
+    if (!route.requiredRole) return true;
+    return hasRolePermission(route.requiredRole);
   });
 
-  // Ensure we always have at least some basic routes available
+  // Fallback routes for when permission system fails
   const fallbackRoutes: Route[] = [
     {
       label: 'Dashboard',
@@ -137,22 +160,40 @@ function Sidebar() {
     },
   ];
 
-  // Use filtered routes if available, otherwise use fallback routes
+  // Use filtered routes if available, otherwise use fallback
   const displayRoutes = routes.length > 0 ? routes : fallbackRoutes;
 
-  // Debug logging
-  console.log('Sidebar routes:', {
-    allRoutes: allRoutes.length,
-    filteredRoutes: routes.length,
-    displayRoutes: displayRoutes.length,
-    userDetails: useAuth().userDetails,
-  });
-
-  // Debug mobile sidebar state
+  // Close mobile sidebar when route changes
   useEffect(() => {
-    console.log('Mobile sidebar state:', { mobileOpen, displayRoutes: displayRoutes.length });
-  }, [mobileOpen, displayRoutes]);
+    setMobileOpen(false);
+  }, [pathname]);
 
+  // Close mobile sidebar on escape key
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && mobileOpen) {
+        setMobileOpen(false);
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [mobileOpen]);
+
+  // Prevent body scroll when mobile sidebar is open
+  useEffect(() => {
+    if (mobileOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [mobileOpen]);
+
+  // Load business settings
   useEffect(() => {
     async function loadBusinessName() {
       try {
@@ -170,83 +211,108 @@ function Sidebar() {
         setBusinessName(settings.businessName || 'LEWA HOSPITALITY');
       } catch (error) {
         console.error('Error loading business settings:', error);
+        setBusinessName('LEWA HOSPITALITY'); // Fallback
       }
     }
     loadBusinessName();
   }, []);
 
-  // Sidebar content as a function for reuse
-  // Move sidebarContent inside the component so it always uses the latest displayRoutes
-  function SidebarContent() {
-    return (
-      <div className="flex h-full flex-col px-3 py-4">
-        <Link href="/" className="mb-6 flex items-center px-2 py-2" onClick={() => setMobileOpen(false)}>
-          <div className="flex items-center gap-2">
-            <Home className="h-6 w-6 text-primary" />
-            <span className="text-xl font-bold">{businessName}</span>
-          </div>
-        </Link>
-        <div className="space-y-1">
-          {displayRoutes.map((route) => (
-            <Link
-              key={route.href}
-              href={route.href}
-              onClick={() => setMobileOpen(false)}
-              className={cn(
-                'flex items-center rounded-lg px-3 py-2 text-sm font-medium transition-all hover:bg-accent hover:text-accent-foreground',
-                pathname === route.href
-                  ? 'bg-accent text-accent-foreground'
-                  : 'transparent'
-              )}
-            >
-              <route.icon className={cn('mr-3 h-5 w-5', route.color)} />
-              {route.label}
-            </Link>
-          ))}
+  // Sidebar content component
+  const SidebarContent = () => (
+    <div className="flex h-full flex-col px-3 py-4">
+      {/* Logo/Brand */}
+      <Link
+        href="/"
+        className="mb-6 flex items-center px-2 py-2 rounded-lg hover:bg-accent transition-colors"
+        onClick={() => setMobileOpen(false)}
+      >
+        <div className="flex items-center gap-2">
+          <Home className="h-6 w-6 text-primary flex-shrink-0" />
+          <span className="text-xl font-bold truncate">{businessName}</span>
         </div>
-        {/* Debug info for mobile */}
-        <div className="mt-auto p-2 text-xs text-gray-500 md:hidden">
-          Routes: {displayRoutes.length}
+      </Link>
+
+      {/* Navigation Links */}
+      <nav className="flex-1 space-y-1">
+        {displayRoutes.map((route) => (
+          <Link
+            key={route.href}
+            href={route.href}
+            onClick={() => setMobileOpen(false)}
+            className={cn(
+              'flex items-center rounded-lg px-3 py-2 text-sm font-medium transition-all hover:bg-accent hover:text-accent-foreground',
+              pathname === route.href
+                ? 'bg-accent text-accent-foreground shadow-sm'
+                : 'text-muted-foreground hover:text-foreground'
+            )}
+          >
+            <route.icon className={cn('mr-3 h-5 w-5 flex-shrink-0', route.color)} />
+            <span className="truncate">{route.label}</span>
+          </Link>
+        ))}
+      </nav>
+
+      {/* Footer info (development only) */}
+      {process.env.NODE_ENV === 'development' && (
+        <div className="mt-auto p-2 text-xs text-muted-foreground border-t">
+          <div>Routes: {displayRoutes.length}</div>
+          <div>Role: {hasPermission('admin') ? 'Admin' : hasPermission('manager') ? 'Manager' : 'Staff'}</div>
         </div>
-      </div>
-    );
-  }
+      )}
+    </div>
+  );
 
   return (
     <>
-      {/* Hamburger button for mobile */}
-      {!mobileOpen && (
-        <button
-          className="fixed top-4 left-4 z-[100] md:hidden bg-card p-2 rounded-lg shadow-lg"
-          onClick={() => setMobileOpen(true)}
-          aria-label="Open sidebar"
-          type="button"
-        >
-          <MenuIcon className="h-6 w-6" />
-        </button>
-      )}
+      {/* Mobile hamburger button */}
+      <button
+        className={cn(
+          "fixed top-4 left-4 z-50 md:hidden bg-card border p-2 rounded-lg shadow-lg transition-all",
+          mobileOpen ? "opacity-0 pointer-events-none" : "opacity-100"
+        )}
+        onClick={() => setMobileOpen(true)}
+        aria-label="Open navigation menu"
+        type="button"
+      >
+        <MenuIcon className="h-6 w-6" />
+      </button>
 
       {/* Mobile sidebar overlay */}
       {mobileOpen && (
-        <div className="fixed inset-0 z-[200] bg-black/40 flex w-full h-full pointer-events-auto">
-          <div className="relative w-64 bg-card h-full shadow-lg transform transition-transform duration-300 ease-in-out translate-x-0 overflow-y-auto">
+        <div
+          className="fixed inset-0 z-50 md:hidden"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Navigation menu"
+        >
+          {/* Backdrop */}
+          <div
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm"
+            onClick={() => setMobileOpen(false)}
+            aria-hidden="true"
+          />
+
+          {/* Sidebar panel */}
+          <div className="fixed left-0 top-0 h-full w-64 bg-card shadow-xl">
+            {/* Close button */}
             <button
-              className="absolute top-4 right-4 z-50 bg-muted p-2 rounded-full"
+              className="absolute top-4 right-4 z-10 bg-muted hover:bg-muted/80 p-2 rounded-full transition-colors"
               onClick={() => setMobileOpen(false)}
-              aria-label="Close sidebar"
+              aria-label="Close navigation menu"
               type="button"
             >
-              <CloseIcon className="h-5 w-5" />
+              <CloseIcon className="h-4 w-4" />
             </button>
-            <div className="pt-16">
+
+            {/* Sidebar content */}
+            <div className="h-full overflow-y-auto">
               <SidebarContent />
             </div>
           </div>
-          {/* Click outside to close */}
-          <div className="flex-1 h-full w-full" onClick={() => setMobileOpen(false)} />
         </div>
       )}
 
+      {/* Desktop sidebar */}
       {/* Desktop sidebar */}
       <div className="hidden border-r bg-card md:block md:w-64 h-full">
         <SidebarContent />
