@@ -5,15 +5,38 @@ import './globals.css';
 import { ProvidersWrapper } from '@/components/providers-wrapper';
 import { ConditionalLayout } from '@/components/conditional-layout';
 import Head from 'next/head';
+import lewa_logo from '@/public/lewa_logo.png';
 
 const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
-  metadataBase: new URL('https://restaurant-spa-management.vercel.app'),
-  title: 'Spa & Restaurant Management System',
+  metadataBase: new URL('https://lewa.co.zw'),
+  title: 'Lewa Health Spa',
   description:
-    'Offline-first management system for spa and restaurant businesses with Supabase sync',
+    'Lewa Health Spa is a spa and restaurant business that provides a range of services to its customers.',
   keywords: [
+    'Lewa Health Spa',
+    'Lewa',
+    'Health Spa',
+    'Spa',
+    'Health',
+    'Lewa Health Spa',
+    'Lewa Health Spa',
+    'Luxury Spa',
+    'Luxury',
+    'Spa',
+    'Massage',
+    'Facial',
+    'Body Treatments',
+    'Body Massage',
+    'Body Treatments',
+    'Health',
+    'Lewa Health Spa',
+    'Harare',
+    'Harare Spa',
+    'Harare Spa',
+    'Harare Spa',
+    'Luxury Spa',
     'Spa management',
     'Restaurant management',
     'Point of sale',
@@ -22,7 +45,7 @@ export const metadata: Metadata = {
     'Supabase',
     'Next.js',
   ],
-  authors: [{ name: 'William Jose', url: 'https://www.williamjose.com' }],
+  authors: [{ name: 'William Jose', url: 'https://techrehub.co.zw' }],
   robots: {
     index: true,
     follow: true,
@@ -35,17 +58,17 @@ export const metadata: Metadata = {
     },
   },
   openGraph: {
-    title: 'Spa & Restaurant Management System',
+    title: 'Lewa Health Spa',
     description:
-      'Offline-first management system for spa and restaurant businesses with Supabase sync',
+      'Lewa Health Spa is a spa and restaurant business that provides a range of services to its customers.',
     type: 'website',
-    url: 'https://restaurant-spa-management.vercel.app',
+    url: 'https://lewa.co.zw',
     images: [
       {
-        url: '/placeholder-logo.png', // Replace with your actual logo URL
+        url: '/lewa_logo.png', 
         width: 800,
         height: 600,
-        alt: 'Spa & Restaurant Management System Logo',
+        alt: 'Lewa Health Spa Logo',
       },
     ],
   },
@@ -55,9 +78,9 @@ export const metadata: Metadata = {
     description:
       'Offline-first management system for spa and restaurant businesses with Supabase sync',
     creator: '@williamjose',
-    images: ['/placeholder-logo.png'], // Replace with your actual logo URL
+    images: ['/lewa_logo.png'],
   },
-  generator: 'v0.dev',
+  generator: '  ',
 };
 
 export const viewport: Viewport = {

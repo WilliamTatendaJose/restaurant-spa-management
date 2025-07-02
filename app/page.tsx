@@ -42,6 +42,9 @@ import { DeveloperContact } from '@/components/developer-contact';
 import hero from '@/public/candles.gif';
 import facials from '@/public/facial.jpg';
 import massage from '@/public/massage.jpg';
+import lewa_logo from '@/public/lewa.png'
+import lewa_logo_header from '@/public/lewa-symbol-white.png'
+import lewa_logo_footer from '@/public/lewa_main_symbol .png'
 
 interface SpaService {
   id: string;
@@ -334,7 +337,12 @@ export default function HomePage() {
             <div className='flex items-center space-x-4'>
               <div className='relative'>
                 <div className='absolute inset-0 rounded-full bg-emerald-500/20 blur-lg'></div>
-                <Flower2 className='relative h-10 w-10 text-emerald-600' />
+                <Image
+                  src={lewa_logo}
+                alt='lewa logo'
+                height={200}
+                width={200}
+                 className='relative h-20 w-20 text-emerald-600' />
               </div>
               <div>
                 <span className='text-2xl font-light tracking-wide text-gray-800'>
@@ -1022,7 +1030,13 @@ export default function HomePage() {
             <div className='mb-8 flex items-center justify-center'>
               <div className='relative'>
                 <div className='absolute inset-0 rounded-full bg-emerald-400/20 blur-lg'></div>
-                <Flower2 className='relative mr-4 h-10 w-10 text-emerald-400 md:h-12 md:w-12' />
+                <Image
+                src={lewa_logo}
+                alt='lewa logo'
+                height={200}
+                width={200}
+                className='relative mr-4 h-20 w-20 text-emerald-400 md:h-12 md:w-12'
+                />
               </div>
               <div>
                 <span className='text-3xl font-extralight tracking-wide md:text-4xl'>
