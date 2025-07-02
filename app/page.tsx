@@ -1127,7 +1127,7 @@ export default function HomePage() {
                 Book Your <span className='text-emerald-600'>Experience</span>
               </h3>
               <div className='mx-auto mb-4 h-px w-16 bg-gradient-to-r from-emerald-400 to-amber-400'></div>
-              <p className='text-base text-gray-600 md:text-lg'>
+              <p className='text-base text-gray-800 md:text-lg'>
                 Fill out the form below and we'll confirm your booking shortly
               </p>
             </div>
@@ -1137,7 +1137,7 @@ export default function HomePage() {
               className='space-y-6 md:space-y-8'
             >
               {/* Enhanced form sections with better styling */}
-              <div className='space-y-4 md:space-y-6'>
+              <div className='space-y-4 text-gray-800 md:space-y-6'>
                 <div className='flex items-center space-x-3 border-b border-emerald-100 pb-3'>
                   <div className='flex h-8 w-8 items-center justify-center rounded-full bg-emerald-100'>
                     <Users className='h-4 w-4 text-emerald-600' />
@@ -1189,8 +1189,8 @@ export default function HomePage() {
                 </div>
               </div>
 
-              <div className='space-y-4 md:space-y-6'>
-                <div className='flex items-center space-x-3 border-b border-emerald-100 pb-3'>
+              <div className='space-y-4 text-gray-800 md:space-y-6'>
+                <div className='flex items-center text-gray-800 space-x-3 border-b border-emerald-100 pb-3'>
                   <div className='flex h-8 w-8 items-center justify-center rounded-full bg-emerald-100'>
                     <Calendar className='h-4 w-4 text-emerald-600' />
                   </div>
@@ -1201,7 +1201,7 @@ export default function HomePage() {
 
                 <div className='space-y-4'>
                   <div className='space-y-2'>
-                    <Label htmlFor='booking_type'>Experience Type *</Label>
+                    <Label htmlFor='booking_type'>Experience Type* </Label>
                     <Select
                       value={formData.booking_type}
                       onValueChange={(value) =>
