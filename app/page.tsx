@@ -255,52 +255,60 @@ export default function HomePage() {
       };
 
       const booking = await bookingsApi.create(bookingData);
-
-      // Send confirmation email
-      try {
-        const serviceName =
-          formData.booking_type === 'spa'
-            ? spaServices.find((s: SpaService) => s.id === formData.service)
-              ?.name || 'Spa Service'
-            : `Table for ${formData.party_size} - Restaurant Reservation`;
-
-        const response = await fetch('/api/bookings/confirm', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            bookingId: booking.id,
-            customerName: formData.customer_name,
-            customerEmail: formData.customer_email,
-            customerPhone: formData.customer_phone,
-            serviceName,
-            bookingDate: formData.booking_date,
-            bookingTime: formData.booking_time,
-          }),
-        });
-
-        const result = await response.json();
-
-        if (result.success) {
-          toast({
-            title: 'Booking Created Successfully! 🎉',
-            description:
-              'Your booking request has been submitted and a confirmation email has been sent. Our team will contact you soon to confirm your appointment.',
-          });
-        } else {
-          toast({
-            title: 'Booking Created Successfully! 🎉',
-            description:
-              'Your booking request has been submitted. Our team will contact you soon to confirm your appointment.',
-          });
-        }
-      } catch (emailError) {
-        console.error('Error sending confirmation email:', emailError);
+      
+      if (booking && booking.id) {
         toast({
           title: 'Booking Created Successfully! 🎉',
           description:
             'Your booking request has been submitted. Our team will contact you soon to confirm your appointment.',
         });
       }
+
+      // Send confirmation email
+      // try {
+      //   const serviceName =
+      //     formData.booking_type === 'spa'
+      //       ? spaServices.find((s: SpaService) => s.id === formData.service)
+      //         ?.name || 'Spa Service'
+      //       : `Table for ${formData.party_size} - Restaurant Reservation`;
+
+      //   const response = await fetch('/api/bookings/pending', {
+      //     method: 'POST',
+      //     headers: { 'Content-Type': 'application/json' },
+      //     body: JSON.stringify({
+      //       bookingId: booking.id,
+      //       customerName: formData.customer_name,
+      //       customerEmail: formData.customer_email,
+      //       customerPhone: formData.customer_phone,
+      //       serviceName,
+      //       bookingDate: formData.booking_date,
+      //       bookingTime: formData.booking_time,
+      //     }),
+      //   });
+
+      //   const result = await response.json();
+
+      //   if (result.success) {
+      //     toast({
+      //       title: 'Booking Created Successfully! 🎉',
+      //       description:
+      //         'Your booking request has been submitted and an email has been sent. Our team will contact you soon to confirm your appointment.',
+      //     });
+      //   } else {
+      //     toast({
+      //       title: 'Booking Created Successfully! 🎉',
+      //       description:
+      //         'Your booking request has been submitted. Our team will contact you soon to confirm your appointment.',
+      //     });
+      //   }
+      // } catch (emailError) {
+      //   console.error('Error sending confirmation email:', emailError);
+      //   toast({
+      //     title: 'Booking Created Successfully! 🎉',
+      //     description:
+      //       'Your booking request has been submitted. Our team will contact you soon to confirm your appointment.',
+      //   });
+      // }
 
       // Reset form and close modal
       setFormData({
