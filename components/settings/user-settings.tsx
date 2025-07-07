@@ -42,14 +42,7 @@ import { useToast } from '@/components/ui/use-toast';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Edit, Plus, Trash2, AlertCircle } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
-import * as offlineAuth from '@/lib/offline-auth';
-import { staffApi } from '@/lib/db';
-import {
-  createUser,
-  listUsers,
-  updateUser,
-  deleteUser,
-} from '@/lib/user-management';
+import { getSupabaseBrowserClient } from '@/lib/supabase';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -74,6 +67,7 @@ interface UserData {
 export function UserSettings() {
   const { toast } = useToast();
   const { userDetails, hasPermission } = useAuth();
+  const supabase = getSupabaseBrowserClient();
 
   const [userList, setUserList] = useState<UserData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -92,28 +86,16 @@ export function UserSettings() {
     confirmPassword: '',
   });
 
-  // Fetch users from offline database
+  // Fetch users from Supabase user_profiles
   const fetchUsers = async () => {
     try {
       setIsLoading(true);
-      const users = await listUsers();
-
-      // Fetch staff data to merge phone numbers and other details
-      const staffData = await staffApi.list();
-
-      // Merge user data with staff data for enhanced information
-      const enhancedUsers = users.map((user) => {
-        const staffRecord = staffData.find(
-          (staff: any) => staff.email === user.email
-        );
-        return {
-          ...user,
-          phone: staffRecord?.phone || user.phone || '',
-          // Add any other staff-specific data that should be displayed
-        };
-      });
-
-      setUserList(enhancedUsers || []);
+      const { data: users, error } = await supabase
+        .from('user_profiles')
+        .select('*')
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+      setUserList(users || []);
     } catch (error) {
       console.error('Error fetching users:', error);
       toast({
@@ -175,22 +157,28 @@ export function UserSettings() {
 
   const handleDeleteUser = async () => {
     if (!selectedUserId) return;
-
     try {
-      await deleteUser(selectedUserId);
-
+      // Delete from Supabase Auth (admin)
+      const { error: authError } = await supabase.auth.admin.deleteUser(selectedUserId);
+      if (authError) throw authError;
+      // Delete from user_profiles
+      const { error: profileError } = await supabase
+        .from('user_profiles')
+        .delete()
+        .eq('id', selectedUserId);
+      if (profileError) throw profileError;
+      // Optionally: delete from staff table
+      await supabase.from('staff').delete().eq('email', formData.email);
       toast({
         title: 'User deleted',
         description: 'The user has been deleted successfully.',
       });
-
-      // Refresh the user list
       fetchUsers();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error deleting user:', error);
       toast({
         title: 'Error',
-        description: 'Failed to delete user. Please try again.',
+        description: error.message || 'Failed to delete user. Please try again.',
         variant: 'destructive',
       });
     } finally {
@@ -200,141 +188,90 @@ export function UserSettings() {
   };
 
   const handleSubmit = async () => {
-    // Form validation
+    // Form validation (same as before)
     if (!formData.name.trim()) {
-      toast({
-        title: 'Error',
-        description: 'Name is required.',
-        variant: 'destructive',
-      });
+      toast({ title: 'Error', description: 'Name is required.', variant: 'destructive' });
       return;
     }
-
     if (!isEditMode && !formData.email.trim()) {
-      toast({
-        title: 'Error',
-        description: 'Email is required.',
-        variant: 'destructive',
-      });
+      toast({ title: 'Error', description: 'Email is required.', variant: 'destructive' });
       return;
     }
-
     if (!isEditMode && !formData.password) {
-      toast({
-        title: 'Error',
-        description: 'Password is required for new users.',
-        variant: 'destructive',
-      });
+      toast({ title: 'Error', description: 'Password is required for new users.', variant: 'destructive' });
       return;
     }
-
     if (formData.password !== formData.confirmPassword) {
-      toast({
-        title: 'Error',
-        description: 'Passwords do not match.',
-        variant: 'destructive',
-      });
+      toast({ title: 'Error', description: 'Passwords do not match.', variant: 'destructive' });
       return;
     }
-
     try {
       if (isEditMode && selectedUserId) {
-        // Update existing user
-        const updateData = {
-          id: selectedUserId,
-          name: formData.name,
-          role: formData.role as 'admin' | 'manager' | 'staff',
-          department: formData.department,
-          phone: formData.phone, // Add phone field
-        };
-
-        await updateUser(updateData);
-
-        // Update password if provided
+        // Update user_profiles
+        const { error: updateError } = await supabase
+          .from('user_profiles')
+          .update({
+            name: formData.name,
+            role: formData.role,
+            department: formData.department,
+            status: 'active',
+            phone: formData.phone,
+          })
+          .eq('id', selectedUserId);
+        if (updateError) throw updateError;
+        // If password is provided, update it in Supabase Auth
         if (formData.password) {
-          await offlineAuth.resetPassword(selectedUserId, formData.password);
+          const { error: pwError } = await supabase.auth.admin.updateUserById(selectedUserId, { password: formData.password });
+          if (pwError) throw pwError;
+          toast({ title: 'Success', description: 'Password updated successfully.' });
         }
-
-        // If role is staff, ensure they appear in staff table
+        // If staff, upsert staff record
         if (formData.role === 'staff') {
-          try {
-            const existingStaff = await staffApi.list();
-            const staffExists = existingStaff.some(
-              (staff: any) => staff.email === formData.email
-            );
-
-            if (!staffExists) {
-              await staffApi.create({
-                name: formData.name,
-                role: formData.role,
-                department: formData.department,
-                email: formData.email,
-                phone: formData.phone, // Add phone field
-                status: 'active',
-              });
-            } else {
-              // Update existing staff record
-              const existingStaffRecord = existingStaff.find(
-                (staff: any) => staff.email === formData.email
-              );
-              if (existingStaffRecord) {
-                await staffApi.update(existingStaffRecord.id, {
-                  name: formData.name,
-                  role: formData.role,
-                  department: formData.department,
-                  email: formData.email,
-                  phone: formData.phone || existingStaffRecord.phone, // Add phone field
-                  status: 'active',
-                });
-              }
-            }
-          } catch (error) {
-            console.error('Error syncing to staff table:', error);
-          }
+          // Upsert staff record by email
+          await supabase.from('staff').upsert({
+            name: formData.name,
+            role: formData.role,
+            department: formData.department,
+            email: formData.email,
+            phone: formData.phone,
+            status: 'active',
+          }, { onConflict: 'email' });
         }
-
-        toast({
-          title: 'Success',
-          description: 'User updated successfully.',
-        });
+        toast({ title: 'Success', description: 'User updated successfully.' });
       } else {
-        // Create new user
-        await createUser({
-          name: formData.name,
+        // Create user in Supabase Auth (admin)
+        const { data: authData, error: authError } = await supabase.auth.admin.createUser({
           email: formData.email,
           password: formData.password,
-          role: formData.role as 'admin' | 'manager' | 'staff',
+          email_confirm: true,
+        });
+        if (authError) throw authError;
+        // Create user_profiles record
+        const { error: profileError } = await supabase.from('user_profiles').insert({
+          id: authData.user.id,
+          name: formData.name,
+          email: formData.email,
+          role: formData.role,
           department: formData.department,
-          phone: formData.phone, // Add phone field
+          status: 'active',
+          phone: formData.phone,
         });
-
-        // If role is staff, add to staff table
+        if (profileError) throw profileError;
+        // If staff, create staff record
         if (formData.role === 'staff') {
-          try {
-            await staffApi.create({
-              name: formData.name,
-              role: formData.role,
-              department: formData.department,
-              email: formData.email,
-              phone: formData.phone, // Add phone field
-              status: 'active',
-            });
-          } catch (error) {
-            console.error('Error adding to staff table:', error);
-          }
+          await supabase.from('staff').insert({
+            name: formData.name,
+            role: formData.role,
+            department: formData.department,
+            email: formData.email,
+            phone: formData.phone,
+            status: 'active',
+          });
         }
-
-        toast({
-          title: 'Success',
-          description: 'New user created successfully.',
-        });
+        toast({ title: 'Success', description: 'New user created successfully.' });
       }
-
-      // Reset form and close dialog
       resetForm();
       setIsDialogOpen(false);
-
-      // Refresh the user list
       await fetchUsers();
     } catch (error: any) {
       console.error('Error saving user:', error);
