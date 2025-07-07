@@ -97,7 +97,7 @@ export default function RootLayout({
       <Head>
         <link rel="manifest" href="/manifest.json" />
         <meta name="theme-color" content="#059669" />
-        <link rel="apple-touch-icon" href="/placeholder-logo.png" />
+        <link rel="apple-touch-icon" href="/lewa_logo.png" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="default" />
       </Head>
