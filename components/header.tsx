@@ -42,17 +42,8 @@ export function Header() {
         {/* Left side: Mobile menu and App title */}
         <div className='flex items-center gap-4'>
           <div className='md:hidden'>
-            <Sheet>
-              <SheetTrigger asChild>
-                <Button variant='ghost' size='icon'>
-                  <Menu className='h-5 w-5' />
-                  <span className='sr-only'>Toggle menu</span>
-                </Button>
-              </SheetTrigger>
-              <SheetContent side='left' className='p-0'>
-                <Sidebar />
-              </SheetContent>
-            </Sheet>
+           
+            <Sidebar />
           </div>
           <div className='hidden md:block'>
             <h1 className='text-lg font-semibold'>Restaurant SPA Management</h1>
