@@ -124,6 +124,12 @@ function Sidebar() {
       color: 'text-sky-500',
     },
     {
+      label: 'Bookings',
+      icon: Calendar,
+      href: '/bookings',
+      color: 'text-violet-500',
+    },
+    {
       label: 'Point of Sale',
       icon: ShoppingCart,
       href: '/pos',
