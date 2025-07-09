@@ -76,6 +76,17 @@ export function HeroBookingModal({
     }
   }, [preselectedService]);
 
+  // Ensure formData.service is set after spaServices loads if preselectedService is present
+  useEffect(() => {
+    if (
+      preselectedService &&
+      spaServices.length > 0 &&
+      !spaServices.find((s) => s.id === formData.service)
+    ) {
+      setFormData((prev) => ({ ...prev, service: preselectedService.id }));
+    }
+  }, [spaServices, preselectedService]);
+
   const handleInputChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
   ) => {
