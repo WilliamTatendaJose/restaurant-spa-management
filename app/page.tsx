@@ -1168,7 +1168,7 @@ export default function HomePage() {
                 <div className='space-y-4'>
                   <div className='grid gap-4 md:grid-cols-2'>
                     <div className='space-y-2'>
-                      <Label htmlFor='customer_name'>Full Name *</Label>
+                      <Label htmlFor='customer_name' className='text-gray-800 dark:text-gray-100'>Full Name *</Label>
                       <Input
                         id='customer_name'
                         name='customer_name'
@@ -1176,11 +1176,12 @@ export default function HomePage() {
                         onChange={handleInputChange}
                         placeholder='Enter your full name'
                         required
+                        className='border-gray-300 dark:border-emerald-900 bg-white dark:bg-gray-950 text-gray-800 dark:text-gray-100 focus:border-emerald-700 dark:focus:border-emerald-400 focus:ring-2 focus:ring-emerald-700/20 dark:focus:ring-emerald-800/40'
                       />
                     </div>
 
                     <div className='space-y-2'>
-                      <Label htmlFor='customer_phone'>Phone Number *</Label>
+                      <Label htmlFor='customer_phone' className='text-gray-800 dark:text-gray-100'>Phone Number *</Label>
                       <Input
                         id='customer_phone'
                         name='customer_phone'
@@ -1188,12 +1189,13 @@ export default function HomePage() {
                         onChange={handleInputChange}
                         placeholder='+263 xxx xxx xxx'
                         required
+                        className='border-gray-300 dark:border-emerald-900 bg-white dark:bg-gray-950 text-gray-800 dark:text-gray-100 focus:border-emerald-700 dark:focus:border-emerald-400 focus:ring-2 focus:ring-emerald-700/20 dark:focus:ring-emerald-800/40'
                       />
                     </div>
                   </div>
 
                   <div className='space-y-2'>
-                    <Label htmlFor='customer_email'>Email Address *</Label>
+                    <Label htmlFor='customer_email' className='text-gray-800 dark:text-gray-100'>Email Address *</Label>
                     <Input
                       id='customer_email'
                       name='customer_email'
@@ -1202,6 +1204,7 @@ export default function HomePage() {
                       onChange={handleInputChange}
                       placeholder='your.email@example.com'
                       required
+                      className='border-gray-300 dark:border-emerald-900 bg-white dark:bg-gray-950 text-gray-800 dark:text-gray-100 focus:border-emerald-700 dark:focus:border-emerald-400 focus:ring-2 focus:ring-emerald-700/20 dark:focus:ring-emerald-800/40'
                     />
                   </div>
                 </div>
@@ -1218,15 +1221,16 @@ export default function HomePage() {
                 </div>
 
                 <div className='space-y-4'>
+                  {/* Experience Type */}
                   <div className='space-y-2'>
-                    <Label htmlFor='booking_type'>Experience Type* </Label>
+                    <Label htmlFor='booking_type' className='text-gray-800 dark:text-gray-100'>Experience Type* </Label>
                     <Select
                       value={formData.booking_type}
                       onValueChange={(value) =>
                         handleSelectChange('booking_type', value)
                       }
                     >
-                      <SelectTrigger>
+                      <SelectTrigger className='border-gray-300 dark:border-emerald-900 bg-white dark:bg-gray-950 text-gray-800 dark:text-gray-100 focus:border-emerald-700 dark:focus:border-emerald-400 focus:ring-2 focus:ring-emerald-700/20 dark:focus:ring-emerald-800/40'>
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
@@ -1242,12 +1246,12 @@ export default function HomePage() {
                     <>
                       {/* Service Category Filter */}
                       <div className='space-y-2'>
-                        <Label htmlFor='service_category'>Service Category</Label>
+                        <Label htmlFor='service_category' className='text-gray-800 dark:text-gray-100'>Service Category</Label>
                         <Select
                           value={selectedCategory}
                           onValueChange={(value) => setSelectedCategory(value)}
                         >
-                          <SelectTrigger>
+                          <SelectTrigger className='border-gray-300 dark:border-emerald-900 bg-white dark:bg-gray-950 text-gray-800 dark:text-gray-100 focus:border-emerald-700 dark:focus:border-emerald-400 focus:ring-2 focus:ring-emerald-700/20 dark:focus:ring-emerald-800/40'>
                             <SelectValue placeholder='Select a category' />
                           </SelectTrigger>
                           <SelectContent>
@@ -1261,14 +1265,14 @@ export default function HomePage() {
                       </div>
                       {/* Treatment Select */}
                       <div className='space-y-2'>
-                        <Label htmlFor='service'>Select Spa Service *</Label>
+                        <Label htmlFor='service' className='text-gray-800 dark:text-gray-100'>Select Spa Service *</Label>
                         <Select
                           value={formData.service}
                           onValueChange={(value) =>
                             handleSelectChange('service', value)
                           }
                         >
-                          <SelectTrigger>
+                          <SelectTrigger className='border-gray-300 dark:border-emerald-900 bg-white dark:bg-gray-950 text-gray-800 dark:text-gray-100 focus:border-emerald-700 dark:focus:border-emerald-400 focus:ring-2 focus:ring-emerald-700/20 dark:focus:ring-emerald-800/40'>
                             <SelectValue placeholder='Choose your treatment' />
                           </SelectTrigger>
                           <SelectContent>
@@ -1287,14 +1291,14 @@ export default function HomePage() {
                     </>
                   ) : (
                     <div className='space-y-2'>
-                      <Label htmlFor='party_size'>Party Size *</Label>
+                      <Label htmlFor='party_size' className='text-gray-800 dark:text-gray-100'>Party Size *</Label>
                       <Select
                         value={formData.party_size}
                         onValueChange={(value) =>
                           handleSelectChange('party_size', value)
                         }
                       >
-                        <SelectTrigger>
+                        <SelectTrigger className='border-gray-300 dark:border-emerald-900 bg-white dark:bg-gray-950 text-gray-800 dark:text-gray-100 focus:border-emerald-700 dark:focus:border-emerald-400 focus:ring-2 focus:ring-emerald-700/20 dark:focus:ring-emerald-800/40'>
                           <SelectValue placeholder='Number of guests' />
                         </SelectTrigger>
                         <SelectContent>
@@ -1310,7 +1314,7 @@ export default function HomePage() {
 
                   <div className='grid gap-4 md:grid-cols-2'>
                     <div className='space-y-2'>
-                      <Label htmlFor='booking_date'>Preferred Date *</Label>
+                      <Label htmlFor='booking_date' className='text-gray-800 dark:text-gray-100'>Preferred Date *</Label>
                       <Input
                         id='booking_date'
                         name='booking_date'
@@ -1319,11 +1323,12 @@ export default function HomePage() {
                         onChange={handleInputChange}
                         min={new Date().toISOString().split('T')[0]}
                         required
+                        className='border-gray-300 dark:border-emerald-900 bg-white dark:bg-gray-950 text-gray-800 dark:text-gray-100 focus:border-emerald-700 dark:focus:border-emerald-400 focus:ring-2 focus:ring-emerald-700/20 dark:focus:ring-emerald-800/40'
                       />
                     </div>
 
                     <div className='space-y-2'>
-                      <Label htmlFor='booking_time'>Preferred Time *</Label>
+                      <Label htmlFor='booking_time' className='text-gray-800 dark:text-gray-100'>Preferred Time *</Label>
                       <Input
                         id='booking_time'
                         name='booking_time'
@@ -1331,12 +1336,13 @@ export default function HomePage() {
                         value={formData.booking_time}
                         onChange={handleInputChange}
                         required
+                        className='border-gray-300 dark:border-emerald-900 bg-white dark:bg-gray-950 text-gray-800 dark:text-gray-100 focus:border-emerald-700 dark:focus:border-emerald-400 focus:ring-2 focus:ring-emerald-700/20 dark:focus:ring-emerald-800/40'
                       />
                     </div>
                   </div>
 
                   <div className='space-y-2'>
-                    <Label htmlFor='notes'>Special Requests (Optional)</Label>
+                    <Label htmlFor='notes' className='text-gray-800 dark:text-gray-100'>Special Requests (Optional)</Label>
                     <Textarea
                       id='notes'
                       name='notes'
@@ -1344,6 +1350,7 @@ export default function HomePage() {
                       onChange={handleInputChange}
                       placeholder='Any special requests, allergies, or preferences...'
                       rows={3}
+                      className='border-gray-300 dark:border-emerald-900 bg-white dark:bg-gray-950 text-gray-800 dark:text-gray-100 focus:border-emerald-700 dark:focus:border-emerald-400 focus:ring-2 focus:ring-emerald-700/20 dark:focus:ring-emerald-800/40'
                     />
                   </div>
                 </div>
