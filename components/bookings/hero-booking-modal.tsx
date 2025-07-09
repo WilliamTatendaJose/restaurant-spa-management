@@ -7,11 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/components/ui/use-toast';
-import { Cale                    {serviceCategories.map((category: string) => (
-                      <SelectItem key={category} value={category} className="capitalize">
-                        {category === 'all' ? 'All Categories' : category}
-                      </SelectItem>
-                    ))} Clock, Sparkles, X } from 'lucide-react';
+import { Calendar, Clock, Sparkles, X } from 'lucide-react';
 import {
   Select,
   SelectContent,
@@ -289,7 +285,11 @@ export function HeroBookingModal({
   const serviceCategories = [
     'all',
     ...Array.from(
-      new Set(spaServices.map((s) => s.category).filter(Boolean))
+      new Set(
+        spaServices
+          .map((s) => typeof s.category === 'string' ? s.category : 'uncategorized')
+          .filter((cat): cat is string => Boolean(cat))
+      )
     ),
   ];
 
