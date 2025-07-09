@@ -62,11 +62,7 @@ export default function TreatmentsPage() {
         // Map image_url storage keys to public URLs and deduplicate services
         const servicesWithUrls = (data || []).map((service) => {
           if (service.image_url) {
-            // If image_url is already a full URL, use as is
-            if (service.image_url.startsWith('http')) {
-              return service;
-            }
-            // Otherwise, generate public URL from storage key
+            // Always generate public URL from storage key
             const { data: publicUrlData } = supabase.storage
               .from('service-images') // bucket name
               .getPublicUrl(service.image_url);
