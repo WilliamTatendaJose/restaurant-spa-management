@@ -51,6 +51,7 @@ interface SpaService {
   name: string;
   price: number;
   duration: number;
+  category?: string; // Added category field
 }
 
 interface Customer {
@@ -87,6 +88,8 @@ export default function HomePage() {
   // Booking form state
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [spaServices, setSpaServices] = useState<SpaService[]>([]);
+  const [serviceCategories, setServiceCategories] = useState<string[]>([]);
+  const [selectedCategory, setSelectedCategory] = useState<string>('');
   const [formData, setFormData] = useState({
     customer_name: '',
     customer_email: '',
@@ -104,6 +107,13 @@ export default function HomePage() {
     try {
       const services = await spaServicesApi.list();
       setSpaServices(services as SpaService[]);
+      // Extract unique categories
+      const categories = Array.from(
+        new Set((services as SpaService[]).map((s) => s.category || 'Other'))
+      );
+      setServiceCategories(categories);
+      // Auto-select first category if available
+      if (categories.length > 0) setSelectedCategory(categories[0]);
     } catch (error) {
       console.error('Error loading services:', error);
     }
@@ -255,7 +265,7 @@ export default function HomePage() {
       };
 
       const booking = await bookingsApi.create(bookingData);
-      
+
       if (booking && booking.id) {
         toast({
           title: 'Booking Created Successfully! 🎉',
@@ -347,10 +357,10 @@ export default function HomePage() {
                 <div className='absolute inset-0 rounded-full bg-emerald-500/20 blur-lg'></div>
                 <Image
                   src={lewa_logo}
-                alt='lewa logo'
-                height={200}
-                width={200}
-                 className='relative h-20 w-20 text-emerald-600' />
+                  alt='lewa logo'
+                  height={200}
+                  width={200}
+                  className='relative h-20 w-20 text-emerald-600' />
               </div>
               <div>
                 <span className='text-2xl font-light tracking-wide text-gray-800'>
@@ -1039,11 +1049,11 @@ export default function HomePage() {
               <div className='relative'>
                 <div className='absolute inset-0 rounded-full bg-emerald-400/20 blur-lg'></div>
                 <Image
-                src={lewa_logo}
-                alt='lewa logo'
-                height={200}
-                width={200}
-                className='relative mr-4 h-20 w-20 text-emerald-400 md:h-12 md:w-12'
+                  src={lewa_logo}
+                  alt='lewa logo'
+                  height={200}
+                  width={200}
+                  className='relative mr-4 h-20 w-20 text-emerald-400 md:h-12 md:w-12'
                 />
               </div>
               <div>
@@ -1229,27 +1239,52 @@ export default function HomePage() {
                   </div>
 
                   {formData.booking_type === 'spa' ? (
-                    <div className='space-y-2'>
-                      <Label htmlFor='service'>Select Spa Service *</Label>
-                      <Select
-                        value={formData.service}
-                        onValueChange={(value) =>
-                          handleSelectChange('service', value)
-                        }
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder='Choose your treatment' />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {spaServices.map((service) => (
-                            <SelectItem key={service.id} value={service.id}>
-                              {service.name} - ${service.price} (
-                              {service.duration} min)
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
+                    <>
+                      {/* Service Category Filter */}
+                      <div className='space-y-2'>
+                        <Label htmlFor='service_category'>Service Category</Label>
+                        <Select
+                          value={selectedCategory}
+                          onValueChange={(value) => setSelectedCategory(value)}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder='Select a category' />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {serviceCategories.map((cat) => (
+                              <SelectItem key={cat} value={cat}>
+                                {cat.charAt(0).toUpperCase() + cat.slice(1)}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      {/* Treatment Select */}
+                      <div className='space-y-2'>
+                        <Label htmlFor='service'>Select Spa Service *</Label>
+                        <Select
+                          value={formData.service}
+                          onValueChange={(value) =>
+                            handleSelectChange('service', value)
+                          }
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder='Choose your treatment' />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {spaServices
+                              .filter((service) =>
+                                selectedCategory ? service.category === selectedCategory : true
+                              )
+                              .map((service) => (
+                                <SelectItem key={service.id} value={service.id}>
+                                  {service.name} - ${service.price} ({service.duration} min)
+                                </SelectItem>
+                              ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </>
                   ) : (
                     <div className='space-y-2'>
                       <Label htmlFor='party_size'>Party Size *</Label>
