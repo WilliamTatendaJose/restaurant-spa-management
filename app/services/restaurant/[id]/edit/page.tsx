@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/components/ui/use-toast";
-import { menuItemsApi } from "@/lib/db";
+import { getSupabaseBrowserClient } from "@/lib/supabase";
 
 export default function EditMenuItemPage() {
     const router = useRouter();
@@ -29,8 +29,13 @@ export default function EditMenuItemPage() {
         async function fetchItem() {
             setLoading(true);
             try {
-                const data = await menuItemsApi.get(id);
-                if (!data) {
+                const supabase = getSupabaseBrowserClient();
+                const { data, error } = await supabase
+                    .from('menu_items')
+                    .select('*')
+                    .eq('id', id)
+                    .single();
+                if (error || !data) {
                     toast({ title: "Not found", description: "Menu item not found", variant: "destructive" });
                     router.replace("/services/restaurant");
                     return;
@@ -61,10 +66,14 @@ export default function EditMenuItemPage() {
         e.preventDefault();
         setSaving(true);
         try {
-            await menuItemsApi.update(id, {
-                ...form,
-                price: parseFloat(form.price),
-            });
+            const supabase = getSupabaseBrowserClient();
+            await supabase
+                .from('menu_items')
+                .update({
+                    ...form,
+                    price: parseFloat(form.price),
+                })
+                .eq('id', id);
             toast({ title: "Updated", description: "Menu item updated successfully." });
             router.replace("/services/restaurant");
         } catch (err) {

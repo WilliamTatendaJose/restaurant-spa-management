@@ -1,6 +1,6 @@
 import { BookingForm } from '@/components/bookings/booking-form';
 import { PageHeader } from '@/components/page-header';
-import { bookingsApi } from '@/lib/db';
+import { getSupabaseBrowserClient } from '@/lib/supabase';
 import { notFound } from 'next/navigation';
 import type { Metadata } from 'next';
 
@@ -16,9 +16,14 @@ export async function generateMetadata({
   params: { id: string };
 }): Promise<Metadata> {
   const { id } = params;
-  const booking = await bookingsApi.get(id);
+  const supabase = getSupabaseBrowserClient();
+  const { data: booking, error } = await supabase
+    .from('bookings')
+    .select('*')
+    .eq('id', id)
+    .single();
 
-  if (!booking) {
+  if (error || !booking) {
     return {
       title: 'Booking Not Found',
       description: 'The requested booking could not be found.',
@@ -43,9 +48,14 @@ export async function generateMetadata({
 export default async function EditBookingPage({
   params,
 }: EditBookingPageProps) {
-  const booking = await bookingsApi.get(params.id);
+  const supabase = getSupabaseBrowserClient();
+  const { data: booking, error } = await supabase
+    .from('bookings')
+    .select('*')
+    .eq('id', params.id)
+    .single();
 
-  if (!booking) {
+  if (error || !booking) {
     notFound();
   }
 

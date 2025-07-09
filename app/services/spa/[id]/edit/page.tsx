@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/components/ui/use-toast";
 import { spaServicesApi } from "@/lib/db";
+import { getSupabaseBrowserClient } from "@/lib/supabase";
 
 export default function EditSpaServicePage() {
   const router = useRouter();
@@ -30,8 +31,13 @@ export default function EditSpaServicePage() {
     async function fetchService() {
       setLoading(true);
       try {
-        const data = await spaServicesApi.get(id);
-        if (!data) {
+        const supabase = getSupabaseBrowserClient();
+        const { data, error } = await supabase
+          .from('spa_services')
+          .select('*')
+          .eq('id', id)
+          .single();
+        if (error || !data) {
           toast({ title: "Not found", description: "Service not found", variant: "destructive" });
           router.replace("/services/spa");
           return;
