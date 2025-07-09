@@ -22,7 +22,7 @@ interface SpaService {
   name: string;
   price: number;
   duration: number;
-  category?: string;
+  category?: string; // Added category for filtering
 }
 
 interface HeroBookingModalProps {
@@ -40,7 +40,8 @@ export function HeroBookingModal({
 }: HeroBookingModalProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [spaServices, setSpaServices] = useState<SpaService[]>([]);
-  const [selectedCategory, setSelectedCategory] = useState<string>('all');
+  const [serviceCategories, setServiceCategories] = useState<string[]>([]);
+  const [selectedCategory, setSelectedCategory] = useState<string>('');
   const [formData, setFormData] = useState({
     customer_name: '',
     customer_email: '',
@@ -60,12 +61,30 @@ export function HeroBookingModal({
       try {
         const services = await spaServicesApi.list();
         setSpaServices(services as SpaService[]);
+        // Extract unique categories
+        const categories = Array.from(
+          new Set((services as SpaService[]).map((s) => s.category || 'Other'))
+        );
+        setServiceCategories(categories);
+        // If preselectedService, set category
+        if (preselectedService) {
+          const preCat = (services as SpaService[]).find((s) => s.id === preselectedService.id)?.category;
+          if (preCat) setSelectedCategory(preCat);
+        }
       } catch (error) {
         console.error('Error loading services:', error);
       }
     }
     loadServices();
   }, []);
+
+  // Update selectedCategory if preselectedService changes
+  useEffect(() => {
+    if (preselectedService && spaServices.length > 0) {
+      const preCat = spaServices.find((s) => s.id === preselectedService.id)?.category;
+      if (preCat) setSelectedCategory(preCat);
+    }
+  }, [preselectedService, spaServices]);
 
   // Update form when preselectedService changes
   useEffect(() => {
@@ -281,24 +300,6 @@ export function HeroBookingModal({
     }
   };
 
-  // Get unique categories from services
-  const serviceCategories = [
-    'all',
-    ...Array.from(
-      new Set(
-        spaServices
-          .map((s) => typeof s.category === 'string' ? s.category : 'uncategorized')
-          .filter((cat): cat is string => Boolean(cat))
-      )
-    ),
-  ];
-
-  // Filter services by selected category
-  const filteredServices =
-    selectedCategory === 'all'
-      ? spaServices
-      : spaServices.filter((service) => service.category === selectedCategory);
-
   if (!showModal) return null;
 
   // Find the selected service details
@@ -312,10 +313,7 @@ export function HeroBookingModal({
             <Calendar className='h-8 w-8 text-white' />
           </div>
           <h3 className='mb-3 text-4xl font-light text-gray-800 dark:text-gray-100'>
-            Book Your{' '}
-            <span className='text-emerald-700 dark:text-emerald-400'>
-              Experience
-            </span>
+            Book Your <span className='text-emerald-700 dark:text-emerald-400'>Experience</span>
           </h3>
           <div className='mx-auto mb-4 h-px w-16 bg-gradient-to-r from-emerald-500 to-amber-500 dark:from-emerald-700 dark:to-amber-700'></div>
           <p className='text-lg text-gray-700 dark:text-gray-200'>
@@ -327,147 +325,278 @@ export function HeroBookingModal({
           {/* Contact Information */}
           <div className='space-y-6'>
             <div className='flex items-center space-x-3 border-b border-emerald-200 dark:border-emerald-900 pb-3'>
-              <Sparkles className='h-5 w-5 text-emerald-600 dark:text-emerald-400' />
-              <h4 className='text-lg font-medium text-gray-800 dark:text-gray-200'>
-                Contact Details
+              <div className='flex h-8 w-8 items-center justify-center rounded-full bg-emerald-100 dark:bg-emerald-900'>
+                <Calendar className='h-4 w-4 text-emerald-700 dark:text-emerald-300' />
+              </div>
+              <h4 className='text-xl font-medium text-gray-800 dark:text-gray-100'>
+                Contact Information
               </h4>
             </div>
 
-            <div className='grid gap-4 md:grid-cols-2'>
-              <div className='space-y-2'>
-                <Label htmlFor='customer_name'>Full Name</Label>
-                <Input
-                  id='customer_name'
-                  name='customer_name'
-                  value={formData.customer_name}
-                  onChange={handleInputChange}
-                  required
-                  placeholder='Enter your full name'
-                />
+            <div className='space-y-4'>
+              <div className='grid gap-4 md:grid-cols-2'>
+                <div className='space-y-2'>
+                  <Label htmlFor='customer_name' className='text-gray-800 dark:text-gray-100'>
+                    Full Name *
+                  </Label>
+                  <Input
+                    id='customer_name'
+                    name='customer_name'
+                    value={formData.customer_name}
+                    onChange={handleInputChange}
+                    placeholder='Enter your full name'
+                    required
+                    className='border-gray-300 dark:border-emerald-900 bg-white dark:bg-gray-950 text-gray-800 dark:text-gray-100 focus:border-emerald-700 dark:focus:border-emerald-400 focus:ring-2 focus:ring-emerald-700/20 dark:focus:ring-emerald-800/40'
+                  />
+                </div>
+
+                <div className='space-y-2'>
+                  <Label htmlFor='customer_phone' className='text-gray-800 dark:text-gray-100'>
+                    Phone Number *
+                  </Label>
+                  <Input
+                    id='customer_phone'
+                    name='customer_phone'
+                    value={formData.customer_phone}
+                    onChange={handleInputChange}
+                    placeholder='+263 xxx xxx xxx'
+                    required
+                    className='border-gray-300 dark:border-emerald-900 bg-white dark:bg-gray-950 text-gray-800 dark:text-gray-100 focus:border-emerald-700 dark:focus:border-emerald-400 focus:ring-2 focus:ring-emerald-700/20 dark:focus:ring-emerald-800/40'
+                  />
+                </div>
               </div>
+
               <div className='space-y-2'>
-                <Label htmlFor='customer_email'>Email</Label>
+                <Label htmlFor='customer_email' className='text-gray-800 dark:text-gray-100'>
+                  Email Address *
+                </Label>
                 <Input
                   id='customer_email'
                   name='customer_email'
                   type='email'
                   value={formData.customer_email}
                   onChange={handleInputChange}
+                  placeholder='your.email@example.com'
                   required
-                  placeholder='Enter your email'
-                />
-              </div>
-              <div className='space-y-2'>
-                <Label htmlFor='customer_phone'>Phone Number</Label>
-                <Input
-                  id='customer_phone'
-                  name='customer_phone'
-                  value={formData.customer_phone}
-                  onChange={handleInputChange}
-                  required
-                  placeholder='Enter your phone number'
+                  className='border-gray-300 dark:border-emerald-900 bg-white dark:bg-gray-950 text-gray-800 dark:text-gray-100 focus:border-emerald-700 dark:focus:border-emerald-400 focus:ring-2 focus:ring-emerald-700/20 dark:focus:ring-emerald-800/40'
                 />
               </div>
             </div>
           </div>
 
-          {/* Service Selection */}
+          {/* Booking Details */}
           <div className='space-y-6'>
             <div className='flex items-center space-x-3 border-b border-emerald-200 dark:border-emerald-900 pb-3'>
-              <Clock className='h-5 w-5 text-emerald-600 dark:text-emerald-400' />
-              <h4 className='text-lg font-medium text-gray-800 dark:text-gray-200'>
-                Service Selection
+              <div className='flex h-8 w-8 items-center justify-center rounded-full bg-emerald-100 dark:bg-emerald-900'>
+                <Clock className='h-4 w-4 text-emerald-700 dark:text-emerald-300' />
+              </div>
+              <h4 className='text-xl font-medium text-gray-800 dark:text-gray-100'>
+                Booking Details
               </h4>
             </div>
 
-            <div className='grid gap-4 md:grid-cols-2'>
-              {/* Category Filter */}
+            <div className='space-y-4'>
               <div className='space-y-2'>
-                <Label>Service Category</Label>
+                <Label htmlFor='booking_type' className='text-gray-800 dark:text-gray-100'>
+                  Experience Type *
+                </Label>
                 <Select
-                  value={selectedCategory}
-                  onValueChange={(value) => setSelectedCategory(value)}
+                  value={formData.booking_type}
+                  onValueChange={(value) =>
+                    handleSelectChange('booking_type', value)
+                  }
+                  disabled={!!preselectedService}
                 >
-                  <SelectTrigger>
-                    <SelectValue placeholder='Select a category' />
+                  <SelectTrigger
+                    id='booking_type'
+                    className='border-gray-300 dark:border-emerald-900 bg-white dark:bg-gray-950 text-gray-800 dark:text-gray-100 focus:border-emerald-700 dark:focus:border-emerald-400 focus:ring-2 focus:ring-emerald-700/20 dark:focus:ring-emerald-800/40'
+                  >
+                    <SelectValue placeholder='Select booking type' />
                   </SelectTrigger>
                   <SelectContent>
-                    {serviceCategories.map((category) => (
-                      <SelectItem key={category} value={category} className='capitalize'>
-                        {category === 'all' ? 'All Categories' : category}
-                      </SelectItem>
-                    ))}
+                    <SelectItem value='spa'>Spa Treatment</SelectItem>
+                    <SelectItem value='restaurant'>
+                      Restaurant Reservation
+                    </SelectItem>
                   </SelectContent>
                 </Select>
               </div>
 
-              {/* Service Selection */}
-              <div className='space-y-2'>
-                <Label>Select Service</Label>
-                <Select
-                  value={formData.service}
-                  onValueChange={(value) => handleSelectChange('service', value)}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder='Choose a service' />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {filteredServices.map((service) => (
-                      <SelectItem key={service.id} value={service.id}>
-                        {service.name} - ${service.price} ({service.duration}min)
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+              {formData.booking_type === 'spa' ? (
+                <>
+                  {/* Service Category Filter */}
+                  <div className='space-y-2'>
+                    <Label htmlFor='service_category' className='text-gray-800 dark:text-gray-100'>
+                      Service Category
+                    </Label>
+                    <Select
+                      value={selectedCategory}
+                      onValueChange={(value) => setSelectedCategory(value)}
+                      disabled={!!preselectedService}
+                    >
+                      <SelectTrigger
+                        id='service_category'
+                        className='border-gray-300 dark:border-emerald-900 bg-white dark:bg-gray-950 text-gray-800 dark:text-gray-100 focus:border-emerald-700 dark:focus:border-emerald-400 focus:ring-2 focus:ring-emerald-700/20 dark:focus:ring-emerald-800/40'
+                      >
+                        <SelectValue placeholder='Select a category' />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {serviceCategories.map((cat) => (
+                          <SelectItem key={cat} value={cat}>
+                            {cat.charAt(0).toUpperCase() + cat.slice(1)}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  {/* Treatment Select */}
+                  <div className='space-y-2'>
+                    <Label htmlFor='service' className='text-gray-800 dark:text-gray-100'>
+                      Select Treatment *
+                    </Label>
+                    <Select
+                      value={formData.service}
+                      onValueChange={(value) =>
+                        handleSelectChange('service', value)
+                      }
+                      disabled={!!preselectedService}
+                    >
+                      <SelectTrigger
+                        id='service'
+                        className='border-gray-300 dark:border-emerald-900 bg-white dark:bg-gray-950 text-gray-800 dark:text-gray-100 focus:border-emerald-700 dark:focus:border-emerald-400 focus:ring-2 focus:ring-emerald-700/20 dark:focus:ring-emerald-800/40'
+                      >
+                        <SelectValue placeholder='Select a treatment' />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {spaServices
+                          .filter((service) =>
+                            selectedCategory ? service.category === selectedCategory : true
+                          )
+                          .map((service) => (
+                            <SelectItem key={service.id} value={service.id}>
+                              {service.name} - ${service.price} ({service.duration}{' '}
+                              min)
+                            </SelectItem>
+                          ))}
+                      </SelectContent>
+                    </Select>
+
+                    {/* Display selected service details */}
+                    {selectedService && (
+                      <div className='mt-2 rounded-md border border-emerald-200 dark:border-emerald-900 bg-emerald-50 dark:bg-emerald-950 p-3'>
+                        <div className='flex justify-between'>
+                          <span className='text-sm font-medium text-emerald-700 dark:text-emerald-300'>
+                            Selected treatment:
+                          </span>
+                          <span className='text-sm font-medium text-gray-700 dark:text-gray-100'>
+                            {selectedService.name}
+                          </span>
+                        </div>
+                        <div className='mt-1 flex justify-between'>
+                          <span className='text-sm text-emerald-700 dark:text-emerald-300'>
+                            Duration:
+                          </span>
+                          <span className='text-sm text-gray-700 dark:text-gray-100'>
+                            {selectedService.duration} minutes
+                          </span>
+                        </div>
+                        <div className='mt-1 flex justify-between'>
+                          <span className='text-sm text-emerald-700 dark:text-emerald-300'>Price:</span>
+                          <span className='text-sm text-gray-700 dark:text-gray-100'>
+                            ${selectedService.price}
+                          </span>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </>
+              ) : (
+                <div className='space-y-2'>
+                  <Label htmlFor='party_size' className='text-gray-800 dark:text-gray-100'>
+                    Number of Guests *
+                  </Label>
+                  <Select
+                    value={formData.party_size}
+                    onValueChange={(value) =>
+                      handleSelectChange('party_size', value)
+                    }
+                  >
+                    <SelectTrigger
+                      id='party_size'
+                      className='border-gray-300 dark:border-emerald-900 bg-white dark:bg-gray-950 text-gray-800 dark:text-gray-100 focus:border-emerald-700 dark:focus:border-emerald-400 focus:ring-2 focus:ring-emerald-700/20 dark:focus:ring-emerald-800/40'
+                    >
+                      <SelectValue placeholder='Select party size' />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {Array.from({ length: 10 }, (_, i) => (
+                        <SelectItem key={i + 1} value={(i + 1).toString()}>
+                          {i + 1} {i === 0 ? 'Person' : 'People'}
+                        </SelectItem>
+                      ))}
+                      <SelectItem value='more'>More than 10 People</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+
+              <div className='grid gap-4 md:grid-cols-2'>
+                <div className='space-y-2'>
+                  <Label htmlFor='booking_date' className='text-gray-800 dark:text-gray-100'>
+                    Preferred Date *
+                  </Label>
+                  <Input
+                    id='booking_date'
+                    name='booking_date'
+                    type='date'
+                    value={formData.booking_date}
+                    onChange={handleInputChange}
+                    min={new Date().toISOString().split('T')[0]}
+                    required
+                    className='border-gray-300 dark:border-emerald-900 bg-white dark:bg-gray-950 text-gray-800 dark:text-gray-100 focus:border-emerald-700 dark:focus:border-emerald-400 focus:ring-2 focus:ring-emerald-700/20 dark:focus:ring-emerald-800/40'
+                  />
+                </div>
+
+                <div className='space-y-2'>
+                  <Label htmlFor='booking_time' className='text-gray-800 dark:text-gray-100'>
+                    Preferred Time *
+                  </Label>
+                  <Input
+                    id='booking_time'
+                    name='booking_time'
+                    type='time'
+                    value={formData.booking_time}
+                    onChange={handleInputChange}
+                    required
+                    className='border-gray-300 dark:border-emerald-900 bg-white dark:bg-gray-950 text-gray-800 dark:text-gray-100 focus:border-emerald-700 dark:focus:border-emerald-400 focus:ring-2 focus:ring-emerald-700/20 dark:focus:ring-emerald-800/40'
+                  />
+                </div>
               </div>
 
               <div className='space-y-2'>
-                <Label htmlFor='booking_date'>Preferred Date</Label>
-                <Input
-                  id='booking_date'
-                  name='booking_date'
-                  type='date'
-                  value={formData.booking_date}
+                <Label htmlFor='notes' className='text-gray-800 dark:text-gray-100'>
+                  Special Requests (Optional)
+                </Label>
+                <Textarea
+                  id='notes'
+                  name='notes'
+                  value={formData.notes}
                   onChange={handleInputChange}
-                  required
-                  min={new Date().toISOString().split('T')[0]}
-                />
-              </div>
-
-              <div className='space-y-2'>
-                <Label htmlFor='booking_time'>Preferred Time</Label>
-                <Input
-                  id='booking_time'
-                  name='booking_time'
-                  type='time'
-                  value={formData.booking_time}
-                  onChange={handleInputChange}
-                  required
+                  placeholder='Any special requests, allergies, or preferences...'
+                  rows={3}
+                  className='resize-none border-gray-300 dark:border-emerald-900 bg-white dark:bg-gray-950 text-gray-800 dark:text-gray-100 focus:border-emerald-700 dark:focus:border-emerald-400 focus:ring-2 focus:ring-emerald-700/20 dark:focus:ring-emerald-800/40'
                 />
               </div>
             </div>
           </div>
 
-          {/* Notes */}
-          <div className='space-y-2'>
-            <Label htmlFor='notes'>Additional Notes (Optional)</Label>
-            <Textarea
-              id='notes'
-              name='notes'
-              value={formData.notes}
-              onChange={handleInputChange}
-              placeholder='Any special requests or requirements?'
-              className='h-24'
-            />
-          </div>
-
-          {/* Submit Button */}
-          <div className='flex justify-end space-x-4'>
+          {/* Action buttons */}
+          <div className='flex gap-4 pt-6'>
             <Button
               type='button'
               variant='outline'
               onClick={onClose}
-              className='w-full md:w-auto'
+              disabled={isSubmitting}
+              className='flex-1 border-2 border-emerald-300 dark:border-emerald-800 py-4 text-lg text-emerald-800 dark:text-emerald-200 hover:border-emerald-400 dark:hover:border-emerald-500 hover:bg-emerald-50 dark:hover:bg-emerald-900/40'
             >
               <X className='mr-2 h-4 w-4' />
               Cancel
@@ -475,10 +604,19 @@ export function HeroBookingModal({
             <Button
               type='submit'
               disabled={isSubmitting}
-              className='w-full bg-gradient-to-r from-emerald-600 to-emerald-700 text-white md:w-auto'
+              className='flex-1 bg-gradient-to-r from-emerald-700 to-emerald-800 dark:from-emerald-900 dark:to-emerald-950 py-4 text-lg text-white shadow-xl hover:from-emerald-800 hover:to-emerald-900 dark:hover:from-emerald-800 dark:hover:to-emerald-900 hover:shadow-emerald-600/25'
             >
-              {isSubmitting ? 'Processing...' : 'Book Now'}
-              <Sparkles className='ml-2 h-5 w-5' />
+              {isSubmitting ? (
+                <>
+                  <div className='mr-2 h-5 w-5 animate-spin rounded-full border-b-2 border-white'></div>
+                  Submitting...
+                </>
+              ) : (
+                <>
+                  Book Now
+                  <Sparkles className='ml-2 h-5 w-5' />
+                </>
+              )}
             </Button>
           </div>
         </form>
